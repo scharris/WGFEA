@@ -1,0 +1,117 @@
+
+* Strategy
+** Basis Indexing
+
+V_h Basis Elements and Numbering
+
+A basis element for V_h will be a weak function which is a monomial on one face
+of a single finite element, excluding edges on the outside boundary of the mesh,
+and which is 0 on all other faces.  On interiors of the finite elements the
+maximum monomial degree will be k, and on edges k-1.
+
+The basis elements are arranged first by the type of face on which they are non-zero,
+with those which are non-zero on interiors first, then those on vertical edges, and
+finally those on horizontal edges.  Within these three groups the elements are
+arranged by increasing finite element face numbers, with the faces of a particular
+type ordered starting at the lower left of the mesh and proceeding to the right on
+the same row, begining again on the next row at the left and so on (see diagrams below).
+Within a block of basis elements for a particular face, the monomials are arranged in
+a standard order based on increasing exponents sorting higher lexicographically,
+e.g. with x^0 y^2 appearing prior to x^1 y^1.
+
+With n and m being the number of horizontal and vertical divisions of the rectangular
+mesh, the finite element faces are ordered as shown below:
+
+interiors ordering        vertical sides ordering       horizontal sides ordering
+----------------------    --------------------------    --------------------------
+|...            | mn |    |...          | m(n-1)|  |    |     |   ...   |         |
+        ...                          ...                ---------------------------
+----------------------    --------------------------    |...            | ( m-1)n |
+| n+1 | n+2 |...| 2n |    |  n|  n+1|...| 2(n-1)|  |              ...
+----------------------    --------------------------    ---------------------------
+|  1  |  2  |...|  n |    |  1|    2|...|  (n-1)|  |    |  1  |   ...   |    n    |
+----------------------    --------------------------    |     |         |         |
+                                                        ---------------------------
+
+
+
+
+
+For (f,b_i0)
+  Find the fe # and part for basis element i.
+  If not an interior, then 0, else fetch the monomial and compute the actual integral vs f.
+
+function wg_fem(k::Pwr)
+  #TODO: Each actual basis monomial (on a mesh element part) will be pre-composed with a translation (x,y) -> (x-x0, y-y0), so integrals can be computed just once on a reference element.
+
+  fe_ix_for_Vh_basis_el(i) = div(i, k + 4(k-1))
+
+  fe_part_for_Vh_basis_el(i)[returns (part #, coef #)] = take remainder, if rem <= k then rem else subtract k and then div by k-1 to find the side, then remainder to find coef #.
+
+  fe_rect_for_Vh_basis_el(i) = get fe# using fe_ix_for_Vh_basis_el, then rect top left is at (mod(fe#-1,horz_divs)*elw, div(fe#-1,horz_divs)*elh).
+
+  mon_for_Vh_basis_el(i) = compute fe_part_for_basis_el(i), pick proper list of mons based on whether it's an edge or interior, extract the proper mon.
+
+  el_edge_pretranslation_mons::Array{Monomial} = ...
+  el_interior_pretranslation_mons::Array{Monomial} = ...
+  el_pretranslation_vector_mons::Array{VectorMonomial} = ...
+
+
+  # When constructing final function, be sure to pre-compose selected polynomial for a point with translation relative to lower left corner of the mesh element.
+end
+
+* Types
+** Needed Types
+*** {b_i}_i scala monomial basis functions
+Consist of:
+  index to element part (element index, element relative part index)
+  index to monomial basis entry
+
+
+** Needed Ops
+numeric ops on scalars
+div :: vector poly -> poly
+dot :: (Mult a, Add a) Vector a -> Vector a -> a
+  [a * wgrad w `dot` wgrad v , where dot :: (Vector Polynomial) (Vector Polynomial) -> Polynomial]
+polyTimes :: poly -> poly -> poly [v0 * div q, vb * (q `dot` n)]
+polyPlus :: poly -> poly -> poly
+scalarTimesPoly:: scalar -> poly -> poly
+scalarTimesPolyVec :: scalar -> vec poly -> vec poly [b*w0, b*u0]
+matrixPolyTimesVectorPoly :: matrix poly -> vector poly -> vector poly [A * wgrad] -> Vector Polynomial
+  Or more generally matrixTimesVec :: (Mult a, Add a) => Matrix a -> Vector a -> Vector a
+integrate :: Polynomial -> ScalarExpr
+
+** Needed Type Classes
+class Mult a where
+  mult :: a -> a -> a
+
+class Add a where
+  add :: a -> a -> a
+
+class SMult (a numt) where
+  sMult :: ScalarExpr numt -> a numt -> a numt
+
+* Paper Questions / Comments
+** Paper 2
++ p.2
+ - Sigma_h definition
+The definition's requirement on its members q should restrict q to K0
+not all of K (q|K0 member of Vr(K0)), not requiring any particular
+values on the boundaries of the mesh elements.  Else the polynomials
+for adjacent elements will have to be the same polynomial (and thus
+across the whole connected portion of the mesh).
+** Paper 1
+Definition 3.1
+Which inner product is used in 3.2 to define the weak gradient (via
+Reisz lemma)?  Seems to be Sobolov according to the text above it
+(also seems to need to be Sobolev to show that the first term is
+bounded vs ||q|| so Reisz can be used).  But then I don't see how it
+follows that the weak gradient equals the strong gradient for smooth
+ functions u by equating
+   (grad_w u,q) = int (grad u . q) = <grad u, q> for all q,
+because the former is Sobolov inner product and the latter the
+standard L2 inner product.
+
+Also how (with either inner product) is the second term shown to be
+bounded ie <= some constant * ||q|| on K (as opposed to just the
+boundary)?
