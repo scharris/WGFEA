@@ -1,29 +1,16 @@
-TODO: Replace all Array{T} with Array{T,1} where necessary.
+Try parameterizing polynomials by their domain dimension.
 
+Create abstract type Mesh.
 
-For (f,b_i)
-If b_i is not an interior monomial then 0
-else
-  Compute BESupport and supporting fe coords for b_i.
-  const x0 = supp_fe_coords[1]
-  const y0 = supp_fe_coords[2]
-  mon = bel_monomial(supp_fe)
-  integrate_on_rect((x::R, y::R) -> f(x) * mon(x-x0,y-y0), supp_fe_coords)
+Finite-element shape/dimension specific functions should be in the particular Mesh impl. package.
+  Examples:
+    face types
+    enumeration of faces other than outside boundary edges in the mesh
+    integration functions on a face
 
-integrate_on_rect(f::Function, fe_coords)
-  just call cubature function to do the integration
+AbstractMesh functions
+  face_types(mesh)
+  num_faces_of_type(face_num::FaceNum, mesh)
+  face_type_rel_face_num_to_rc(rel_face_num, face_type, mesh)
 
-
-
-import Base.dot
-dot(f::Function, g::Function) = x -> f(x) * g(x)
-
-  Find the fe # and part for basis element i.
-  If not an interior, then 0, else fetch the monomial and compute the actual integral vs f.
-
-function wg_fem(k::Pwr)
-  #TODO: Each actual basis monomial (on a mesh element part) will be pre-composed with a translation (x,y) -> (x-x0, y-y0), so integrals can be computed just once on a reference element.
-
-  # When constructing final function, be sure to pre-compose selected polynomial for a point with translation relative to lower left corner of the mesh element.
-end
 

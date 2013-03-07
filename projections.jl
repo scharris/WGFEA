@@ -1,4 +1,6 @@
 
+# TODO: For a given edge face of a fe, need to be able to integrate a monomial (or polynomial) on the face.
+#       Could use this more general function in WGGrad also.
 
 function basis_ips(basis::Array)
   local n = length(basis), a = zeros(R, n,n)
