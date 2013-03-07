@@ -1,23 +1,34 @@
 module Poly
 
-export Monomial,
+export Pwr, Dim, pwr, dim, R, zeroR, oneR, zero_poly,
+       Monomial,
        Polynomial,
        VectorMonomial,
-       Pwr, Dim, pwr, dim, R,
+       PolynomialVector,
+       canonical_form,
+       monomial_value,
+       polynomial_value,
+       linear_comb,
        as_poly,
        domain_dim,
        monomials_of_degree_eq,
        count_monomials_of_degree_le,
        monomials_of_degree_le,
-       monomial_vectors_of_degree_le,
+       vector_monomials_of_degree_le,
+       reduce_dim_by_fixing,
        partial,
-       divergence
+       divergence,
+       integrate_on_llo_rect,
+       drop_coefs_lt,
+       coefs_closer_than
 
 import Base.string, Base.show, Base.print, Base.+, Base.*
 
 typealias Pwr Uint8
 typealias Dim Uint8
 typealias R Float64
+const zeroR = zero(R)
+const oneR = one(R)
 
 check_powers(ks...) = if any(k -> k < 0 || k > 255, ks) error("invalid power") else true end
 pwr(k::Integer) = check_powers(k) && convert(Pwr,k)
@@ -27,24 +38,20 @@ dim(d::Integer) = if d < 0 || d > 255 error("invalid dimension") else convert(Di
 # A representation of a monomial function.  Information about its expression is incorporated as well
 # to be used for more exact and efficient computations where possible.
 type Monomial
-  exps::Array{Pwr} # exponent array, length is always the dimension of the input space
-  fun::Function
+  exps::Array{Pwr,1} # exponent array, length is always the dimension of the domain
 
-  Monomial(exps::Array{Pwr}) = check_powers(exps...) &&
-    new(exps, mon_fun(exps...))
-  Monomial(k::Integer) = check_powers(k) &&
-    new([k], mon_fun(convert(Pwr,k)))
-  Monomial(k1::Integer, k2::Integer) = check_powers(k1,k2) &&
-    new([k1,k2], mon_fun(convert(Pwr,k1),convert(Pwr,k2)))
+  Monomial(exps::Array{Pwr,1}) = check_powers(exps...) && new(exps)
+  Monomial(k::Integer) = check_powers(k) && new([convert(Pwr,k)])
+  Monomial(k1::Integer, k2::Integer) = check_powers(k1,k2) && new([convert(Pwr,k1), convert(Pwr,k2)])
   Monomial(k1::Integer, k2::Integer, k3::Integer) = check_powers(k1,k2,k3) &&
-    new([k1,k2,k3], mon_fun(convert(Pwr,k1),convert(Pwr,k2),convert(Pwr,k3)))
+    new([convert(Pwr,k1), convert(Pwr,k2), convert(Pwr,k3)])
 end
 
 type Polynomial
-  mons::Array{Monomial}
-  coefs::Array{R}
+  mons::Array{Monomial,1}
+  coefs::Array{R,1}
 
-  Polynomial(mons::Array{Monomial}, coefs::Array{R}) =
+  Polynomial(mons::Array{Monomial,1}, coefs::Array{R,1}) =
     if length(mons) != length(coefs) error("size of coefficent and monomial arrays must match")
     elseif length(mons) == 0 error("polynomial requires one or more terms")
     else
@@ -57,78 +64,279 @@ end
 type VectorMonomial
   mon::Monomial
   mon_pos::Dim # the position of the non-zero monomial component among the output components
-  range_dim::Dim
 
-  VectorMonomial(m::Monomial, mon_pos::Dim, range_dim::Dim) =
-    mon_pos <= range_dim ? new(m, mon_pos, range_dim) : error("monomial component position exceeds range dimension")
+  VectorMonomial(mon::Monomial, mon_pos::Dim) =
+    mon_pos <= domain_dim(mon) ? new(mon, mon_pos) : error("monomial component position exceeds monomial domain dimension")
 end
 
-import Base.==
-==(m1::Monomial, m2::Monomial) = m1.exps == m2.exps
-==(vm1::VectorMonomial, vm2::VectorMonomial) =
-    vm1.mon == vm2.mon && vm1.mon_pos == vm2.mon_pos && vm1.range_dim == vm2.range_dim
+# A vector of polynomials having the same domain.  Or alternately it may represent a vector valued function
+# where each component function is a polynomial.
+type PolynomialVector
+  polys::Array{Polynomial,1}
+
+  function PolynomialVector(ps::Array{Polynomial,1})
+    assert(length(ps) > 0, "at least one polynomial is required")
+    new(ps)
+  end
+end
+
+import Base.isequal
+isequal(m1::Monomial, m2::Monomial) = m1.exps == m2.exps
+isequal(vm1::VectorMonomial, vm2::VectorMonomial) =
+    vm1.mon == vm2.mon && vm1.mon_pos == vm2.mon_pos
+isequal(p1::Polynomial, p2::Polynomial) =
+  let cp1 = canonical_form(p1),
+      cp2 = canonical_form(p2)
+    cp1.mons == cp2.mons && cp1.coefs == cp2.coefs
+  end
+isequal(pv1::PolynomialVector, pv2::PolynomialVector) = pv1.polys == pv2.polys
+
+import Base.hash
+hash(m::Monomial) = hash(m.exps)
+hash(p::Polynomial) =
+  let cp = canonical_form(p)
+    hash(cp.mons) + 3*hash(cp.coefs)
+  end
+hash(vm::VectorMonomial) = vm.mon_pos + 3*hash(vm.mon)
+hash(pv::PolynomialVector) = hash(pv.polys)
+
+import Base.isless
+isless(m1::Monomial, m2::Monomial) = isless(m1.exps, m2.exps)
+
+function canonical_form(p::Polynomial)
+  # sort the monomials by exponents lexicographically, collecting like terms.
+  const new_coefs_by_mon = Dict{Monomial,R}()
+  for i=1:length(p.mons)
+    const mon = p.mons[i]
+    new_coefs_by_mon[mon] = get(new_coefs_by_mon, mon, zeroR) + p.coefs[i]
+  end
+  mons = sort!(keys(new_coefs_by_mon))
+  coefs = [get(new_coefs_by_mon, mon, zeroR) for mon in mons]
+  Polynomial(mons, coefs)
+end
+
+function canonical_form(pv::PolynomialVector)
+  const n = length(pv.polys)
+  polys = Array(Polynomial,n)
+  for i=1:n
+    polys[i] = canonical_form(pv.polys[i])
+  end
+  PolynomialVector(polys)
+end
 
 
-# multiplication of monomials
 *(m1::Monomial, m2::Monomial) = Monomial(m1.exps + m2.exps)
 
-# addition of polynomials
-+(p1::Polynomial, p2::Polynomial) = Polynomial(vcat(p1.mons, p2.mons), vcat(p1.coefs, p2.coefs))
+*(p1::Polynomial, p2::Polynomial) = begin
+  const n1 = length(p1.mons)
+  const n2 = length(p2.mons)
+  const n = n1 * n2
+  const mons = Array(Monomial, n)
+  const coefs = Array(R, n)
+  i = 1
+  for i1=1:n1, i2=1:n2
+    mons[i] = p1.mons[i1] * p2.mons[i2]
+    coefs[i] = p1.coefs[i1] * p2.coefs[i2]
+    i += 1
+  end
+  Polynomial(mons, coefs)
+end
 
-# multiplication of polynomials
-*(p1::Polynomial, p2::Polynomial) = Polynomial(
-    flatten([m1 * m2 for m1 in p1.mons,  m2 in p2.mons]),
-    flatten([c1 * c2 for c1 in p1.coefs, c2 in p2.coefs]))
+*(m::Monomial, p::Polynomial) = begin
+  const nmons = length(p.mons)
+  const mons = Array(Monomial, nmons)
+  for i=1:nmons
+    mons[i] = m * p.mons[i]
+  end
+  Polynomial(mons, p.coefs)
+end
 
-# scalar multiplication of polynomials
+*(p::Polynomial, m::Monomial) = m * p
+
+# real multiplication of polynomials
 *(a::R, p::Polynomial) = Polynomial(p.mons, a .* p.coefs)
-*(a::Real, p::Polynomial) = Polynomial(p.mons, convert(R,a) .* p.coefs)
+*(a::Real, p::Polynomial) = convert(R,a) * p
 
-# mixed and promoting operations
-*(c::Real, m::Monomial) = Polynomial([m],[convert(R,c)])
-+(m1::Monomial, m2::Monomial) = Polynomial([m1,m2],[one(R), one(R)])
-+(m::Monomial, p::Polynomial) = Polynomial(vcat(p.mons,m), vcat(p.coefs,one(R)))
-+(p::Polynomial,m::Monomial) = Polynomial(vcat(p.mons,m), vcat(p.coefs,one(R)))
-as_poly(m::Monomial) = Polynomial([m],[1.0])
+# real multiplication of monomials
+*(a::R, m::Monomial) = Polynomial([m],[a])
+*(a::Real, m::Monomial) = convert(R,a) * m
+
+# real multiplication of PolynomialVectors
+*(a::R, pv::PolynomialVector) = begin
+  if a == oneR
+    pv
+  else
+    const ncomps = length(pv.polys)
+    const polys = Array(Polynomial, ncomps)
+    for i=1:ncomps
+      polys[i] = a * pv[i]
+    end
+    PolynomialVector(polys)
+  end
+end
+*(a::Real, pv::PolynomialVector) = convert(R,a) * pv
+
+# real multiplication of VectorMonomials
+*(a::R, vm::VectorMonomial) = begin
+  const dom_dim = domain_dim(vm)
+  const polys = Array(Polynomial, dom_dim)
+  const zeroP = zero_poly(dom_dim)
+  for i=1:length(polys)
+    if i == vm.mon_pos
+      polys[i] = a * vm.mon
+    else
+      polys[i] = zeroP
+    end
+  end
+  PolynomialVector(polys)
+end
+*(a::Real, vm::VectorMonomial) = convert(R,a) * vm
+
+
+# dot product of vector monomials
+import Base.dot
+dot(vmon1::VectorMonomial, vmon2::VectorMonomial) =
+  if vmon1.mon_pos == vmon2.mon_pos
+    Polynomial([vmon1.mon * vmon2.mon],[oneR])
+  else
+    zero_poly(domain_dim(vmon1))
+  end
+
+# dot product of polynomial vectors
+dot(pv1::PolynomialVector, pv2::PolynomialVector) =
+  let sum = zero_poly(domain_dim(pv1[1]))
+    for i=1:length(pv1.polys)
+      sum += pv1.polys[i] * pv2.polys[i]
+    end
+    sum
+  end
+
+# addition operations
+
++(p1::Polynomial, p2::Polynomial) = begin
+  const tot_nz = nnz(p1.coefs) + nnz(p2.coefs)
+  const coefs = Array(R, tot_nz)
+  const mons = Array(Monomial, tot_nz)
+  nzi = 1
+  for i=1:length(p1.coefs)
+    if p1.coefs[i] != zeroR
+      coefs[nzi] = p1.coefs[i]
+      mons[nzi] = p1.mons[i]
+      nzi += 1
+    end
+  end
+  for i=1:length(p2.coefs)
+    if p2.coefs[i] != zeroR
+      coefs[nzi] = p2.coefs[i]
+      mons[nzi] = p2.mons[i]
+      nzi += 1
+    end
+  end
+  if length(mons) > 0
+    Polynomial(mons, coefs)
+  else
+    p1
+  end
+end
++(m1::Monomial, m2::Monomial) = Polynomial([m1,m2],[oneR, oneR])
++(m::Monomial, p::Polynomial) = Polynomial(vcat(p.mons,m), vcat(p.coefs, oneR))
++(p::Polynomial, m::Monomial) = Polynomial(vcat(p.mons,m), vcat(p.coefs, oneR))
++(c::R, m::Monomial) = Polynomial([one_mon(domain_dim(m)), m], [c, oneR])
++(c::Real, m::Monomial) = convert(R,c) + m
++(m::Monomial, c::R) = c + m
++(m::Monomial, c::Real) = convert(R,c) + m
++(c::R, p::Polynomial) = Polynomial(vcat(p.mons, one_mon(domain_dim(p))), vcat(p.coefs, c))
++(p::Polynomial, c::R) = c + p
++(c::Real, p::Polynomial) = convert(R,c) + p
++(p::Polynomial, c::Real) = convert(R,c) + p
++(pv1::PolynomialVector, pv2::PolynomialVector) = begin
+  const ncomps = length(pv1.polys)
+  assert(length(pv2.polys) == ncomps)
+  const polys = Array(Polynomial, ncomps)
+  for i=1:ncomps
+    polys[i] = pv1.polys[i] + pv2.polys[i]
+  end
+  PolynomialVector(polys)
+end
+
+# unary minus
+-(m::Monomial) = Polynomial([m],[-oneR])
+-(p::Polynomial) = (-oneR) * p
+-(vm::VectorMonomial) = (-oneR) * vm
+-(pv::PolynomialVector) = (-oneR) * pv
+
+
+import Base.ref
+ref(vm::VectorMonomial, i::Integer) = if i == vm.mon_pos as_poly(vm.mon) else zero_poly(domain_dim(vm)) end
+ref(pv::PolynomialVector, i::Integer) = pv.polys[i]
+
+
+function linear_comb(coefs::Array{R}, vms::Array{VectorMonomial,1})
+  const nmons = length(vms)
+  assert(length(coefs) == nmons, "number of coeficients does not match number of vector monomials")
+  assert(nmons > 1, "at least one vector monomial is required")
+  sum = coefs[1] * vms[1]
+  for i=2:nmons
+    sum += coefs[i] * vms[i]
+  end
+  sum
+end
+
+as_poly(m::Monomial) = Polynomial([m],[oneR])
+as_polyvec(vm::VectorMonomial) = begin
+  const dom_dim = domain_dim(vm)
+  const polys = Array(Polynomial, dom_dim)
+  const zeroP = zero_poly(dom_dim)
+  for i=1:length(polys)
+    if i == vm.mon_pos
+      polys[i] = vm.mon
+    else
+      polys[i] = zeroP
+    end
+  end
+  PolynomialVector(polys)
+end
 
 domain_dim(m::Monomial) = convert(Dim, length(m.exps))
-one_mon(dom_dim::Dim) = Monomial(zeros(Pwr, dom_dim))
+domain_dim(p::Polynomial) = domain_dim(p.mons[1])
+domain_dim(vm::VectorMonomial) = domain_dim(vm.mon)
 
-mon_fun(k::Pwr) = if k == 0 x::R -> 1 else x::R -> x^k end
-mon_fun(k1::Pwr, k2::Pwr) =
-  if k1 == 0 && k2 == 0
-    (x::R, y::R) -> 1
-  elseif k1 == 0
-    (x::R, y::R) -> y^k2
-  elseif k2 == 0
-    (x::R, y::R) -> x^k1
-  else
-    (x::R, y::R) -> x^k1 * y^k2
+function monomial_value(mon::Monomial, x::R...)
+  v = x[1]^mon.exps[1]
+  for i=2:length(x)
+    v *= x[i]^mon.exps[i]
   end
-mon_fun(k1::Pwr, k2::Pwr, k3::Pwr) = # (x::R, y::R, z::R) -> x^k1 * y^k2 * z^k3 # TODO: Try this version for efficiency vs the below
-  if k1 == 0 && k2 == 0 && k3 == 0
-    (x::R, y::R, z::R) -> 1
-  elseif k1 == 0 && k2 == 0
-    (x::R, y::R, z::R) -> z^k3
-  elseif k1 == 0 && k3 == 0
-    (x::R, y::R, z::R) -> y^k2
-  elseif k2 == 0 && k3 == 0
-    (x::R, y::R, z::R) -> x^k1
-  elseif k1 == 0
-    (x::R, y::R, z::R) -> y^k2 * z^k3
-  elseif k2 == 0
-    (x::R, y::R, z::R) -> x^k1 * z^k3
-  elseif k3 == 0
-    (x::R, y::R, z::R) -> x^k1 * y^k2
-  else
-    (x::R, y::R, z::R) -> x^k1 * y^k2 * z^k3
+  v
+end
+
+
+function polynomial_value(p::Polynomial, x::R...)
+  sum = zeroR
+  for i in 1:length(p.mons)
+    sum += p.coefs[i] * monomial_value(p.mons[i],x...)
   end
+  sum
+end
+
+
+without_dim{T}(i::Integer, a::Array{T,1}) = vcat(a[1:i-1],a[i+1:])
+
+function reduce_dim_by_fixing(dim::Dim, val::R, p::Polynomial)
+  sum([p.coefs[i] * reduce_dim_by_fixing(dim, val, p.mons[i]) for i in 1:length(p.coefs)])
+end
+
+function reduce_dim_by_fixing(dim::Dim, val::R, m::Monomial)
+  c = val^m.exps[dim]
+  new_exps = without_dim(dim, m.exps)
+  Polynomial([Monomial(new_exps)],[c])
+end
+
 
 
 # Partial derivative of a monomial.
 function partial(n::Dim, m::Monomial)
   if m.exps[n] == 0
-    Polynomial([one_mon(domain_dim(m))], [zero(R)])
+    Polynomial([one_mon(domain_dim(m))], [zeroR])
   else
     local exps = copy(m.exps), orig_exp_n = m.exps[n]
     exps[n] = orig_exp_n - 1
@@ -140,6 +348,34 @@ function divergence(vmon::VectorMonomial)
   partial(vmon.mon_pos, vmon.mon)
 end
 
+
+# integration
+
+# Integrate a monomial on a rectangle of the given dimensions having lower left corner at the origin.
+function integrate_on_llo_rect(mon::Monomial, rect_dims::R...)
+  assert(length(rect_dims) > 0, "rectangle dimensions must be supplied")
+  prod = oneR
+  for i = 1:length(rect_dims)
+    deg_plus_1 = mon.exps[i] + 1
+    prod *= rect_dims[i]^deg_plus_1 / deg_plus_1
+  end
+  prod
+end
+
+# Integrate a polynomial on a rectangle of the given dimensions having lower left corner at the origin.
+function integrate_on_llo_rect(p::Polynomial, rect_dims::R...)
+  sum = zeroR
+  for i=1:length(p.coefs)
+    sum += p.coefs[i] * integrate_on_llo_rect(p.mons[i], rect_dims...)
+  end
+  sum
+end
+
+
+# Counting and listing of monomials at or not exceeding a certain degree
+
+count_monomials_of_degree_eq(deg::Pwr, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
+count_monomials_of_degree_le(deg::Pwr, dom_dim::Dim) = sum([count_monomials_of_degree_eq(convert(Pwr,k), dom_dim) for k=0:deg])
 
 monomials_of_degree_eq(deg::Pwr, dom_dim::Dim) =
   if dom_dim == 1
@@ -158,16 +394,14 @@ monomials_of_degree_eq(deg::Pwr, dom_dim::Dim) =
     error("dimensions greater than 3 are currently not supported")
   end
 
-count_monomials_of_degree_eq(deg::Pwr, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
-count_monomials_of_degree_le(deg::Pwr, dom_dim::Dim) = sum([count_monomials_of_degree_eq(convert(Pwr,k), dom_dim) for k=0:deg])
-
 monomials_of_degree_le(deg::Pwr, dom_dim::Dim) =
   flatten([monomials_of_degree_eq(convert(Pwr,k), dom_dim) for k=zero(Pwr):deg]) # convert shouldn't be necessary here but currently is as of Julia 0.1.
 
-# All MonomialVectors not exceeding the passed degree, to be used as a basis for spaces of vector valued functions with polynomial components.
-monomial_vectors_of_degree_le(deg::Pwr, dom_dim::Dim, range_dim::Dim) =
-  flatten(map(mon -> [VectorMonomial(mon, dim(i), dim(range_dim)) for i=1:range_dim],
+# All VectorMonomials not exceeding the passed degree, to be used as a basis for spaces of vector valued functions with polynomial components.
+vector_monomials_of_degree_le(deg::Pwr, dom_dim::Dim) =
+  flatten(map(mon -> [VectorMonomial(mon, dim(i)) for i=1:domain_dim(mon)],
               monomials_of_degree_le(deg, dom_dim)))
+
 
 
 # String Representations
@@ -199,10 +433,84 @@ show(io::IO, p::Polynomial) = print(io, p)
 
 # string representation for vector monomials
 function string(vm::VectorMonomial)
-  string("[", "0, "^(vm.mon_pos-1), string(vm.mon), ", 0"^(vm.range_dim - vm.mon_pos), "]")
+  string("[", "0, "^(vm.mon_pos-1), string(vm.mon), ", 0"^(domain_dim(vm) - vm.mon_pos), "]")
 end
 print(io::IO, m::VectorMonomial) = print(io, string(m))
 show(io::IO, m::VectorMonomial) = print(io, m)
+
+
+# etc
+function drop_coefs_lt(eps::R, p::Polynomial)
+  const mons = Array(Monomial,0)
+  const coefs = Array(R,0)
+  for i=1:length(p.mons)
+    if p.coefs[i] > eps
+      push!(coefs, p.coefs[i])
+      push!(mons, p.mons[i])
+    end
+  end
+  if length(mons) != 0
+    Polynomial(mons, coefs)
+  else
+    zero_poly(domain_dim(p))
+  end
+end
+
+function drop_coefs_lt(eps::R, pv::PolynomialVector)
+  const n = length(pv.polys)
+  polys = Array(Polynomial,n)
+  for i=1:n
+    polys[i] = drop_coefs_lt(eps, pv.polys[i])
+  end
+  PolynomialVector(polys)
+end
+
+function coefs_by_mon(p::Polynomial)
+  const cs_by_m = Dict{Monomial,R}()
+  for i=1:length(p.mons)
+    cs_by_m[p.mons[i]] = p.coefs[i]
+  end
+  cs_by_m
+end
+
+function coefs_closer_than(eps::R, p1::Polynomial, p2::Polynomial)
+  const cp1 = canonical_form(p1)
+  const cp2 = canonical_form(p2)
+  const cp1_coefs_by_mon = coefs_by_mon(cp1)
+  const cp2_coefs_by_mon = coefs_by_mon(cp2)
+  for mon in keys(cp1_coefs_by_mon)
+    c1 = get(cp1_coefs_by_mon, mon, zeroR)
+    c2 = get(cp2_coefs_by_mon, mon, zeroR)
+    if abs(c1 - c2) > eps
+      return false
+    else
+      if has(cp2_coefs_by_mon, mon)
+        delete!(cp2_coefs_by_mon, mon)
+      end
+    end
+  end
+  for mon in keys(cp2_coefs_by_mon)
+    c1 = get(cp1_coefs_by_mon, mon, zeroR)
+    c2 = get(cp2_coefs_by_mon, mon, zeroR)
+    if abs(c1 - c2) > eps
+      return false
+    end
+  end
+  true
+end
+
+function coefs_closer_than(eps::R, pv1::PolynomialVector, pv2::PolynomialVector)
+  assert(length(pv1.polys) == length(pv2.polys))
+  for i=1:length(pv1.polys)
+    if !coefs_closer_than(eps, pv1[i], pv2[i])
+      return false
+    end
+  end
+  true
+end
+
+one_mon(dom_dim::Dim) = Monomial(zeros(Pwr, dom_dim))
+zero_poly(dom_dim::Dim) = Polynomial([one_mon(dom_dim)],[zeroR])
 
 
 flatten(arrays) = vcat(arrays...)
