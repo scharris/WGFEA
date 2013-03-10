@@ -1,7 +1,6 @@
 module Poly
 
-export Pwr, Dim, pwr, dim, R, zeroR, oneR, zero_poly,
-       Monomial,
+export Monomial,
        Polynomial,
        VectorMonomial,
        PolynomialVector,
@@ -10,6 +9,7 @@ export Pwr, Dim, pwr, dim, R, zeroR, oneR, zero_poly,
        polynomial_value,
        linear_comb,
        as_poly,
+       zero_poly,
        domain_dim,
        monomials_of_degree_eq,
        count_monomials_of_degree_le,
@@ -18,33 +18,24 @@ export Pwr, Dim, pwr, dim, R, zeroR, oneR, zero_poly,
        reduce_dim_by_fixing,
        partial,
        divergence,
-       integrate_on_llo_rect,
+       integral_on_rect_at_origin,
        drop_coefs_lt,
-       coefs_closer_than
+       coefs_closer_than,
+       monomials_in_same_component
 
-import Base.string, Base.show, Base.print, Base.+, Base.*
-
-typealias Pwr Uint8
-typealias Dim Uint8
-typealias R Float64
-const zeroR = zero(R)
-const oneR = one(R)
-
-check_powers(ks...) = if any(k -> k < 0 || k > 255, ks) error("invalid power") else true end
-pwr(k::Integer) = check_powers(k) && convert(Pwr,k)
-dim(d::Integer) = if d < 0 || d > 255 error("invalid dimension") else convert(Dim, d) end
+using Common
 
 
 # A representation of a monomial function.  Information about its expression is incorporated as well
 # to be used for more exact and efficient computations where possible.
 type Monomial
-  exps::Array{Pwr,1} # exponent array, length is always the dimension of the domain
+  exps::Array{Deg,1} # exponent array, length is always the dimension of the domain
 
-  Monomial(exps::Array{Pwr,1}) = check_powers(exps...) && new(exps)
-  Monomial(k::Integer) = check_powers(k) && new([convert(Pwr,k)])
-  Monomial(k1::Integer, k2::Integer) = check_powers(k1,k2) && new([convert(Pwr,k1), convert(Pwr,k2)])
-  Monomial(k1::Integer, k2::Integer, k3::Integer) = check_powers(k1,k2,k3) &&
-    new([convert(Pwr,k1), convert(Pwr,k2), convert(Pwr,k3)])
+  Monomial(exps::Array{Deg,1}) = check_degs(exps...) && new(exps)
+  Monomial(k::Integer) = check_degs(k) && new([convert(Deg,k)])
+  Monomial(k1::Integer, k2::Integer) = check_degs(k1,k2) && new([convert(Deg,k1), convert(Deg,k2)])
+  Monomial(k1::Integer, k2::Integer, k3::Integer) = check_degs(k1,k2,k3) &&
+    new([convert(Deg,k1), convert(Deg,k2), convert(Deg,k3)])
 end
 
 type Polynomial
@@ -124,6 +115,8 @@ function canonical_form(pv::PolynomialVector)
   PolynomialVector(polys)
 end
 
+# multiplication operations
+import Base.(*)
 
 *(m1::Monomial, m2::Monomial) = Monomial(m1.exps + m2.exps)
 
@@ -150,6 +143,10 @@ end
   end
   Polynomial(mons, p.coefs)
 end
+
+*(m::Monomial, vm::VectorMonomial) =
+  VectorMonomial(m * vm.mon, vm.mon_pos)
+*(vm::VectorMonomial, m::Monomial) = m * vm
 
 *(p::Polynomial, m::Monomial) = m * p
 
@@ -212,6 +209,7 @@ dot(pv1::PolynomialVector, pv2::PolynomialVector) =
   end
 
 # addition operations
+import Base.(+)
 
 +(p1::Polynomial, p2::Polynomial) = begin
   const tot_nz = nnz(p1.coefs) + nnz(p2.coefs)
@@ -260,6 +258,7 @@ end
 end
 
 # unary minus
+import Base.(-)
 -(m::Monomial) = Polynomial([m],[-oneR])
 -(p::Polynomial) = (-oneR) * p
 -(vm::VectorMonomial) = (-oneR) * vm
@@ -267,7 +266,7 @@ end
 
 
 import Base.ref
-ref(vm::VectorMonomial, i::Integer) = if i == vm.mon_pos as_poly(vm.mon) else zero_poly(domain_dim(vm)) end
+ref(vm::VectorMonomial, i::Integer) = if i == vm.mon_pos vm.mon else zero_poly(domain_dim(vm)) end
 ref(pv::PolynomialVector, i::Integer) = pv.polys[i]
 
 
@@ -300,6 +299,8 @@ end
 domain_dim(m::Monomial) = convert(Dim, length(m.exps))
 domain_dim(p::Polynomial) = domain_dim(p.mons[1])
 domain_dim(vm::VectorMonomial) = domain_dim(vm.mon)
+
+monomials_in_same_component(vmon1::VectorMonomial, vmon2::VectorMonomial) = vmon1.mon_pos == vmon2.mon_pos
 
 function monomial_value(mon::Monomial, x::R...)
   v = x[1]^mon.exps[1]
@@ -352,7 +353,7 @@ end
 # integration
 
 # Integrate a monomial on a rectangle of the given dimensions having lower left corner at the origin.
-function integrate_on_llo_rect(mon::Monomial, rect_dims::R...)
+function integral_on_rect_at_origin(mon::Monomial, rect_dims::R...)
   assert(length(rect_dims) > 0, "rectangle dimensions must be supplied")
   prod = oneR
   for i = 1:length(rect_dims)
@@ -363,10 +364,10 @@ function integrate_on_llo_rect(mon::Monomial, rect_dims::R...)
 end
 
 # Integrate a polynomial on a rectangle of the given dimensions having lower left corner at the origin.
-function integrate_on_llo_rect(p::Polynomial, rect_dims::R...)
+function integral_on_rect_at_origin(p::Polynomial, rect_dims::R...)
   sum = zeroR
   for i=1:length(p.coefs)
-    sum += p.coefs[i] * integrate_on_llo_rect(p.mons[i], rect_dims...)
+    sum += p.coefs[i] * integral_on_rect_at_origin(p.mons[i], rect_dims...)
   end
   sum
 end
@@ -374,14 +375,14 @@ end
 
 # Counting and listing of monomials at or not exceeding a certain degree
 
-count_monomials_of_degree_eq(deg::Pwr, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
-count_monomials_of_degree_le(deg::Pwr, dom_dim::Dim) = sum([count_monomials_of_degree_eq(convert(Pwr,k), dom_dim) for k=0:deg])
+count_monomials_of_degree_eq(deg::Deg, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
+count_monomials_of_degree_le(deg::Deg, dom_dim::Dim) = sum([count_monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=0:deg])
 
-monomials_of_degree_eq(deg::Pwr, dom_dim::Dim) =
+monomials_of_degree_eq(deg::Deg, dom_dim::Dim) =
   if dom_dim == 1
     [Monomial(deg)]
   elseif dom_dim == 2
-    [Monomial(i,deg-i) for i=zero(Pwr):deg]
+    [Monomial(i,deg-i) for i=zero(Deg):deg]
   elseif dom_dim == 3
     local mons = Array(Monomial, count_monomials_of_degree_eq(deg,dom_dim)),
           pos = 1
@@ -394,17 +395,18 @@ monomials_of_degree_eq(deg::Pwr, dom_dim::Dim) =
     error("dimensions greater than 3 are currently not supported")
   end
 
-monomials_of_degree_le(deg::Pwr, dom_dim::Dim) =
-  flatten([monomials_of_degree_eq(convert(Pwr,k), dom_dim) for k=zero(Pwr):deg]) # convert shouldn't be necessary here but currently is as of Julia 0.1.
+monomials_of_degree_le(deg::Deg, dom_dim::Dim) =
+  flatten([monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=zero(Deg):deg]) # convert shouldn't be necessary here but currently is as of Julia 0.1.
 
 # All VectorMonomials not exceeding the passed degree, to be used as a basis for spaces of vector valued functions with polynomial components.
-vector_monomials_of_degree_le(deg::Pwr, dom_dim::Dim) =
+vector_monomials_of_degree_le(deg::Deg, dom_dim::Dim) =
   flatten(map(mon -> [VectorMonomial(mon, dim(i)) for i=1:domain_dim(mon)],
               monomials_of_degree_le(deg, dom_dim)))
 
 
 
 # String Representations
+import Base.string, Base.show, Base.print
 
 # string representation for monomials
 function string(m::Monomial)
@@ -509,9 +511,8 @@ function coefs_closer_than(eps::R, pv1::PolynomialVector, pv2::PolynomialVector)
   true
 end
 
-one_mon(dom_dim::Dim) = Monomial(zeros(Pwr, dom_dim))
+one_mon(dom_dim::Dim) = Monomial(zeros(Deg, dom_dim))
 zero_poly(dom_dim::Dim) = Polynomial([one_mon(dom_dim)],[zeroR])
-
 
 flatten(arrays) = vcat(arrays...)
 

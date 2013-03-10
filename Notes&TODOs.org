@@ -1,12 +1,14 @@
+Commit Notes
+
+
+
+TODO
+----
+Move integration functions over mesh elements into mesh modules.
+
+
 Try parameterizing polynomials by their domain dimension.
 
-Create abstract type Mesh.
-
-Finite-element shape/dimension specific functions should be in the particular Mesh impl. package.
-  Examples:
-    face types
-    enumeration of faces other than outside boundary edges in the mesh
-    integration functions on a face
 
 AbstractMesh functions
   face_types(mesh)
