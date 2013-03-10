@@ -1,18 +1,9 @@
 Commit Notes
 
 
-
 TODO
 ----
-Move integration functions over mesh elements into mesh modules.
 
-
-Try parameterizing polynomials by their domain dimension.
-
-
-AbstractMesh functions
-  face_types(mesh)
-  num_faces_of_type(face_num::FaceNum, mesh)
-  face_type_rel_face_num_to_rc(rel_face_num, face_type, mesh)
+Maybe try parameterizing polynomials by their domain dimension.
 
 
