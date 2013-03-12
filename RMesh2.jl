@@ -82,10 +82,7 @@ import Mesh.num_fes
 num_fes(m::RectMesh2) = m.num_elements
 
 import Mesh.num_nb_sides
-num_nb_sides(m::RectMesh2) = m.num_nb_vert_sides + m.num_nb_horz_sides
-
-import Mesh.fe_for_interior
-fe_for_interior(intr_num::FENum, m::RectMesh2) = intr_num
+num_nb_sides(m::RectMesh2) = m.num_nb_sides
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(i::SideNum, mesh::RectMesh2, fe_incls::NBSideInclusions)
@@ -179,27 +176,16 @@ fe_col(fe::FENum, mesh::RectMesh2) = fe_cix(fe-1, mesh) + 1
 fe_rix(fe_ix::FENum, mesh::RectMesh2) = div(fe_ix, mesh.cols)
 fe_cix(fe_ix::FENum, mesh::RectMesh2) = mod(fe_ix, mesh.cols)
 
-# Fill the passed 4 element array with the finite element rectangle coordingates,
-# in the order: [bottom_left_x, bottom_left_y, top_right_x, top_right_y]
-function fe_coords!(fe::FENum, mesh::RectMesh2, bl_tr_coords::Vector{R})
-  fe_ix = fe - 1
-  fe_w = mesh.fe_width
-  fe_h = mesh.fe_height
-  rix = fe_rix(fe_ix, mesh)
-  cix = fe_cix(fe_ix, mesh)
-  bl_x = mesh.bottom_left_x + cix * fe_w
-  bl_y = mesh.bottom_left_y + rix * fe_h
-  tr_x = bl_x + fe_w
-  tr_y = bl_y + fe_h
-  bl_tr_coords[1] = bl_x
-  bl_tr_coords[2] = bl_y
-  bl_tr_coords[3] = tr_x
-  bl_tr_coords[4] = tr_y
+# Fill the passed 2 element array with the coordinates of the corner with range minimum coordinates.
+function fe_coords!(fe::FENum, mesh::RectMesh2, coords::Vector{R})
+  const fe_ix = fe - 1
+  coords[1] = mesh.bottom_left_x + fe_cix(fe_ix, mesh) * mesh.fe_width
+  coords[2] = mesh.bottom_left_y + fe_rix(fe_ix, mesh) * mesh.fe_height
 end
 
 # Functional variant of the above.
 fe_coords(fe::FENum, mesh::RectMesh2) =
-  let a = zeros(R,4)
+  let a = zeros(R,2)
     fe_coords!(fe, mesh, a)
     a
   end

@@ -1,4 +1,6 @@
 Commit Notes
+Removed Mesh.fe_for_interior, there's no need to distinguish finite element numbers from interior numbers.
+
 
 
 TODO

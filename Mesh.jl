@@ -7,7 +7,6 @@ export FENum, fe_num, no_fe,
        AbstractMesh,
        num_fes,
        num_nb_sides,
-       fe_for_interior,
        fe_inclusions_of_nb_side,
        fe_inclusions_of_nb_side!,
        integral_on_ref_fe_interior,
@@ -50,8 +49,6 @@ num_fes{M <: AbstractMesh}(mesh::M) =
   error("not implemented, mesh implementation is incomplete)")
 num_nb_sides{M <: AbstractMesh}(mesh::M) =
   error("not implemented, mesh implementation is incomplete")
-fe_for_interior{M <: AbstractMesh}(intr_num::FENum, mesh::M) =
-  error("not implemented, mesh implementation is incomplete")
 fe_inclusions_of_nb_side!{M <: AbstractMesh}(i::SideNum, mesh::M, nb_side_incls::NBSideInclusions) =
   error("not implemented, mesh implementation is incomplete")
 integral_on_ref_fe_interior{M <: AbstractMesh}(mon::Monomial, mesh::M) =
@@ -59,8 +56,8 @@ integral_on_ref_fe_interior{M <: AbstractMesh}(mon::Monomial, mesh::M) =
 integral_on_ref_fe_side_vs_outward_normal{M <: AbstractMesh}(vm::VectorMonomial, face::Face, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-# The following are defined in terms of the required generic functions and usually won't need
-# to be implemented for specific mesh types.
+# The following have default implementations or are defined in terms of the required
+# generic functions and usually won't need to be implemented for specific mesh types.
 
 function integral_on_ref_fe_interior{M <: AbstractMesh}(p::Polynomial, mesh::M)
   sum = zeroR

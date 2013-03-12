@@ -58,11 +58,11 @@ fe_below(fe::FENum, mesh::RectMesh2) =
 # 10 rows x 20 cols mesh, with vertexes at each integer pair
 rmesh10x20 = RectMesh2((0.,0.), (20.,10.), 10, 20)
 
-@test fe_coords(fe_num(1), rmesh10x20) == [0.0,0.0,1.0,1.0]
-@test fe_coords(fe_num(2), rmesh10x20) == [1.0,0.0,2.0,1.0]
-@test fe_coords(fe_num(20), rmesh10x20) == [19.0,0.0,20.0,1.0]
-@test fe_coords(fe_num(21), rmesh10x20) == [0.0,1.0,1.0,2.0]
-@test fe_coords(fe_num(200), rmesh10x20) == [19.0,9.0,20.0,10.0]
+@test fe_coords(fe_num(1), rmesh10x20) == [0., 0.]
+@test fe_coords(fe_num(2), rmesh10x20) == [1., 0.]
+@test fe_coords(fe_num(20), rmesh10x20) == [19., 0.]
+@test fe_coords(fe_num(21), rmesh10x20) == [0., 1.]
+@test fe_coords(fe_num(200), rmesh10x20) == [19., 9.]
 
 @test rmesh10x20.bottom_left_x == 0.
 @test rmesh10x20.bottom_left_y == 0.
@@ -80,7 +80,6 @@ rmesh10x20 = RectMesh2((0.,0.), (20.,10.), 10, 20)
 
 @test num_fes(rmesh10x20) == 200
 @test num_nb_sides(rmesh10x20) == 370
-@test fe_for_interior(fe_num(23), rmesh10x20) == 23
 
 
 rmesh2x3 = RMesh2.RectMesh2((0.,0.), (3.,2.), 2, 3)
