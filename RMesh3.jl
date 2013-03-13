@@ -1,8 +1,10 @@
 module RMesh3
-export RectMesh3
+export RectMesh3,
+       SideInfo, side_info,
+       FEInfo, fe_info
 
 using Common
-import Mesh.FENum, Mesh.SideNum, Mesh.Face, Mesh.AbstractMesh, Mesh.NBSideInclusions
+import Mesh, Mesh.FENum, Mesh.SideNum, Mesh.Face, Mesh.AbstractMesh, Mesh.NBSideInclusions
 import Poly, Poly.Monomial, Poly.VectorMonomial
 
 # Abbreviations
@@ -78,8 +80,8 @@ type RectMesh3 <: AbstractMesh
         sidenum_first_y_nb_side,
         sidenum_first_z_nb_side,
         fes_per_stack,
-        (mesh.cols-1) * mesh.rows, # num_x_nb_sides_per_stack
-        mesh.cols * (mesh.rows-1), # num_y_nb_sides_per_stack
+        (ncols-1) * nrows, # num_x_nb_sides_per_stack
+        ncols * (nrows-1), # num_y_nb_sides_per_stack
         fes_per_stack)             # num_z_nb_sides_per_stack
   end # RectMesh3 constructor
 end # type RectMesh3
@@ -261,7 +263,7 @@ end
 
 fe_row(fe::FENum, mesh::RectMesh3) = fe_row_ix(fe-1, mesh) + 1
 fe_col(fe::FENum, mesh::RectMesh3) = fe_col_ix(fe-1, mesh) + 1
-fe_stack(fe::FENum, mesh::RectMesh3) = fe_stack_ix(fe-1 mesh) + 1
+fe_stack(fe::FENum, mesh::RectMesh3) = fe_stack_ix(fe-1, mesh) + 1
 
 
 # Fill the passed 3 element array with the coordinates of corner with range-minimum coordinates.
@@ -278,5 +280,79 @@ fe_coords(fe::FENum, mesh::RectMesh3) =
     fe_coords!(fe, mesh, a)
     a
   end
+
+
+###############################################
+# side and fe information retrieval for testing
+
+type FEInfo
+  fe_num::FENum
+  col::MeshAxisVal
+  row::MeshAxisVal
+  stack::MeshAxisVal
+  coords::Array{R,1}
+  function FEInfo(fe::FENum, col::Integer, row::Integer, stack::Integer, coords::Array{R,1})
+    new(Mesh.fe_num(fe),
+        convert(MeshAxisVal,col), convert(MeshAxisVal,row), convert(MeshAxisVal,stack),
+        coords)
+  end
+end
+
+import Base.isequal
+isequal(fei1::FEInfo, fei2::FEInfo) =
+  fei1.fe_num == fei2.fe_num &&
+  fei1.col    == fei2.col &&
+  fei1.row    == fei2.row &&
+  fei1.stack  == fei2.stack &&
+  isequal(fei1.coords, fei2.coords)
+
+import Base.hash
+hash(fei::FEInfo) = fei.fe_num + 3*fei.col + 5*fe.row + 7*fei.stack + 11*hash(fei.coords)
+
+fe_info(fe::FENum, mesh::RectMesh3) =
+  FEInfo(fe,
+         fe_col(fe, mesh),
+         fe_row(fe, mesh),
+         fe_stack(fe, mesh),
+         fe_coords(fe, mesh))
+
+import Base.string, Base.show, Base.print
+function string(fei::FEInfo)
+  "FEInfo: fe: $(dec(fei.fe_num)), col:$(dec(fei.col)), row:$(dec(fei.row)), stack:$(dec(fei.stack)), coords:$(fei.coords)"
+end
+print(io::IO, fei::FEInfo) = print(io, string(fei))
+show(io::IO, fei::FEInfo) = print(io, fei)
+
+
+type SideInfo
+  side_num::SideNum
+  perp_axis::Char
+  lesser_adjoining_fe::FEInfo
+  greater_adjoining_fe::FEInfo
+end
+
+function side_info(side_num::SideNum, mesh::RectMesh3)
+  incls = Mesh.fe_inclusions_of_nb_side(side_num, mesh)
+  perp_to_axis = is_x_nb_side(side_num, mesh) ? 'x' : is_y_nb_side(side_num, mesh) ? 'y' : 'z'
+
+  SideInfo(side_num, perp_to_axis, fe_info(incls.fe1, mesh), fe_info(incls.fe2, mesh))
+end
+
+isequal(si1::SideInfo, si2::SideInfo) =
+  si1.side_num  == si2.side_num &&
+  si1.perp_axis == si2.perp_axis &&
+  isequal(si1.lesser_adjoining_fe, si2.lesser_adjoining_fe) &&
+  isequal(si1.greater_adjoining_fe, si2.greater_adjoining_fe)
+
+import Base.hash
+hash(si::SideInfo) = si.side_num + 3*si.perp_axis + 5*hash(si.lesser_adjoining_fe) + 7*hash(si.greater_adjoining_fe)
+
+# string representation
+function string(si::SideInfo)
+  "SideInfo:  side:$(dec(si.side_num))\n  perp to axis: $(si.perp_axis)\n  lesser_fe:  $(si.lesser_adjoining_fe)\n  greater_fe: $(si.greater_adjoining_fe)"
+end
+print(io::IO, si::SideInfo) = print(io, string(si))
+show(io::IO, si::SideInfo) = print(io, si)
+
 
 end # end of module
