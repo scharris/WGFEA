@@ -201,3 +201,29 @@ zside(i::Integer) = side_num(199*400*600) + side_num(200*399*600) + i
         FEInfo(fe_num(201),         1,2,1, [0.,1.,0.]+m0),
         FEInfo(fe_num(201+200*400), 1,2,2, [0.,1.,1.]+m0))
 
+# last z-perpendicular nb side in the first stack
+@test side_info(zside(200*400), rmesh200x400x600) ==
+      SideInfo(zside(200*400), 'z',
+        FEInfo(fe_num(200*400),           200,400,1, [199.,399.,0.]+m0),
+        FEInfo(fe_num(200*400 + 200*400), 200,400,2, [199.,399.,1.]+m0))
+
+# first z-perpendicular nb side in the second stack
+@test side_info(zside(200*400+1), rmesh200x400x600) ==
+      SideInfo(zside(200*400+1), 'z',
+        FEInfo(fe_num(200*400+1),           1,1,2, [0.,0.,1.]+m0),
+        FEInfo(fe_num(200*400+1 + 200*400), 1,1,3, [0.,0.,2.]+m0))
+
+# first z-perpendicular nb side in the third row of the second stack
+@test side_info(zside(1+200*400+2*200), rmesh200x400x600) ==
+      SideInfo(zside(1+200*400+2*200), 'z',
+        FEInfo(fe_num(1+200*400+2*200),           1,3,2, [0.,2.,1.]+m0),
+        FEInfo(fe_num(1+200*400+2*200 + 200*400), 1,3,3, [0.,2.,2.]+m0))
+
+# last z-perpendicular nb side in the last stack
+@test side_info(zside(200*400*599), rmesh200x400x600) ==
+      SideInfo(zside(200*400*599), 'z',
+        FEInfo(fe_num(200*400*599), 200,400,599, [199.,399.,598.]+m0),
+        FEInfo(fe_num(200*400*600), 200,400,600, [199.,399.,599.]+m0))
+
+# side out of range
+@test_fails side_info(zside(200*400*599+1), rmesh200x400x600)
