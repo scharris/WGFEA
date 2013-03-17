@@ -55,6 +55,8 @@ integral_on_ref_fe_interior{M <: AbstractMesh}(mon::Monomial, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 integral_on_ref_fe_side_vs_outward_normal{M <: AbstractMesh}(vm::VectorMonomial, face::Face, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
+integral_on_fe_interior{M <: AbstractMesh}(f::Function, fe::FENum, mesh::M) =
+  error("not implemented, mesh implementation is incomplete")
 
 # The following have default implementations or are defined in terms of the required
 # generic functions and usually won't need to be implemented for specific mesh types.

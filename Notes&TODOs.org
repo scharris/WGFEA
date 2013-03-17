@@ -1,11 +1,79 @@
 Commit Notes
-Removed Mesh.fe_for_interior, there's no need to distinguish finite element numbers from interior numbers.
 
+
+
+
+Notes
+-----
+
+ Terms
+   face - an interior or single side of a finite element
+   support face - the finite element face outside of which a basis element is constantly zero
+   mesh coords - discrete coordinates identifying a finite element, eg. (column, row, stack) for R^3
+
+First it's important to separate the enumerating of basis element monomials or
+polynomials on the mesh element faces (interiors and sides) from the duties of
+the meshes. This way the meshes themselves only have to deal with the minimal
+geometric concerns and are easier to implement and verify for correctness.
+
+There is a basis module (WGBasis) for handling the enumeration of basis
+elements and querying of information about them, using any abstract mesh which
+implements a small set of generic functions. This leaves the concrete mesh
+implementations themselves only needing to implement this small set of generic
+geometry-related functions for their specific types in order to automatically
+be usable by the other modules making up the WG method.
+
+These functions which every mesh implementation must implement are defined for
+type AbstractMesh in Mesh.jl, and they are:
+
+  num_fes(mesh::M)
+    Gives the number of finite elements (or element interiors) in the mesh.
+
+  num_nb_sides(mesh::M)
+    Returns "non-boundary" sides: the number of element sides which are not subsets
+    of the outside boundary.
+
+  fe_inclusions_of_nb_side(i::SideNum, mesh::M)
+    Returns an NBSideInclusions structure containing information about which two
+    finite elements include the passed non-boundary side, and which face the side
+    represents within each of these two finite elements.
+
+  integral_on_ref_fe_interior(mon::Monomial, mesh::M)
+    Integrates the monomial on the interior of the reference finite elmenent.
+
+  integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::Face, mesh::M)
+    Integrates the vector monomial vs outward normal on the indicated face of the
+    reference element.
+
+  integral_on_fe_interior(f::Function, fe::FENum, mesh::M)
+    Integrate an arbitrary function on a finite element interior.
+
+  (More will be added, e.g. at least one function for querying for outside boundary
+   segments and which element faces they represent)
+
+
+So to implement a new mesh type we only need to consider implementing the above functions.
 
 
 TODO
 ----
 
-Maybe try parameterizing polynomials by their domain dimension.
+(WGRAD)
+  - Compute weak gradient of a polynomial (see TODO in wgrad file)
+  - Compute weak gradient of polynomial Q_b g on each finite element intersecting the outside boundary.
+  - Compute parts of a_s(p, b_i)_T for a polynomial p on an outside boundary segment.
+
+(Mesh)
+ - Need polynomial version of integral_on_ref_fe_side_vs_outward_normal function.
+ - Determine whether a given fe includes a segment of the outside boundary.
+   for: a_s(Q_b g, b_i)
+
+ - Project an arbitrary function g onto space of polynomials of a given degree on a face of a fe
+   (can't do this on ref element, need actual fe coords)
+   for: Q_b g
+
+ - Integrate an arbitrary function f against a basis element on a mesh element.
+   for: (f, (b_i)_0)
+
 
 

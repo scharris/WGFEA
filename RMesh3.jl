@@ -53,7 +53,7 @@ type RectMesh3 <: AbstractMesh
 
   function RectMesh3(min_coords::(R,R,R), max_coords::(R,R,R), ncols::Integer, nrows::Integer, nstacks::Integer)
     assert(ncols > 0 && nrows > 0 && nstacks > 0, "positive columns, rows and stacks required")
-    assert(max_coords[1] > min_coords[1] && max_coords[2] > min_coords[2] && max_coords[3] > min_coords[3], "proper min exceeds max")
+    assert(max_coords[1] > min_coords[1] && max_coords[2] > min_coords[2] && max_coords[3] > min_coords[3], "min exceeds max")
 
     const num_x_nb_sides = (ncols-1) * nrows * nstacks
     const num_y_nb_sides = ncols * (nrows-1) * nstacks
@@ -82,7 +82,7 @@ type RectMesh3 <: AbstractMesh
         fes_per_stack,
         (ncols-1) * nrows, # num_x_nb_sides_per_stack
         ncols * (nrows-1), # num_y_nb_sides_per_stack
-        fes_per_stack)             # num_z_nb_sides_per_stack
+        fes_per_stack)     # num_z_nb_sides_per_stack
   end # RectMesh3 constructor
 end # type RectMesh3
 

@@ -31,24 +31,33 @@ import Poly, Poly.Monomial
 # - ip: inner product, L2 unless specified otherwise.
 # - nb: non-boundary, not significantly intersecting the outside boundary of the mesh
 #
-# V_h Basis Elements and Numbering
+# Let V_h^0 be the space of weak functions which are polynomials of degree k or less
+# on mesh element interiors and k-1 or less on mesh element sides, and are 0 on the
+# outside boundary of the mesh.
 #
-# A basis element for V_h will be a weak function which is a monomial on one face
+# Purpose: For given mesh, polynomial degree, and domain dimension, provide an object
+#          representing a basis for the space V_h^0, and functions to interrogate the
+#          basis to determine the supporting element, face and monomial for any given
+#          basis element by number.
+#
+# V_h^0 Basis Elements and Numbering
+#
+# A basis element for V_h^0 will be a weak function which is a monomial on one face
 # of a single finite element, excluding sides on the outside boundary of the mesh,
 # and which is 0 on all other faces.  On interiors of the finite elements the
 # maximum monomial degree will be k, and on sides k-1.
 #
 # The basis elements are first arranged into two groups, the first being those
 # which are supported on finite element interiors, followed by those supported
-# on non-boundary finite element sides. Within each these two groups, the basis
-# elements are then ordered by the mesh's enumeration of the faces of that
-# type. Finally, within the block of basis elements allocated to a particular
-# face, the monomials representing the basis element values on the face are
-# arranged first in blocks by increasing degree, then within a degree block
-# lexicographically by increasing exponent, so e.g. x^0 y^2 appears prior to
-# x^1 y^1. Together with the mesh which determines ordering of faces, these
-# rules completely order the basis elements for our space V_h of weak function
-# polynomials.
+# on non-boundary finite element sides. Within each of these two groups the
+# faces supporting the basis elements are first ordered as determined by the
+# mesh which was passed to the basis at time of construction. Finally, within
+# the block of basis elements allocated to a particular face, the monomials
+# representing the basis element values on the face are arranged first in
+# blocks by increasing degree, then within a degree block lexicographically by
+# increasing exponent, so e.g. x^0 y^2 appears prior to x^1 y^1. Together with
+# the mesh which determines ordering of faces, these rules completely order the
+# basis elements for our space V_h of weak function polynomials.
 
 # basis element number type
 typealias BElNum Uint64

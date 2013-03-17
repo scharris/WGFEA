@@ -22,10 +22,10 @@ import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial
 # (b_i, b_j)_T being the matrix elements of the system, and the right hand side
 # of WGRAD_DEF defining the right hand side column vector for the system.
 #
-# We will only actually need weak gradients of basis functions for the
-# appoximation space V_h, which basis functions will be a monomial on one face
-# (interior or side) of T and 0 on other faces. Thus v will be expressed below
-# as a monomial paired with the face of T on which it has the monomial value.
+# We will only actually need weak gradients of monomials or polynomials
+# supported on a single face (interior or side) of a finite element. Thus v
+# will be expressed below as a monomial or polynomial paired with the face of T
+# on which it has the monomial or polynomial value.
 
 type WGradSolver
 
@@ -67,6 +67,10 @@ function basis_vs_basis_ips(basis::Array{VectorMonomial,1}, mesh::AbstractMesh)
   end
   m
 end
+
+# TODO: Extend these to support polynomials in place of v_mon.
+#       Could just change the name of the ip_wgrad_bel... function and the v_mon params, and remove the types of the v_mon params.
+#
 
 # On the reference finite element for our mesh, obtains the weak gradient
 # polynomial vector for the weak function which is a monomial v_mon on

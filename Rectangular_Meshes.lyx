@@ -1,0 +1,846 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation skip
+\defskip medskip
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section*
+Ordering of Faces
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $m$
+\end_inset
+
+ be a rectangular mesh in 
+\begin_inset Formula $R^{d}$
+\end_inset
+
+, its vertex of minimum coordinates 
+\begin_inset Formula $(a_{1},...,a_{d})$
+\end_inset
+
+, the number of elements along the axes 
+\begin_inset Formula $(k_{1},...,k_{n})$
+\end_inset
+
+, and the dimensions of the individual mesh elements 
+\begin_inset Formula $(h_{1},...,h_{d})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Interiors
+\end_layout
+
+\begin_layout Subsection
+Enumeration of Interiors
+\end_layout
+
+\begin_layout Standard
+The element interiors are enumerated with the values along axes with lower
+ numbers changing before those of higher number, as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\text{} &  &  &  & \text{rectangle} & \text{logical mesh coords}\\
+(a_{1},\, a_{1}+h_{1})\;\times & (a_{2},\, a_{2}+h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(1,1,...,1)\\
+(a_{1}+h_{1},\, a_{1}+2h_{1})\;\times & (a_{2},\, a_{2}+h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(2,1,...,1)\\
+... &  &  & ... &  & \quad\quad...\\
+(a_{1}+(k_{1}-1)h_{1},\, a_{1}+k_{1}h_{1})\;\times & (a_{2},\, a_{2}+h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(k_{1},1,...,1)\\
+(a_{1},\, a_{1}+h_{1})\;\times & (a_{2}+h_{2},\, a_{2}+2h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(1,2,...,1)\\
+(a_{1}+h_{1},\, a_{1}+2h_{1})\;\times & (a_{2}+h_{2},\, a_{2}+2h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(2,2,...,1)\\
+... &  &  & ... &  & \quad\quad...\\
+(a_{1}+(k_{1}-1)h_{1},\, a_{1}+k_{1}h_{1})\;\times & (a_{2}+(k_{2}-1)h_{2},\, a_{2}+k_{2}h_{2}) & \times & ... & \times\;(a_{d}+(k_{d}-1)h_{d},\, a_{d}+k_{d}h_{d})\times & \quad\quad(k_{1},k_{2},...,k_{d})
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Here the logical mesh coordinates for an interior (or the finite element
+ itself) are simply the offsets of the element sides in the direction of
+ increasing axis values from the mesh's overall range minimums, considered
+ as multiples of the element dimensions 
+\begin_inset Formula $(h_{1},...,h_{d})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The total interiors count is 
+\begin_inset Formula $k_{1}k_{2}\dots k_{d}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Interior Mesh Coordinates by Sequence Number
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $n$
+\end_inset
+
+ be an interior number with interiors enumerated as above.
+ We want to to find the mesh coordinates (right column in the enumeration
+ above) for the given interior number.
+ The 
+\begin_inset Formula $d^{\text{th}}$
+\end_inset
+
+mesh coordinate is incremented for every block of 
+\begin_inset Formula $k_{1}k_{2}\dots k_{d-1}$
+\end_inset
+
+ enumerated interiors, so it follows that the 
+\begin_inset Formula $d^{\text{th}}$
+\end_inset
+
+mesh coordinate is given by
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Formula 
+\[
+\begin{aligned}\pi_{d}(n) & =(n-1)\,\backslash\,(k_{1}k_{2}\dots k_{d-1})\end{aligned}
+\;+1
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\backslash$
+\end_inset
+
+ represents integer division (e.g.
+ 
+\begin_inset Formula $2\backslash3=0,\;\text{and\ }3\backslash3=1$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+\noindent
+Since the lower numbered coordinates are reset when the 
+\begin_inset Formula $d^{\text{th}}$
+\end_inset
+
+ coordinate changes, finding coordinate 
+\begin_inset Formula $\pi_{d-1}(n)$
+\end_inset
+
+ for interior 
+\begin_inset Formula $n$
+\end_inset
+
+ amounts to applying the same reasoning as the above, this time on the relative
+ interior number 
+\begin_inset Formula $((n-1)\ \mod\ (k_{1}k_{2}\dots k_{d-1}))\;+1$
+\end_inset
+
+ within the block of constant 
+\begin_inset Formula $d$
+\end_inset
+
+ coordinate interiors containing the 
+\begin_inset Formula $n^{\text{th}}$
+\end_inset
+
+ interior, since coordinates lower than 
+\begin_inset Formula $d$
+\end_inset
+
+ were reset at the start of that block.
+ Thus
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\begin{aligned}\pi_{d-1}(n) & =((n-1)\ \mod\ (k_{1}k_{2}\dots k_{d-1}))\,\backslash\,(k_{1}k_{2}\dots k_{d-2})\;+1\end{aligned}
+\]
+
+\end_inset
+
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+Proceeding in this fashion, we see that in general projection of the 
+\begin_inset Formula $r^{\text{th}}$
+\end_inset
+
+ mesh coordinate from any interior number 
+\begin_inset Formula $n$
+\end_inset
+
+ is given by: 
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "Coordinate Projection, Interiors"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\begin{aligned}\pi_{r}(n) & =((n-1)\ \mod\ (k_{1}k_{2}\dots k_{r}))\,\backslash\,(k_{1}k_{2}\dots k_{r-1})\end{aligned}
+\;+1\quad\quad(r=1,...,d)
+\]
+
+\end_inset
+
+where we've used the fact that 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $(n-1)\ \mod\ (k_{1}k_{2}\dots k_{d})=(n-1)$
+\end_inset
+
+ to justify including the original case 
+\begin_inset Formula $r=d$
+\end_inset
+
+, and letting an empty product signify 
+\begin_inset Formula $1$
+\end_inset
+
+ for the 
+\begin_inset Formula $r=1$
+\end_inset
+
+ case.
+\end_layout
+
+\begin_layout Section
+Non-Boundary Sides
+\end_layout
+
+\begin_layout Standard
+In this section 
+\begin_inset Quotes eld
+\end_inset
+
+side
+\begin_inset Quotes erd
+\end_inset
+
+ will mean a side of a single finite element that is not a subset of the
+ outside boundary of the mesh.
+ All of these sides are enumerated as a single sequence by the mesh in the
+ general abstract mesh interface which all concrete mesh types must implement.
+ This way users of the mesh modules will not have to distingutiple multiple
+ types of sides when interacting with various meshes., which concerns should
+ be hidden inside the mesh implementations.
+ 
+\end_layout
+
+\begin_layout Standard
+Even so, inside the rectangular mesh implementation our strategy will be
+ to form separate sections in the overall enumeration for the sides, by
+ their orientations with respect to the coordinate axes.
+ Separating sides by orientation this way makes it easier to reason about
+ the enumeration and resulting geometric positions of sides, and how they
+ relate geometrically to mesh elements.
+ This is because for rectangular meshes the set of all sides having a common
+ orientation form a mesh very much like the overall mesh of finite elements.
+ 
+\end_layout
+
+\begin_layout Subsection
+Short Dimensions
+\end_layout
+
+\begin_layout Standard
+There is one distinguishing feature of the mesh formed by sides of a particular
+ orientation, which is 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Shadowbox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+status open
+
+\begin_layout Itemize
+The sides perpendicular to axis 
+\begin_inset Formula $j$
+\end_inset
+
+ will have 
+\begin_inset Formula $k_{j}-1$
+\end_inset
+
+ of the sides along mesh coordinate 
+\begin_inset Formula $j$
+\end_inset
+
+ when other coordinates are fixed.
+ 
+\end_layout
+
+\begin_layout Itemize
+For all other coordinates 
+\begin_inset Formula $i\ne j$
+\end_inset
+
+ there will be 
+\begin_inset Formula $k_{i}$
+\end_inset
+
+ sides perpendicular to axis 
+\begin_inset Formula $j$
+\end_inset
+
+ along coordinate 
+\begin_inset Formula $i$
+\end_inset
+
+, as with the finite element/interiors mesh.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As an illustration, let 
+\begin_inset Formula $c$
+\end_inset
+
+ and 
+\begin_inset Formula $r$
+\end_inset
+
+ be the number of columns and rows of finite elements in a rectangular mesh
+ in 
+\begin_inset Formula $R^{2}$
+\end_inset
+
+(see figure below).
+ In the middle diagram, note how for the sides perpendicular to axis 1,
+ which are the vertical interior sides, there are only 
+\begin_inset Formula $c-1$
+\end_inset
+
+ of these sides in a row, i.e.
+ along axis 1, because the outside boundary sides are not included.
+ We see that this lesser dimension in comparison to the finite element interiors
+ mesh only occurs in the coordinate direction perpendicular to the sides:
+ there are 
+\begin_inset Formula $r$
+\end_inset
+
+ rows of the vertical sides as in the main (interiors) mesh.
+ Likewise for the sides perpendicular to the second axis, there are only
+ 
+\begin_inset Formula $r-1$
+\end_inset
+
+ of these sides along coordinate 2 when the other coordinates (just the
+ column in this case) are fixed, but there are the full number of columns.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\tiny\ttfamily},tabsize=2"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# interiors ordering          sides perp.
+ to axis 1          sides perp.
+ to axis 2
+\end_layout
+
+\begin_layout Plain Layout
+
+# ----------------------      --------------------------    --------------------
+-------- 
+\end_layout
+
+\begin_layout Plain Layout
+
+# |...
+            | rc |      |...
+          | r(c-1)|  |    |     |   ...
+   |          | 
+\end_layout
+
+\begin_layout Plain Layout
+
+#         ...
+                            ...
+                ---------------------------- 
+\end_layout
+
+\begin_layout Plain Layout
+
+# ----------------------      --------------------------    |...
+            | (r-1)c^  | 
+\end_layout
+
+\begin_layout Plain Layout
+
+# | c+1 | c+2 |...| 2c |      |  c|  c+1|...| 2(c-1)|  |              ...
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+# ----------------------      --------------------------    --------------------
+-------- 
+\end_layout
+
+\begin_layout Plain Layout
+
+# |  1  |  2  |...|  c |      |  1|    2|...|  (c-1)|  |    | 1^  |   ...
+   |    c^    | 
+\end_layout
+
+\begin_layout Plain Layout
+
+# ----------------------      --------------------------    --------------------
+-------- 
+\end_layout
+
+\begin_layout Plain Layout
+
+# (^also fe numbering)                                      (^add # sides
+ perp to axis 1 to these to get side #'s) 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We can see this phenomenon occurring more formally as well.
+ In general a side is of the form:
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "General Side"
+
+\end_inset
+
+
+\begin_inset Formula $S(c_{1},...,c_{d})=[a+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\;[a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\;...\;\times\;\mathbf{\{a_{j}+c_{j}h_{j}\}}\;\times\;...\;\times\;[a_{d}(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}]$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where only the 
+\begin_inset Formula $j^{\text{th}}$
+\end_inset
+
+ coordinate in the product has a singleton set instead of an interval, giving
+ us a side perpendicular to axis 
+\begin_inset Formula $j$
+\end_inset
+
+.
+ Leaving all coordinates other than 
+\begin_inset Formula $j$
+\end_inset
+
+ fixed in this expression, we see that we can let 
+\begin_inset Formula $c_{j}$
+\end_inset
+
+ vary from 
+\begin_inset Formula $1$
+\end_inset
+
+ to 
+\begin_inset Formula $k_{j}-1$
+\end_inset
+
+ without touching the outside boundary of the mesh at 
+\begin_inset Formula $c_{j}=0$
+\end_inset
+
+ and 
+\begin_inset Formula $c_{j}=k_{j}$
+\end_inset
+
+.
+ This generalizes the result that was suggested visually for 
+\begin_inset Formula $R^{2}$
+\end_inset
+
+in the figure.
+\end_layout
+
+\begin_layout Subsection
+Enumeration of Sides
+\end_layout
+
+\begin_layout Standard
+Any side perpendicular to axis 
+\begin_inset Formula $j$
+\end_inset
+
+ can be identified with its coordinates (
+\begin_inset Formula $c_{1},...,c_{d})$
+\end_inset
+
+ from the general side equation above, thus forming a mesh particular to
+ sides of the same orientation.
+ From the previous section, it follows that the dimensions of the mesh for
+ these sides is:
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "Mesh Dimensions, Sides Perp. to Axis j"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\begin{aligned}sdims_{j}=(k_{j,1},...,k_{j,d}) & , where k_{j,i}=\begin{cases}
+k_{i}, & i\ne j\\
+k_{j}-1, & i=j
+\end{cases}\end{aligned}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We can now enumerate the sides perpendicular to any axis 
+\begin_inset Formula $j$
+\end_inset
+
+ in the same way that the interiors were enumerated, only using 
+\begin_inset Formula $k_{j,i}$
+\end_inset
+
+ in place of 
+\begin_inset Formula $k_{i}$
+\end_inset
+
+.
+ Putting these enumerations together into a single enumeration, we have
+ the side numbers divided into sections of the overall sequence by side
+ orientation, with the following division points marking the beginnings
+ of the sections of sides having the same orientation:
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "Side Orientation Sections, Starting  Numbers"
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{align*}
+s_{1} & =1\\
+s_{2} & =1+(k_{1}-1)\, k_{2}\dots k_{d}\\
+s_{3} & =s_{2}+k_{1}(k_{2}-1)\, k_{3}\dots k_{d}\\
+...\\
+s_{j} & =s_{j-1}+\prod_{i=1}^{d}k_{j,i}\\
+...\\
+s_{d} & =s_{d-1}+k_{1}\dots k_{d-1}(k_{d}-1)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The total number of sides of all orientations is 
+\begin_inset Formula $\sum_{j=1}^{d}\prod_{i=1}^{d}k_{j,i}$
+\end_inset
+
+ .
+\end_layout
+
+\begin_layout Subsection
+Side Mesh and Coordinates by Sequence Number
+\end_layout
+
+\begin_layout Standard
+To find the geometric location for a side number 
+\begin_inset Formula $n$
+\end_inset
+
+ so that it can be positiioned and related to other items in the mesh, we
+ first have to find the axis 
+\begin_inset Formula $a(n)$
+\end_inset
+
+ to which the side is perpendicular, given by:
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "Perpendicular Axis, Non-Boundary Sides"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+a(n)=\begin{cases}
+1, & s_{1}\le n<s_{2}\\
+...\\
+j, & s_{j}\le n<s_{j+1}\\
+...\\
+d, & s_{d}\le n\le\sum_{j=1}^{d}\prod_{i=1}^{d}k_{j,i}
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This identifies the mesh consisting of sides of the same orientation that
+ we will use to locate the side geometrically.
+ Recognizing that 
+\begin_inset Formula $n-s_{a(n)}$
+\end_inset
+
+ is the 0-based index of the side relative to its particular mesh, like
+ 
+\begin_inset Formula $n-1$
+\end_inset
+
+ is in the discussion of the interiors mesh, we can now proceed as in section
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "Coordinate Projection, Interiors"
+
+\end_inset
+
+ to determine the side's coordinates in the mesh of sides of the same orientatio
+n, obtaining:
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset CommandInset label
+LatexCommand label
+name "Orientation Specific Coordinate Projection, Non-Boundary Sides"
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\begin{aligned}\pi_{r}(n) & =((n-s_{a(n)})\ \mod\ (\prod_{i=1}^{r}k_{a(n),i}))\,\backslash\,(\prod_{i=1}^{r-1}k_{a(n),i})\end{aligned}
+\;+1\quad\quad(r=1,...,d)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The coordinates obtained here are specific to the particular mesh for the
+ orientation of side 
+\begin_inset Formula $n$
+\end_inset
+
+.
+ These coordinates will be related to the general finite element coordinates
+ in the following section.
+\end_layout
+
+\begin_layout Subsection
+Relating Side Coordinates to Mesh Elements
+\end_layout
+
+\begin_layout Standard
+Finally we would like to relate a side's orientation-specific side mesh
+ coordinates with those of the main mesh, by finding which finite elements
+ the given side is between; that is, which elements include the side as
+ a subset.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Side Coordinates to Mesh Coordinates
+\end_layout
+
+\begin_layout Standard
+It is apparant from the representation for a general side shown in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "General Side"
+
+\end_inset
+
+ that there are always exactly two mesh element rectangles that include
+ a given side as subsets.
+ For a side 
+\begin_inset Formula $s=S(c_{1},...,c_{d})$
+\end_inset
+
+ these including rectangles are:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\begin{aligned}r_{l}(s)=[a+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\;[a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\;...\;\times\;\mathbf{[a_{j}+(c_{j}-1)h_{j},\, a_{j}+c_{j}h_{j})]}\;\times\;...\;\times\;[a_{d}(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}] & \text{and}\\
+r_{g}(s)=[a+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\;[a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\;...\;\times\;\mathbf{[a_{j}+c_{j}h_{j},\, a_{j}+(c_{j}+1)h_{j})}\;\times\;...\;\times\;[a_{d}(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}] & \text{,}
+\end{aligned}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which we'll call the lesser and greater rectangles which include the side,
+ named so because the greater one has both greater values in coordinate
+ 
+\begin_inset Formula $j$
+\end_inset
+
+ and a greater side number in the enumeration.
+\end_layout
+
+\begin_layout Standard
+TODO: Looking at the parts of the rectangle above and those of the interior
+ rectangles of section 1.1, it's obvious that the coordinate systems are
+ really the same outside of the jth coordinate.
+ So one only needs to reverse the process of going from rectangle to coordinates
+ (make the identification/correspondance explicit in section 1.1 as was done
+ in the side definition).
+ The correspondance is that the coefficient of the h_i on the right side
+ of the intervals making up the rectangles are the coordinates.
+\end_layout
+
+\end_body
+\end_document
