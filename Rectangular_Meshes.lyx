@@ -60,8 +60,12 @@
 
 \begin_body
 
-\begin_layout Section*
-Ordering of Faces
+\begin_layout Title
+Rectangular Meshes in 
+\begin_inset Formula $\mathbb{R}^{d}$
+\end_inset
+
+ and Usage in WG
 \end_layout
 
 \begin_layout Standard
@@ -70,10 +74,10 @@ Let
 \end_inset
 
  be a rectangular mesh in 
-\begin_inset Formula $R^{d}$
+\begin_inset Formula $\mathbb{R}^{d}$
 \end_inset
 
-, its vertex of minimum coordinates 
+, let its vertex of minimum coordinates be 
 \begin_inset Formula $(a_{1},...,a_{d})$
 \end_inset
 
@@ -90,6 +94,69 @@ Let
 
 \begin_layout Section
 Interiors
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Interiors"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In general an interior in the mesh is of the form
+\begin_inset Formula 
+\[
+I(c_{1},...,c_{d})=\prod_{i=1}^{d}\,(a_{i}+(c_{i}-1)h_{i},\; a_{i}+c_{i}h_{i})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where the 
+\begin_inset Formula $c_{i}$
+\end_inset
+
+ are integers and 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $1\le c_{i}\le k_{i}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+We call the sequence 
+\begin_inset Formula $(c_{i})_{i=1...,d}$
+\end_inset
+
+ the mesh coordinates of the interior, and also of its closure rectangle
+ which is a finite element of the mesh:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+E(c_{1},...,c_{d})=\prod_{i=1}^{d}\,[a+(c_{i}-1)h_{i},\; a_{i}+c_{i}h_{i}]
+\]
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -97,50 +164,39 @@ Enumeration of Interiors
 \end_layout
 
 \begin_layout Standard
-The element interiors are enumerated with the values along axes with lower
- numbers changing before those of higher number, as follows:
+The element interiors are enumerated with the lower mesh coordinate numbers
+ sweeping their ranges before those of higher number, as follows:
 \end_layout
 
 \begin_layout Standard
 \begin_inset Formula 
-\begin{align*}
-\text{} &  &  &  & \text{rectangle} & \text{logical mesh coords}\\
-(a_{1},\, a_{1}+h_{1})\;\times & (a_{2},\, a_{2}+h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(1,1,...,1)\\
-(a_{1}+h_{1},\, a_{1}+2h_{1})\;\times & (a_{2},\, a_{2}+h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(2,1,...,1)\\
-... &  &  & ... &  & \quad\quad...\\
-(a_{1}+(k_{1}-1)h_{1},\, a_{1}+k_{1}h_{1})\;\times & (a_{2},\, a_{2}+h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(k_{1},1,...,1)\\
-(a_{1},\, a_{1}+h_{1})\;\times & (a_{2}+h_{2},\, a_{2}+2h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(1,2,...,1)\\
-(a_{1}+h_{1},\, a_{1}+2h_{1})\;\times & (a_{2}+h_{2},\, a_{2}+2h_{2}) & \times & ... & \times\;(a_{d},\, a_{d}+h_{d}) & \quad\quad(2,2,...,1)\\
-... &  &  & ... &  & \quad\quad...\\
-(a_{1}+(k_{1}-1)h_{1},\, a_{1}+k_{1}h_{1})\;\times & (a_{2}+(k_{2}-1)h_{2},\, a_{2}+k_{2}h_{2}) & \times & ... & \times\;(a_{d}+(k_{d}-1)h_{d},\, a_{d}+k_{d}h_{d})\times & \quad\quad(k_{1},k_{2},...,k_{d})
-\end{align*}
+\[
+\begin{aligned}\text{Seq \#}\quad & \text{Interior}\\
+1\quad & I(1,\,\dots\,,1)\\
+2\quad & I(2,1,\,\dots\,,1)\\
+ & \dots\\
+k_{1}\quad & I(k_{1},1,\,\dots\,,1)\\
+k_{1}+1\quad & I(1,2,\,\dots\,,1)\\
+k_{1}+2\quad & I(2,2,\,\dots\,,1)\\
+ & \dots\\
+k_{1}k_{2}\cdots\, k_{d}\quad & I(k_{1},k_{2},\,\dots\,,k_{d})
+\end{aligned}
+\]
 
 \end_inset
 
 
-\end_layout
-
-\begin_layout Standard
-Here the logical mesh coordinates for an interior (or the finite element
- itself) are simply the offsets of the element sides in the direction of
- increasing axis values from the mesh's overall range minimums, considered
- as multiples of the element dimensions 
-\begin_inset Formula $(h_{1},...,h_{d})$
-\end_inset
-
-.
-\end_layout
-
-\begin_layout Standard
-The total interiors count is 
-\begin_inset Formula $k_{1}k_{2}\dots k_{d}$
-\end_inset
-
-.
 \end_layout
 
 \begin_layout Subsection
-Interior Mesh Coordinates by Sequence Number
+Mesh Coordinates from Sequence Number
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Mesh-Coords-from-Seq-Num"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -149,17 +205,25 @@ Let
 \end_inset
 
  be an interior number with interiors enumerated as above.
- We want to to find the mesh coordinates (right column in the enumeration
- above) for the given interior number.
- The 
+ We want to to find the mesh coordinates for the given interior number.
+ The reverse transformation will be described in the next section.
+\end_layout
+
+\begin_layout Standard
+We start by observing that the 
 \begin_inset Formula $d^{\text{th}}$
 \end_inset
 
-mesh coordinate is incremented for every block of 
-\begin_inset Formula $k_{1}k_{2}\dots k_{d-1}$
+mesh coordinate starts at 
+\begin_inset Formula $1$
 \end_inset
 
- enumerated interiors, so it follows that the 
+ and is incremented for every block of 
+\begin_inset Formula $k_{1}k_{2}\cdots\, k_{d-1}$
+\end_inset
+
+ enumerated interiors.
+ Thus it follows that the 
 \begin_inset Formula $d^{\text{th}}$
 \end_inset
 
@@ -170,8 +234,7 @@ mesh coordinate is given by
 \noindent
 \begin_inset Formula 
 \[
-\begin{aligned}\pi_{d}(n) & =(n-1)\,\backslash\,(k_{1}k_{2}\dots k_{d-1})\end{aligned}
-\;+1
+\pi_{d}(n)=(n-1)\,\backslash\,(k_{1}k_{2}\cdots\, k_{d-1})+1
 \]
 
 \end_inset
@@ -202,12 +265,12 @@ Since the lower numbered coordinates are reset when the
 \begin_inset Formula $n$
 \end_inset
 
- amounts to applying the same reasoning as the above, this time on the relative
- interior number 
-\begin_inset Formula $((n-1)\ \mod\ (k_{1}k_{2}\dots k_{d-1}))\;+1$
+ amounts to applying the same reasoning as the above, this time on the block-rel
+ative interior number 
+\begin_inset Formula $((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{d-1}))\;+1$
 \end_inset
 
- within the block of constant 
+ in the block of constant 
 \begin_inset Formula $d$
 \end_inset
 
@@ -215,62 +278,82 @@ Since the lower numbered coordinates are reset when the
 \begin_inset Formula $n^{\text{th}}$
 \end_inset
 
- interior, since coordinates lower than 
-\begin_inset Formula $d$
-\end_inset
-
- were reset at the start of that block.
+ interior.
  Thus
 \end_layout
 
 \begin_layout Standard
 \begin_inset Formula 
 \[
-\begin{aligned}\pi_{d-1}(n) & =((n-1)\ \mod\ (k_{1}k_{2}\dots k_{d-1}))\,\backslash\,(k_{1}k_{2}\dots k_{d-2})\;+1\end{aligned}
+\pi_{d-1}(n)=((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{d-1}))\,\backslash\,(k_{1}k_{2}\cdots\, k_{d-2})+1
 \]
 
 \end_inset
 
 
-\family roman
-\series medium
-\shape up
-\size normal
-\emph off
-\bar no
-\strikeout off
-\uuline off
-\uwave off
-\noun off
-\color none
-Proceeding in this fashion, we see that in general projection of the 
-\begin_inset Formula $r^{\text{th}}$
-\end_inset
-
- mesh coordinate from any interior number 
-\begin_inset Formula $n$
-\end_inset
-
- is given by: 
 \end_layout
 
 \begin_layout Standard
-\begin_inset CommandInset label
-LatexCommand label
-name "Coordinate Projection, Interiors"
 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+More generally, for any 
+\begin_inset Formula $r<d$
 \end_inset
 
+, 
+\begin_inset Formula $(n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{r})$
+\end_inset
 
+ is the relative index (0-based) of interior 
+\begin_inset Formula $n$
+\end_inset
+
+ within the block of constant coordinate 
+\begin_inset Formula $r+1$
+\end_inset
+
+ in which it lies.
+ Since the coordinates 
+\begin_inset Formula $1,\dots,r$
+\end_inset
+
+ were reset to ones at the beginning of this block, the 
+\begin_inset Formula $r^{th}$
+\end_inset
+
+ coordinate index (0-based form of the 
+\begin_inset Formula $r^{th}$
+\end_inset
+
+ coordinate) is therefore the number of times that the product of the lesser
+ dimensions 
+\begin_inset Formula $k_{1}k_{2}\cdots\, k_{r-1}$
+\end_inset
+
+ divides evenly into the block-relative index.
+ Thus we have:
+\end_layout
+
+\begin_layout Standard
 \begin_inset Formula 
 \[
-\begin{aligned}\pi_{r}(n) & =((n-1)\ \mod\ (k_{1}k_{2}\dots k_{r}))\,\backslash\,(k_{1}k_{2}\dots k_{r-1})\end{aligned}
-\;+1\quad\quad(r=1,...,d)
+\begin{aligned}\pi_{r}(n) & =((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{r}))\,\backslash\,(k_{1}k_{2}\cdots\, k_{r-1})\end{aligned}
++1\quad\quad(r=1,...,d)
 \]
 
 \end_inset
 
-where we've used the fact that 
+Here we've used the fact that 
 \family roman
 \series medium
 \shape up
@@ -283,26 +366,58 @@ where we've used the fact that
 \noun off
 \color none
 
-\begin_inset Formula $(n-1)\ \mod\ (k_{1}k_{2}\dots k_{d})=(n-1)$
+\begin_inset Formula $(n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{d})=(n-1)$
 \end_inset
 
  to justify including the original case 
 \begin_inset Formula $r=d$
 \end_inset
 
-, and letting an empty product signify 
-\begin_inset Formula $1$
-\end_inset
-
- for the 
+, and we've let an empty product signify 1 for the 
 \begin_inset Formula $r=1$
 \end_inset
 
  case.
 \end_layout
 
+\begin_layout Subsection
+Interior Sequence Numbers from Mesh Coordinates
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Interior-Seq-Nums-from-Mesh-Coords"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The interior number can also be recovered from the mesh coordinates via
+ the equation:
+\begin_inset Formula 
+\[
+i_{\sharp}(c_{1},\dots\,,c_{d})=1+\sum_{i=1}^{d}(c_{i}-1)\prod_{l=1}^{i-1}k_{l}
+\]
+
+\end_inset
+
+ , the empty product again signifying 1.
+\end_layout
+
+\begin_layout Standard
+This is easily proved by induction on the number of leading coordinates
+ which we allow to be different from 1.
+\end_layout
+
 \begin_layout Section
 Non-Boundary Sides
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Non-Boundary-Sides"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -319,82 +434,113 @@ side
  All of these sides are enumerated as a single sequence by the mesh in the
  general abstract mesh interface which all concrete mesh types must implement.
  This way users of the mesh modules will not have to distingutiple multiple
- types of sides when interacting with various meshes., which concerns should
- be hidden inside the mesh implementations.
+ types of sides when interacting with meshes, which concerns should be hidden
+ inside the mesh implementations.
  
 \end_layout
 
 \begin_layout Standard
 Even so, inside the rectangular mesh implementation our strategy will be
- to form separate sections in the overall enumeration for the sides, by
- their orientations with respect to the coordinate axes.
+ to form sections in the overall enumeration for the sides, with sides grouped
+ by their orientations with respect to the coordinate axes.
  Separating sides by orientation this way makes it easier to reason about
  the enumeration and resulting geometric positions of sides, and how they
  relate geometrically to mesh elements.
  This is because for rectangular meshes the set of all sides having a common
  orientation form a mesh very much like the overall mesh of finite elements.
+\end_layout
+
+\begin_layout Standard
+In general a non-boundary side perpendicular to axis 
+\begin_inset Formula $j$
+\end_inset
+
+ is of the form:
+\begin_inset Formula 
+\[
+\begin{aligned}S(c_{1},...,c_{d})=\, & [a_{1}+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\\
+ & [a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\\
+ & ...\;\times\\
+\text{} & \mathbf{\{a_{j}+c_{j}h_{j}\}}\;\times\\
+ & ...\;\times\\
+ & [a_{d}+(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}]\\
+ & \text{\quad where }1\le c_{i}\le k_{i}\text{ for }i\ne j\text{ and }1\le c_{j}\le k_{j}-1
+\end{aligned}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+the 
+\begin_inset Formula $j^{th}$
+\end_inset
+
+ factor being the singleton set and all other factors being the closed intervals
+ as in the definition of 
+\begin_inset Formula $E(c_{1},...,c_{d})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+As with interiors, we call the tuple 
+\begin_inset Formula $(c_{1},...,c_{d})$
+\end_inset
+
+ the mesh coordinates of the side in the mesh particular to the side's orientati
+on.
+ The mesh is particular to the side's orientation because of the short 
+\begin_inset Formula $j^{th}$
+\end_inset
+
+ dimension, resulting from the fact that side 
+\begin_inset Formula $S(c_{1},\dots,\,,c_{j-1,}\,,k_{j},\, c_{j+1},\dots\,,c_{d})$
+\end_inset
+
+ (extending our definition of 
+\begin_inset Formula $S$
+\end_inset
+
+ for a moment) is on the outside boudary of the mesh.
+ This follows from the fact that it is easy to construct points arbitrarily
+ close to such a side which are not within the mesh's overall rectangle,
+ by approaching 
+\begin_inset Formula $a_{j}+k_{j}h_{j}$
+\end_inset
+
+ from above in coordinate 
+\begin_inset Formula $j$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+We introduce the notation 
+\begin_inset Formula $k_{j,i}$
+\end_inset
+
+ to represent the size of the 
+\begin_inset Formula $i^{th}$
+\end_inset
+
+ dimension of mesh coordinates in the mesh of sides perpendicular to axis
  
-\end_layout
-
-\begin_layout Subsection
-Short Dimensions
-\end_layout
-
-\begin_layout Standard
-There is one distinguishing feature of the mesh formed by sides of a particular
- orientation, which is 
-\end_layout
-
-\begin_layout Standard
-\begin_inset Box Shadowbox
-position "t"
-hor_pos "c"
-has_inner_box 1
-inner_pos "t"
-use_parbox 0
-use_makebox 0
-width "100col%"
-special "none"
-height "1in"
-height_special "totalheight"
-status open
-
-\begin_layout Itemize
-The sides perpendicular to axis 
 \begin_inset Formula $j$
 \end_inset
 
- will have 
-\begin_inset Formula $k_{j}-1$
-\end_inset
-
- of the sides along mesh coordinate 
-\begin_inset Formula $j$
-\end_inset
-
- when other coordinates are fixed.
- 
-\end_layout
-
-\begin_layout Itemize
-For all other coordinates 
-\begin_inset Formula $i\ne j$
-\end_inset
-
- there will be 
-\begin_inset Formula $k_{i}$
-\end_inset
-
- sides perpendicular to axis 
-\begin_inset Formula $j$
-\end_inset
-
- along coordinate 
-\begin_inset Formula $i$
-\end_inset
-
-, as with the finite element/interiors mesh.
-\end_layout
+:
+\begin_inset Formula 
+\[
+\begin{aligned}sdims_{j}=(k_{j,1},...,k_{j,d}) & ,\text{ where }k_{j,i}=\begin{cases}
+k_{i}, & i\ne j\\
+k_{j}-1, & i=j
+\end{cases}\end{aligned}
+\]
 
 \end_inset
 
@@ -402,7 +548,7 @@ For all other coordinates
 \end_layout
 
 \begin_layout Standard
-As an illustration, let 
+As an illustration of side orientation-dependent meshes, let 
 \begin_inset Formula $c$
 \end_inset
 
@@ -412,12 +558,12 @@ As an illustration, let
 
  be the number of columns and rows of finite elements in a rectangular mesh
  in 
-\begin_inset Formula $R^{2}$
+\begin_inset Formula $\mathbb{R}^{2}$
 \end_inset
 
 (see figure below).
- In the middle diagram, note how for the sides perpendicular to axis 1,
- which are the vertical interior sides, there are only 
+ In the bottom left diagram, note how for the sides perpendicular to axis
+ 1, which are the vertical interior sides, there are only 
 \begin_inset Formula $c-1$
 \end_inset
 
@@ -429,7 +575,7 @@ As an illustration, let
 \begin_inset Formula $r$
 \end_inset
 
- rows of the vertical sides as in the main (interiors) mesh.
+ rows of the vertical sides just as in the main (interiors) mesh.
  Likewise for the sides perpendicular to the second axis, there are only
  
 \begin_inset Formula $r-1$
@@ -441,179 +587,137 @@ As an illustration, let
 
 \begin_layout Standard
 \begin_inset listings
-lstparams "basicstyle={\tiny\ttfamily},tabsize=2"
+lstparams "basicstyle={\small\ttfamily},tabsize=2"
 inline false
 status open
 
 \begin_layout Plain Layout
 
-# interiors ordering          sides perp.
- to axis 1          sides perp.
+interiors
+\end_layout
+
+\begin_layout Plain Layout
+
+----------------------      
+\end_layout
+
+\begin_layout Plain Layout
+
+|...
+            | rc |       
+\end_layout
+
+\begin_layout Plain Layout
+
+        ...
+                 
+\end_layout
+
+\begin_layout Plain Layout
+
+----------------------      
+\end_layout
+
+\begin_layout Plain Layout
+
+| c+1 | c+2 |...| 2c |      
+\end_layout
+
+\begin_layout Plain Layout
+
+----------------------      
+\end_layout
+
+\begin_layout Plain Layout
+
+|  1  |  2  |...|  c |      
+\end_layout
+
+\begin_layout Plain Layout
+
+----------------------      
+\end_layout
+
+\begin_layout Plain Layout
+
+(^also fe numbering)      
+\end_layout
+
+\begin_layout Plain Layout
+
+  
+\end_layout
+
+\begin_layout Plain Layout
+
+                                                            
+\end_layout
+
+\begin_layout Plain Layout
+
+sides perp.
+ to axis 1        sides perp.
  to axis 2
 \end_layout
 
 \begin_layout Plain Layout
 
-# ----------------------      --------------------------    --------------------
--------- 
+--------------------------   --------------------------- 
 \end_layout
 
 \begin_layout Plain Layout
 
-# |...
-            | rc |      |...
-          | r(c-1)|  |    |     |   ...
-   |          | 
+|...
+          | r(c-1)|  |   |     |   ...
+   |         | 
 \end_layout
 
 \begin_layout Plain Layout
 
-#         ...
-                            ...
-                ---------------------------- 
+           ...
+               --------------------------- 
 \end_layout
 
 \begin_layout Plain Layout
 
-# ----------------------      --------------------------    |...
-            | (r-1)c^  | 
+--------------------------   |...
+            | (r-1)c^ | 
 \end_layout
 
 \begin_layout Plain Layout
 
-# | c+1 | c+2 |...| 2c |      |  c|  c+1|...| 2(c-1)|  |              ...
+|  c|  c+1|...| 2(c-1)|  |             ...
  
 \end_layout
 
 \begin_layout Plain Layout
 
-# ----------------------      --------------------------    --------------------
--------- 
+--------------------------   --------------------------- 
 \end_layout
 
 \begin_layout Plain Layout
 
-# |  1  |  2  |...|  c |      |  1|    2|...|  (c-1)|  |    | 1^  |   ...
-   |    c^    | 
+|  1|    2|...|  (c-1)|  |   | 1^  |   ...
+   |    c^   | 
 \end_layout
 
 \begin_layout Plain Layout
 
-# ----------------------      --------------------------    --------------------
--------- 
+--------------------------   --------------------------- 
 \end_layout
 
 \begin_layout Plain Layout
 
-# (^also fe numbering)                                      (^add # sides
- perp to axis 1 to these to get side #'s) 
+                             (^add #sides perp to axis 1) 
 \end_layout
 
 \end_inset
 
 
-\end_layout
-
-\begin_layout Standard
-We can see this phenomenon occurring more formally as well.
- In general a side is of the form:
-\end_layout
-
-\begin_layout Standard
-\begin_inset CommandInset label
-LatexCommand label
-name "General Side"
-
-\end_inset
-
-
-\begin_inset Formula $S(c_{1},...,c_{d})=[a+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\;[a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\;...\;\times\;\mathbf{\{a_{j}+c_{j}h_{j}\}}\;\times\;...\;\times\;[a_{d}(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}]$
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-where only the 
-\begin_inset Formula $j^{\text{th}}$
-\end_inset
-
- coordinate in the product has a singleton set instead of an interval, giving
- us a side perpendicular to axis 
-\begin_inset Formula $j$
-\end_inset
-
-.
- Leaving all coordinates other than 
-\begin_inset Formula $j$
-\end_inset
-
- fixed in this expression, we see that we can let 
-\begin_inset Formula $c_{j}$
-\end_inset
-
- vary from 
-\begin_inset Formula $1$
-\end_inset
-
- to 
-\begin_inset Formula $k_{j}-1$
-\end_inset
-
- without touching the outside boundary of the mesh at 
-\begin_inset Formula $c_{j}=0$
-\end_inset
-
- and 
-\begin_inset Formula $c_{j}=k_{j}$
-\end_inset
-
-.
- This generalizes the result that was suggested visually for 
-\begin_inset Formula $R^{2}$
-\end_inset
-
-in the figure.
 \end_layout
 
 \begin_layout Subsection
 Enumeration of Sides
-\end_layout
-
-\begin_layout Standard
-Any side perpendicular to axis 
-\begin_inset Formula $j$
-\end_inset
-
- can be identified with its coordinates (
-\begin_inset Formula $c_{1},...,c_{d})$
-\end_inset
-
- from the general side equation above, thus forming a mesh particular to
- sides of the same orientation.
- From the previous section, it follows that the dimensions of the mesh for
- these sides is:
-\end_layout
-
-\begin_layout Standard
-\begin_inset CommandInset label
-LatexCommand label
-name "Mesh Dimensions, Sides Perp. to Axis j"
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\begin{aligned}sdims_{j}=(k_{j,1},...,k_{j,d}) & , where k_{j,i}=\begin{cases}
-k_{i}, & i\ne j\\
-k_{j}-1, & i=j
-\end{cases}\end{aligned}
-\]
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Standard
@@ -630,29 +734,18 @@ We can now enumerate the sides perpendicular to any axis
 \end_inset
 
 .
- Putting these enumerations together into a single enumeration, we have
- the side numbers divided into sections of the overall sequence by side
- orientation, with the following division points marking the beginnings
- of the sections of sides having the same orientation:
-\end_layout
-
-\begin_layout Standard
-\begin_inset CommandInset label
-LatexCommand label
-name "Side Orientation Sections, Starting  Numbers"
-
-\end_inset
-
-
+ Then by putting these separate enumerations together into a single enumeration
+ of all non-boundary sides, we have the following division points marking
+ the beginnings of the sections of sides having the same orientation:
 \begin_inset Formula 
 \begin{align*}
 s_{1} & =1\\
-s_{2} & =1+(k_{1}-1)\, k_{2}\dots k_{d}\\
-s_{3} & =s_{2}+k_{1}(k_{2}-1)\, k_{3}\dots k_{d}\\
+s_{2} & =1+(k_{1}-1)\, k_{2}\cdots k_{d}\\
+s_{3} & =s_{2}+k_{1}(k_{2}-1)\, k_{3}\cdots k_{d}\\
 ...\\
 s_{j} & =s_{j-1}+\prod_{i=1}^{d}k_{j,i}\\
 ...\\
-s_{d} & =s_{d-1}+k_{1}\dots k_{d-1}(k_{d}-1)
+s_{d} & =s_{d-1}+k_{1}\cdots k_{d-1}(k_{d}-1)
 \end{align*}
 
 \end_inset
@@ -669,30 +762,26 @@ The total number of sides of all orientations is
 \end_layout
 
 \begin_layout Subsection
-Side Mesh and Coordinates by Sequence Number
+Side Mesh Coordinates from Sequence Number
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Side-Mesh-Coordinates"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
-To find the geometric location for a side number 
+To find the mesh coordinates for a side number 
 \begin_inset Formula $n$
 \end_inset
 
- so that it can be positiioned and related to other items in the mesh, we
- first have to find the axis 
+, we first have to find the axis 
 \begin_inset Formula $a(n)$
 \end_inset
 
  to which the side is perpendicular, given by:
-\end_layout
-
-\begin_layout Standard
-\begin_inset CommandInset label
-LatexCommand label
-name "Perpendicular Axis, Non-Boundary Sides"
-
-\end_inset
-
-
 \begin_inset Formula 
 \[
 a(n)=\begin{cases}
@@ -710,8 +799,8 @@ d, & s_{d}\le n\le\sum_{j=1}^{d}\prod_{i=1}^{d}k_{j,i}
 \end_layout
 
 \begin_layout Standard
-This identifies the mesh consisting of sides of the same orientation that
- we will use to locate the side geometrically.
+This function allows us to identify the mesh consisting of sides of the
+ same orientation that we will use to locate the side geometrically.
  Recognizing that 
 \begin_inset Formula $n-s_{a(n)}$
 \end_inset
@@ -721,20 +810,16 @@ This identifies the mesh consisting of sides of the same orientation that
 \begin_inset Formula $n-1$
 \end_inset
 
- is in the discussion of the interiors mesh, we can now proceed as in section
- 
+ is in the discussion of the interiors mesh, we can now proceed just as
+ in section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "Coordinate Projection, Interiors"
+reference "sub:Mesh-Coords-from-Seq-Num"
 
 \end_inset
 
- to determine the side's coordinates in the mesh of sides of the same orientatio
-n, obtaining:
-\end_layout
-
-\begin_layout Standard
-
+ to determine the side's coordinates in the mesh of sides having the same
+ orientation, obtaining:
 \family roman
 \series medium
 \shape up
@@ -746,17 +831,11 @@ n, obtaining:
 \uwave off
 \noun off
 \color none
-\begin_inset CommandInset label
-LatexCommand label
-name "Orientation Specific Coordinate Projection, Non-Boundary Sides"
-
-\end_inset
-
 
 \begin_inset Formula 
 \[
-\begin{aligned}\pi_{r}(n) & =((n-s_{a(n)})\ \mod\ (\prod_{i=1}^{r}k_{a(n),i}))\,\backslash\,(\prod_{i=1}^{r-1}k_{a(n),i})\end{aligned}
-\;+1\quad\quad(r=1,...,d)
+\begin{aligned}\pi_{r}(n) & =((n-s_{a(n)})\, mod\,(\prod_{i=1}^{r}k_{a(n),i}))\;\backslash\;(\prod_{i=1}^{r-1}k_{a(n),i})\,+1\end{aligned}
+\quad\quad(r=1,...,d)
 \]
 
 \end_inset
@@ -772,47 +851,122 @@ The coordinates obtained here are specific to the particular mesh for the
 
 .
  These coordinates will be related to the general finite element coordinates
- in the following section.
+ below in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Mesh-Elements-Including-Side"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Subsection
-Relating Side Coordinates to Mesh Elements
+Side Sequence Numbers from Side Mesh Coordinates
 \end_layout
 
 \begin_layout Standard
-Finally we would like to relate a side's orientation-specific side mesh
- coordinates with those of the main mesh, by finding which finite elements
- the given side is between; that is, which elements include the side as
- a subset.
- 
-\end_layout
-
-\begin_layout Subsubsection
-Side Coordinates to Mesh Coordinates
-\end_layout
-
-\begin_layout Standard
-It is apparant from the representation for a general side shown in 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "General Side"
-
+Given a side known to be perpendicular to axis 
+\begin_inset Formula $j$
 \end_inset
 
- that there are always exactly two mesh element rectangles that include
- a given side as subsets.
- For a side 
-\begin_inset Formula $s=S(c_{1},...,c_{d})$
-\end_inset
-
- these including rectangles are:
+, we can find its sequence number in the overall enumeration of sides via:
 \end_layout
 
 \begin_layout Standard
 \begin_inset Formula 
 \[
-\begin{aligned}r_{l}(s)=[a+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\;[a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\;...\;\times\;\mathbf{[a_{j}+(c_{j}-1)h_{j},\, a_{j}+c_{j}h_{j})]}\;\times\;...\;\times\;[a_{d}(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}] & \text{and}\\
-r_{g}(s)=[a+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\;[a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\;...\;\times\;\mathbf{[a_{j}+c_{j}h_{j},\, a_{j}+(c_{j}+1)h_{j})}\;\times\;...\;\times\;[a_{d}(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}] & \text{,}
+s_{\sharp,j}(c_{1},\dots\,,c_{d})=s_{j}+\sum_{i=1}^{d}(c_{i}-1)\prod_{l=1}^{i-1}k_{j,l}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This result is easily proved by induction on the number of leading coordinates
+ allowed to be different from 1.
+\end_layout
+
+\begin_layout Standard
+Note that 
+\begin_inset Formula $j$
+\end_inset
+
+ must be known in order to recover the sequence number from the coordinates.
+\end_layout
+
+\begin_layout Subsection
+Main Mesh Elements Including a Side
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Mesh-Elements-Including-Side"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We would like to relate a side's orientation-specific side mesh coordinates
+ with those of the main mesh, by finding which finite elements the given
+ side is between; that is, which elements include the side as a subset.
+ 
+\end_layout
+
+\begin_layout Standard
+It is apparant from the representation for a general side shown in section
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Non-Boundary-Sides"
+
+\end_inset
+
+ that there are always exactly two mesh element rectangles that include
+ a given side as subsets.
+ These have the same intervals as the side in factors other than 
+\begin_inset Formula $j$
+\end_inset
+
+, and in factor 
+\begin_inset Formula $j$
+\end_inset
+
+ have the closed interval ending at factor 
+\begin_inset Formula $j$
+\end_inset
+
+'s singleton value for one, and the interval starting at factor 
+\begin_inset Formula $j$
+\end_inset
+
+'s singleton value for the other.
+ For a side 
+\begin_inset Formula $s=S(c_{1},...,c_{d})$
+\end_inset
+
+ these including mesh rectangles are:
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula 
+\[
+\begin{aligned}r_{1} & =[a_{1}+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\times...\times\mathbf{[a_{j}+(c_{j}-1)h_{j},\, a_{j}+c_{j}h_{j})]}\times...\times[a_{d}+(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}]\\
+r_{2} & =[a_{1}+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\times...\times\mathbf{[a_{j}+c_{j}h_{j},\, a_{j}+(c_{j}+1)h_{j}]}\times...\times[a_{d}+(c_{d}-1)h_{d},\, a_{d}+c_{d}h_{d}]
 \end{aligned}
 \]
 
@@ -822,24 +976,343 @@ r_{g}(s)=[a+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\;[a_{2}+(c_{2}-1)h_{2},\
 \end_layout
 
 \begin_layout Standard
-which we'll call the lesser and greater rectangles which include the side,
- named so because the greater one has both greater values in coordinate
- 
-\begin_inset Formula $j$
+We can see that 
+\begin_inset Formula $r_{1}$
 \end_inset
 
- and a greater side number in the enumeration.
+ above is just the mesh element with coordinates 
+\begin_inset Formula $(c_{1},...,c_{d})$
+\end_inset
+
+ in the main finite elements/interiors mesh, in other words 
+\begin_inset Formula $E(c_{1},...,c_{d})$
+\end_inset
+
+.
+ Likewise 
+\begin_inset Formula $r_{2}$
+\end_inset
+
+ is just 
+\begin_inset Formula $E(c_{1},...,\, c_{j-1},\, c_{j}+1,\, c_{j+1},\dots,\, c_{d})$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
-TODO: Looking at the parts of the rectangle above and those of the interior
- rectangles of section 1.1, it's obvious that the coordinate systems are
- really the same outside of the jth coordinate.
- So one only needs to reverse the process of going from rectangle to coordinates
- (make the identification/correspondance explicit in section 1.1 as was done
- in the side definition).
- The correspondance is that the coefficient of the h_i on the right side
- of the intervals making up the rectangles are the coordinates.
+Summarizing, we have obtained:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Shadowbox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+status open
+
+\begin_layout Plain Layout
+For any axis 
+\begin_inset Formula $j$
+\end_inset
+
+, 
+\begin_inset Formula $1\le j\le d$
+\end_inset
+
+, and any side 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $s=S(c_{1},...,c_{d})$
+\end_inset
+
+ perpendicular to axis 
+\begin_inset Formula $j$
+\end_inset
+
+, 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+there are exactly two finite elements which include side 
+\begin_inset Formula $s$
+\end_inset
+
+ as a subset, which are:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $E(c_{1},...,c_{d})$
+\end_inset
+
+, and
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $E(c_{1},...,\, c_{j-1},\, c_{j}+1,\, c_{j+1},\dots,\, c_{d})$
+\end_inset
+
+ .
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Usage in the WG Method
+\end_layout
+
+\begin_layout Standard
+So far we've only discussed the enumeration and geometry of the parts of
+ the mesh itself, without regard to the formation of a basis of weak functions
+ on these mesh elements.
+ A basis for the WG approximation space in general assigns multiple polynomials
+ or monomials to each side and interior in the mesh.
+ The basis elements like the mesh elements must be enumerated, and the enumerati
+on must be relatable to the supporting mesh elements on which the basis
+ elements obtain their polynomial value.
+ This is important so that the program can answer fundamental questions
+ such as whether two basis elements are supported on a common finite element,
+ and if so also on which pieces (interior or a particular side) of the common
+ finite element they are supported.
+\end_layout
+
+\begin_layout Standard
+Thankfully it's possible to separate the concerns of the mesh from those
+ of the basis which use the mesh, and this has been a major goal of the
+ design of the program.
+ This way the meshes themselves only have to deal with the minimal geometric
+ concerns and are easier to implement and verify for correctness.
+ Likewise there is a basis module (WGBasis) for handling the enumeration
+ of basis elements and the querying of information about them, using any
+ abstract mesh which implements a small set of standard generic functions.
+ This leaves the concrete mesh implementations themselves only needing to
+ implement this small set of generic geometry-related functions for their
+ specific types in order to automatically be usable by the other modules
+ making up the WG method.
+\end_layout
+
+\begin_layout Subsection
+Abstract Mesh Interface
+\end_layout
+
+\begin_layout Standard
+The functions which every mesh implementation must implement are defined
+ for abstract meshes (subtypes M of AbstractMesh) in Mesh.jl, and they are:
+\end_layout
+
+\begin_layout Itemize
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+num_fes(mesh::M)
+\end_layout
+
+\end_inset
+
+ Gives the number of finite elements (or element interiors) in the mesh.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+num_nb_sides(mesh::M)
+\end_layout
+
+\end_inset
+
+ Returns "non-boundary" sides: the number of element sides which are not
+ subsets of the outside boundary.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+fe_inclusions_of_nb_side(i::SideNum, mesh::M)
+\end_layout
+
+\end_inset
+
+Returns a structure containing information about which two finite elements
+ include the passed non-boundary side, and which face (top, right, etc)
+ the side represents within each of these two finite elements.
+ The callers are not expected to recognize the possible values for the faces
+ returned (since these are mesh specific), but may pass them subsequently
+ into an integration function defined for the mesh, such as the integral_on_ref_
+fe_side_vs_outward_normal function below.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+integral_on_ref_fe_interior(mon::Monomial, mesh::M)
+\end_layout
+
+\end_inset
+
+Integrates the monomial on the interior of the reference finite elmenent.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial,
+\end_layout
+
+\begin_layout Plain Layout
+
+                                          face::Face,
+\end_layout
+
+\begin_layout Plain Layout
+
+                                          mesh::M)
+\end_layout
+
+\end_inset
+
+Integrates the vector monomial vs outward normal on the indicated face of
+ the reference element.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+integral_on_fe_interior(f::Function,fe::FENum, mesh::M)
+\end_layout
+
+\end_inset
+
+Integrate an arbitrary function on a finite element interior.
+\end_layout
+
+\begin_layout Subsection
+Example Mesh Function Implementation
+\end_layout
+
+\begin_layout Standard
+We'll close with a brief sketch of the implentation of a crucial mesh function
+ listed above,
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+fe_inclusions_of_nb_side(i::SideNum, mesh::M)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+to show how the results reached in previous sections can be used in practice.
+ The job of this function is to return the finite elements (by interior
+ number) that include a given side in a mesh, and also the face (interior
+ or particular side) that the side occupies in each of the returned finite
+ elements.
+ Note that no such function is necessary for interiors, because interiors
+ only ever intersect a single finite element (numbered identically to the
+ interior).
+\end_layout
+
+\begin_layout Standard
+The first step is to employ section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Side-Mesh-Coordinates"
+
+\end_inset
+
+ to convert the side sequence number into side mesh coordinates, relative
+ to the mesh specific to the side's orientation.
+ We then can use section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Mesh-Elements-Including-Side"
+
+\end_inset
+
+ to find the main mesh coordinates of the two finite elements which include
+ the side.
+ The callers know nothing of mesh coordinates returned by this function
+ (nor necessarily that the mesh being employed is even rectangular), so
+ we must convert the mesh coordinates to finite element/interior numbers,
+ using section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Interior-Seq-Nums-from-Mesh-Coords"
+
+\end_inset
+
+.
+ Finally, we pair each of the returned finite element rectangle numbers
+ with a tag indicating the face (top, right, etc) in the rectangle that
+ the side occupies.
+ The face is indicated by an axis number to which the face is perpendicular
+ and whether it is the near or far face from the origin along the indicated
+ axis.
+ The client won't know the meanings of the face codes but can pass them
+ back into the other mesh functions (which do understand them), e.g.
+ to a function to compute an integral on a face.
+ This completes the example.
 \end_layout
 
 \end_body
