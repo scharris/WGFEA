@@ -4,6 +4,11 @@
 \begin_header
 \textclass article
 \use_default_options true
+\begin_modules
+theorems-ams
+eqs-within-sections
+figs-within-sections
+\end_modules
 \maintain_unincluded_children false
 \language english
 \language_package default
@@ -82,7 +87,7 @@ Let
 \end_inset
 
 , the number of elements along the axes 
-\begin_inset Formula $(k_{1},...,k_{n})$
+\begin_inset Formula $(k_{1},...,k_{d})$
 \end_inset
 
 , and the dimensions of the individual mesh elements 
@@ -151,7 +156,7 @@ We call the sequence
 \begin_layout Standard
 \begin_inset Formula 
 \[
-E(c_{1},...,c_{d})=\prod_{i=1}^{d}\,[a+(c_{i}-1)h_{i},\; a_{i}+c_{i}h_{i}]
+E(c_{1},...,c_{d})=\prod_{i=1}^{d}\,[a_{i}+(c_{i}-1)h_{i},\; a_{i}+c_{i}h_{i}]
 \]
 
 \end_inset
@@ -205,7 +210,7 @@ Let
 \end_inset
 
  be an interior number with interiors enumerated as above.
- We want to to find the mesh coordinates for the given interior number.
+ We want to find the mesh coordinates for the given interior number.
  The reverse transformation will be described in the next section.
 \end_layout
 
@@ -218,7 +223,7 @@ mesh coordinate starts at
 \begin_inset Formula $1$
 \end_inset
 
- and is incremented for every block of 
+ and is incremented after every block of 
 \begin_inset Formula $k_{1}k_{2}\cdots\, k_{d-1}$
 \end_inset
 
@@ -267,7 +272,7 @@ Since the lower numbered coordinates are reset when the
 
  amounts to applying the same reasoning as the above, this time on the block-rel
 ative interior number 
-\begin_inset Formula $((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{d-1}))\;+1$
+\begin_inset Formula $\mbox{((n-1)\,\ mod\,(k_{1}k_{2}\cdots\,\ k_{d-1}))\;+1 }$
 \end_inset
 
  in the block of constant 
@@ -311,7 +316,7 @@ More generally, for any
 \end_inset
 
 , 
-\begin_inset Formula $(n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{r})$
+\begin_inset Formula $\mbox{(n-1)\,\ mod\,(k_{1}k_{2}\cdots\,\ k_{r})}$
 \end_inset
 
  is the relative index (0-based) of interior 
@@ -337,7 +342,7 @@ More generally, for any
 
  coordinate) is therefore the number of times that the product of the lesser
  dimensions 
-\begin_inset Formula $k_{1}k_{2}\cdots\, k_{r-1}$
+\begin_inset Formula $\mbox{k_{1}k_{2}\cdots\,\ k_{r-1}}$
 \end_inset
 
  divides evenly into the block-relative index.
@@ -366,7 +371,7 @@ Here we've used the fact that
 \noun off
 \color none
 
-\begin_inset Formula $(n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{d})=(n-1)$
+\begin_inset Formula $\mbox{(n-1)\,\ mod\,(k_{1}k_{2}\cdots\,\ k_{d})=(n-1)}$
 \end_inset
 
  to justify including the original case 
@@ -498,7 +503,7 @@ on.
 \end_inset
 
  dimension, resulting from the fact that side 
-\begin_inset Formula $S(c_{1},\dots,\,,c_{j-1,}\,,k_{j},\, c_{j+1},\dots\,,c_{d})$
+\begin_inset Formula $\mbox{S(c_{1},\dots,\,,c_{j-1,}\,,k_{j},\,\ c_{j+1},\dots\,,c_{d})}$
 \end_inset
 
  (extending our definition of 
@@ -802,12 +807,12 @@ d, & s_{d}\le n\le\sum_{j=1}^{d}\prod_{i=1}^{d}k_{j,i}
 This function allows us to identify the mesh consisting of sides of the
  same orientation that we will use to locate the side geometrically.
  Recognizing that 
-\begin_inset Formula $n-s_{a(n)}$
+\begin_inset Formula $\mbox{n-s_{a(n)}}$
 \end_inset
 
  is the 0-based index of the side relative to its particular mesh, like
  
-\begin_inset Formula $n-1$
+\begin_inset Formula $\mbox{n-1}$
 \end_inset
 
  is in the discussion of the interiors mesh, we can now proceed just as
@@ -944,7 +949,7 @@ reference "sec:Non-Boundary-Sides"
 
 's singleton value for the other.
  For a side 
-\begin_inset Formula $s=S(c_{1},...,c_{d})$
+\begin_inset Formula $\mbox{s=S(c_{1},...,c_{d})}$
 \end_inset
 
  these including mesh rectangles are:
@@ -981,11 +986,11 @@ We can see that
 \end_inset
 
  above is just the mesh element with coordinates 
-\begin_inset Formula $(c_{1},...,c_{d})$
+\begin_inset Formula $\mbox{(c_{1},...,c_{d})}$
 \end_inset
 
  in the main finite elements/interiors mesh, in other words 
-\begin_inset Formula $E(c_{1},...,c_{d})$
+\begin_inset Formula $\mbox{E(c_{1},...,c_{d})}$
 \end_inset
 
 .
@@ -994,7 +999,7 @@ We can see that
 \end_inset
 
  is just 
-\begin_inset Formula $E(c_{1},...,\, c_{j-1},\, c_{j}+1,\, c_{j+1},\dots,\, c_{d})$
+\begin_inset Formula $\mbox{E(c_{1},...,\,\ c_{j-1},\,\ c_{j}+1,\,\ c_{j+1},\dots,\,\ c_{d})}$
 \end_inset
 
 .
@@ -1095,32 +1100,46 @@ So far we've only discussed the enumeration and geometry of the parts of
  on these mesh elements.
  A basis for the WG approximation space in general assigns multiple polynomials
  or monomials to each side and interior in the mesh.
- The basis elements like the mesh elements must be enumerated, and the enumerati
-on must be relatable to the supporting mesh elements on which the basis
- elements obtain their polynomial value.
- This is important so that the program can answer fundamental questions
- such as whether two basis elements are supported on a common finite element,
- and if so also on which pieces (interior or a particular side) of the common
- finite element they are supported.
+ The basis elements like the mesh elements must be enumerated, and we must
+ be able to relate the enumeration to the supporting mesh elements on which
+ the basis elements obtain their polynomial value.
+ This is so that the program can answer fundamental questions such as whether
+ two basis elements are supported on a common finite element, and if so
+ also on which particular pieces (interior or a particular side) of the
+ common finite element they are supported.
 \end_layout
 
 \begin_layout Standard
-Thankfully it's possible to separate the concerns of the mesh from those
- of the basis which use the mesh, and this has been a major goal of the
- design of the program.
+Thankfully it's possible to thoroughly separate the concerns of the mesh
+ from those of the basis which uses the mesh, and this has been a major
+ goal of the design of the program.
  This way the meshes themselves only have to deal with the minimal geometric
  concerns and are easier to implement and verify for correctness.
- Likewise there is a basis module (WGBasis) for handling the enumeration
- of basis elements and the querying of information about them, using any
- abstract mesh which implements a small set of standard generic functions.
+ Likewise there is a basis module, desribed below in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Basis-Implementation"
+
+\end_inset
+
+, for handling the enumeration of basis elements and the querying of information
+ about them, using any abstract mesh which implements a small set of standard
+ generic functions.
  This leaves the concrete mesh implementations themselves only needing to
  implement this small set of generic geometry-related functions for their
- specific types in order to automatically be usable by the other modules
+ specific mesh types in order to automatically be usable by the other modules
  making up the WG method.
 \end_layout
 
 \begin_layout Subsection
 Abstract Mesh Interface
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Abstract-Mesh-Interface"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -1241,7 +1260,7 @@ Example Mesh Function Implementation
 \end_layout
 
 \begin_layout Standard
-We'll close with a brief sketch of the implentation of a crucial mesh function
+We'll provide a brief sketch of the implentation of a crucial mesh function
  listed above,
 \end_layout
 
@@ -1265,12 +1284,12 @@ fe_inclusions_of_nb_side(i::SideNum, mesh::M)
 \begin_layout Standard
 to show how the results reached in previous sections can be used in practice.
  The job of this function is to return the finite elements (by interior
- number) that include a given side in a mesh, and also the face (interior
- or particular side) that the side occupies in each of the returned finite
+ number) that include a given side in a mesh, and also the particular part
+ (top, right, etc) that the side occupies in each of the returned finite
  elements.
  Note that no such function is necessary for interiors, because interiors
- only ever intersect a single finite element (numbered identically to the
- interior).
+ only ever intersect a single finite element which are numbered identically
+ to the interior.
 \end_layout
 
 \begin_layout Standard
@@ -1304,15 +1323,390 @@ reference "sub:Interior-Seq-Nums-from-Mesh-Coords"
 
 .
  Finally, we pair each of the returned finite element rectangle numbers
- with a tag indicating the face (top, right, etc) in the rectangle that
- the side occupies.
+ with a tag indicating the particular part (top, right, etc) in the rectangle
+ that the side occupies.
  The face is indicated by an axis number to which the face is perpendicular
  and whether it is the near or far face from the origin along the indicated
  axis.
- The client won't know the meanings of the face codes but can pass them
- back into the other mesh functions (which do understand them), e.g.
+ The caller is not expected know the meanings of these returned face codes,
+ but can pass them back into the other mesh functions which do understand
+ them, e.g.
  to a function to compute an integral on a face.
  This completes the example.
+\end_layout
+
+\begin_layout Subsection
+Basis Implementation
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Basis-Implementation"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Since the mesh interfaces and implentatiions do not consider at all the
+ overlay of polynomials on the mesh parts as basis elements, we will sketch
+ how such a basis has been implemented for an arbitrary mesh.
+ We will limit ourselves to using the mesh's abstract interface as described
+ in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Abstract-Mesh-Interface"
+
+\end_inset
+
+, which makes no assumptions about the mesh other than the implicit assumptions
+ that it consists of polygonal shapes (because they have faces) and that
+ it is regular so that a reference element may be used for efficiency, though
+ the WG method itself requires additional assumptions about the shapes employed.
+ In particular the mesh need not be rectangular.
+\end_layout
+
+\begin_layout Standard
+Our purpose is to provide, for a given mesh, polynomial degree, and domain
+ dimension, an object representing a basis and its enumeration for the WG
+ approximation space 
+\begin_inset Formula $V_{h}^{0}$
+\end_inset
+
+, together with functions to interrogate the basis to determine the supporting
+ finite element, face and monomial for any given basis element by its sequence
+ number in the enumeration.
+\end_layout
+
+\begin_layout Standard
+A basis element for 
+\begin_inset Formula $V_{h}^{0}$
+\end_inset
+
+ in this implementation will be a weak function which is a monomial on one
+ face of a single finite element, excluding sides on the outside boundary
+ of the mesh, and which is 0 on all other faces.
+ On interiors of the finite elements the maximum polynomial degree will
+ be 
+\begin_inset Formula $k$
+\end_inset
+
+ for some arbitrary 
+\begin_inset Formula $k>1$
+\end_inset
+
+, and 
+\begin_inset Formula $k-1$
+\end_inset
+
+ on finite element sides.
+\end_layout
+
+\begin_layout Subsubsection
+Enumeration of Basis Elements
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Enumeration-of-Basis"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We'll first compute the number of basis elements needed, and then assign
+ meaning to the sequence numbers by their locations in the sequence.
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+There are 
+\begin_inset Formula $\mbox{\tbinom{d+l-1}{l}}$
+\end_inset
+
+ monomials of any given degree 
+\begin_inset Formula $l$
+\end_inset
+
+ and dimension 
+\begin_inset Formula $d$
+\end_inset
+
+, which is the multiset coefficient of 
+\begin_inset Formula $d$
+\end_inset
+
+ and 
+\begin_inset Formula $l$
+\end_inset
+
+.
+ Thus we need 
+\begin_inset Formula $\nu_{1}=\mbox{\sum_{l=0}^{k}\tbinom{d+l-1}{l}}$
+\end_inset
+
+ monomial basis elements supported on each interior to span polynomials
+ of degree 
+\begin_inset Formula $k$
+\end_inset
+
+ defined there, and likewise 
+\begin_inset Formula $\mbox{\nu_{2}=\sum_{l=0}^{k}\tbinom{d+l-2}{l-1}}$
+\end_inset
+
+ monomials supported on each side.
+ Let 
+\begin_inset Formula $m_{fe}$
+\end_inset
+
+ be the count of mesh interiors or finite elements provided by the mesh
+ via function 
+\family typewriter
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+num_fes
+\family default
+, and let 
+\begin_inset Formula $m_{s}$
+\end_inset
+
+ be the count of mesh non-boundary sides as provided by mesh function 
+\family typewriter
+num_nb_sides
+\family default
+.
+ Then the counts of interior-supported basis elements 
+\begin_inset Formula $b_{int}$
+\end_inset
+
+, side-supported basis elements 
+\begin_inset Formula $b_{s}$
+\end_inset
+
+, and total basis functions 
+\begin_inset Formula $b_{tot}$
+\end_inset
+
+ are
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{eqnarray*}
+b_{int} & =m_{fe}\,\nu_{1} & =m_{fe}\sum_{l=0}^{k}\tbinom{d+l-1}{l}\\
+b_{s} & =m_{s}\,\nu_{2} & =m_{s}\sum_{l=0}^{k}\tbinom{d+l-2}{l-1}\\
+b_{tot} & =b_{int}+b_{s}
+\end{eqnarray*}
+
+\end_inset
+
+ 
+\end_layout
+
+\begin_layout Standard
+We assign numbers to our basis elements as sugested by the two terms above,
+ with all interior-supported basis elements enumerated first, as 
+\begin_inset Formula $1\dots,b_{int}$
+\end_inset
+
+, followed by those supported on sides, as 
+\begin_inset Formula $b_{int}+1,\dots,b_{tot}$
+\end_inset
+
+.
+ Within each of these two groups the basis elements are assigned in blocks
+ of 
+\begin_inset Formula $\nu_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\nu_{2}$
+\end_inset
+
+ to interior numbers and side numbers respectively as defined by the mesh.
+ Within a block of basis elements allocated to a particular interior or
+ side, the monomials representing the basis element values on the face are
+ arranged first in blocks by increasing degree, then within a degree block
+ lexicographically by increasing exponent, so e.g.
+ x^0 y^2 appears prior to x^1 y^1.
+ Together with the mesh which determines the number and meaning of enumerated
+ interiors and sides, these rules completely order our basis elements.
+\end_layout
+
+\begin_layout Subsubsection
+Basis Interface Functions
+\end_layout
+
+\begin_layout Standard
+Using the above enumeration, we can now implement the functions that the
+ basis exposes to the rest of the program, as functions of the basis element
+ numbers.
+\end_layout
+
+\begin_layout Standard
+Two basic basis related functions are 
+\family typewriter
+is_interior_supported 
+\family default
+and
+\family typewriter
+ is_side_supported
+\family default
+.
+ These are easiy implemented as simple range checks, with basis elements
+ numbered at 
+\begin_inset Formula $b_{int}$
+\end_inset
+
+ and below being interior supported, and those of higher number being side
+ supported.
+\end_layout
+
+\begin_layout Standard
+After determining whether a basis element is an interior or side, we can
+ now ask for the mesh interior or side on which the basis element is supported,
+ with functions
+\family typewriter
+ support_interior_num
+\family default
+ and 
+\family typewriter
+support_side_num
+\family default
+.
+ The values of these functions can then be used in mesh interface functions,
+ and so are the keys to access the mesh geometry for the supporting finite
+ element faces of the basis elements.
+\end_layout
+
+\begin_layout Standard
+To implement 
+\family typewriter
+support_interior_num
+\family default
+ to find the interior number 
+\begin_inset Formula $i_{\#}$
+\end_inset
+
+ for a given basis element number 
+\begin_inset Formula $b$
+\end_inset
+
+, we only need to find how many times the number of interior monomials per
+ interior, 
+\begin_inset Formula $\nu_{1}$
+\end_inset
+
+, divides evenly into the 0-based index of our basis element 
+\begin_inset Formula $b-1$
+\end_inset
+
+, then adding 1 to obtain a 1-based sequence number:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+i_{\#}=(b-1)\,\backslash\,\nu_{1}+1
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The 
+\family typewriter
+support_side_num
+\family default
+ is implemented in a similar way, only this time using the side-relative
+ basis index 
+\begin_inset Formula $b-(b_{int}+1)$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Formula 
+\[
+s_{\#}=(b-(b_{int}+1))\,\backslash\,\nu_{2}+1
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The final basis function to be implemented is 
+\family typewriter
+support_face_monomial
+\family default
+, which gives the monomial defined on the supporting face (interior or side)
+ of the supporting finite element.
+ The block of monomials for each interior or side are ordered in a standard
+ way as described in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Enumeration-of-Basis"
+
+\end_inset
+
+, so we only need to find the basis number's offset relative to the beginning
+ of the block to identify the monomial.
+ Thus the monomial number is given by 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+m_{\#}=\begin{cases}
+(b-1)\, mod\,\nu_{1}+1, & b\le b_{int}\\
+(b-(b_{int}+1))\, mod\,\nu_{2}+1, & b\ge b_{int}+1
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This completes the basis implementation.
+ Thus we've shown how we can completely implement our basis, using only
+ the minimal abstract interface for our mesh.
 \end_layout
 
 \end_body

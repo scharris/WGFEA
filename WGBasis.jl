@@ -87,7 +87,7 @@ type WeakFunsPolyBasis
     per_fe_side_mons = Poly.monomials_of_degree_le(deg(k-1), dom_dim)
     num_per_fe_interior_mons = length(per_fe_interior_mons) | uint
     num_per_fe_side_mons = length(per_fe_side_mons) | uint
-    num_interior_bels = mesh.rows * mesh.cols * num_per_fe_interior_mons
+    num_interior_bels = Mesh.num_fes(mesh) * num_per_fe_interior_mons
     first_side_bel = num_interior_bels + 1
     total_bels = num_interior_bels + Mesh.num_nb_sides(mesh) * num_per_fe_side_mons
     new(k, dom_dim, mesh,
@@ -98,8 +98,7 @@ type WeakFunsPolyBasis
         num_interior_bels,
         first_side_bel,
         total_bels)
-   end
-
+  end
 end # ends type WeakFunsPolyBasis
 
 function isequal(basis1::WeakFunsPolyBasis, basis2::WeakFunsPolyBasis)
