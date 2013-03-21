@@ -239,7 +239,7 @@ mesh coordinate is given by
 \noindent
 \begin_inset Formula 
 \[
-\pi_{d}(n)=(n-1)\,\backslash\,(k_{1}k_{2}\cdots\, k_{d-1})+1
+\pi(d,n)=(n-1)\,\backslash\,(k_{1}k_{2}\cdots\, k_{d-1})+1
 \]
 
 \end_inset
@@ -262,8 +262,12 @@ Since the lower numbered coordinates are reset when the
 \begin_inset Formula $d^{\text{th}}$
 \end_inset
 
- coordinate changes, finding coordinate 
-\begin_inset Formula $\pi_{d-1}(n)$
+ coordinate changes, finding the 
+\begin_inset Formula $d-1^{th}$
+\end_inset
+
+ coordinate 
+\begin_inset Formula $\pi(d-1,n)$
 \end_inset
 
  for interior 
@@ -290,7 +294,7 @@ ative interior number
 \begin_layout Standard
 \begin_inset Formula 
 \[
-\pi_{d-1}(n)=((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{d-1}))\,\backslash\,(k_{1}k_{2}\cdots\, k_{d-2})+1
+\pi(d-1,n)=((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{d-1}))\,\backslash\,(k_{1}k_{2}\cdots\, k_{d-2})+1
 \]
 
 \end_inset
@@ -352,7 +356,7 @@ More generally, for any
 \begin_layout Standard
 \begin_inset Formula 
 \[
-\begin{aligned}\pi_{r}(n) & =((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{r}))\,\backslash\,(k_{1}k_{2}\cdots\, k_{r-1})\end{aligned}
+\begin{aligned}\pi(r,n) & =((n-1)\, mod\,(k_{1}k_{2}\cdots\, k_{r}))\,\backslash\,(k_{1}k_{2}\cdots\, k_{r-1})\end{aligned}
 +1\quad\quad(r=1,...,d)
 \]
 
@@ -463,7 +467,7 @@ In general a non-boundary side perpendicular to axis
  is of the form:
 \begin_inset Formula 
 \[
-\begin{aligned}S(c_{1},...,c_{d})=\, & [a_{1}+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\\
+\begin{aligned}S_{j}(c_{1},...,c_{d})=\, & [a_{1}+(c_{1}-1)h_{1},\, a_{1}+c_{1}h_{1}]\;\times\\
  & [a_{2}+(c_{2}-1)h_{2},\, a_{2}+c_{2}h_{2})]\;\times\\
  & ...\;\times\\
 \text{} & \mathbf{\{a_{j}+c_{j}h_{j}\}}\;\times\\
@@ -503,11 +507,11 @@ on.
 \end_inset
 
  dimension, resulting from the fact that side 
-\begin_inset Formula $\mbox{S(c_{1},\dots,\,,c_{j-1,}\,,k_{j},\,\ c_{j+1},\dots\,,c_{d})}$
+\begin_inset Formula $S_{j}(c_{1},\dots,\,,c_{j-1,}\,,k_{j},\, c_{j+1},\dots\,,c_{d})$
 \end_inset
 
  (extending our definition of 
-\begin_inset Formula $S$
+\begin_inset Formula $S_{j}$
 \end_inset
 
  for a moment) is on the outside boudary of the mesh.
@@ -748,7 +752,7 @@ s_{1} & =1\\
 s_{2} & =1+(k_{1}-1)\, k_{2}\cdots k_{d}\\
 s_{3} & =s_{2}+k_{1}(k_{2}-1)\, k_{3}\cdots k_{d}\\
 ...\\
-s_{j} & =s_{j-1}+\prod_{i=1}^{d}k_{j,i}\\
+s_{j} & =s_{j-1}+\prod_{i=1}^{d}k_{j-1,i}\\
 ...\\
 s_{d} & =s_{d-1}+k_{1}\cdots k_{d-1}(k_{d}-1)
 \end{align*}
@@ -839,7 +843,7 @@ reference "sub:Mesh-Coords-from-Seq-Num"
 
 \begin_inset Formula 
 \[
-\begin{aligned}\pi_{r}(n) & =((n-s_{a(n)})\, mod\,(\prod_{i=1}^{r}k_{a(n),i}))\;\backslash\;(\prod_{i=1}^{r-1}k_{a(n),i})\,+1\end{aligned}
+\begin{aligned}\pi_{s}(r,n) & =((n-s_{a(n)})\, mod\,(\prod_{i=1}^{r}k_{a(n),i}))\;\backslash\;(\prod_{i=1}^{r-1}k_{a(n),i})\,+1\end{aligned}
 \quad\quad(r=1,...,d)
 \]
 
@@ -873,6 +877,10 @@ Side Sequence Numbers from Side Mesh Coordinates
 \begin_layout Standard
 Given a side known to be perpendicular to axis 
 \begin_inset Formula $j$
+\end_inset
+
+, with orientation-specific coordinates 
+\begin_inset Formula $(c_{1},\dots\,,c_{d})$
 \end_inset
 
 , we can find its sequence number in the overall enumeration of sides via:
@@ -949,7 +957,7 @@ reference "sec:Non-Boundary-Sides"
 
 's singleton value for the other.
  For a side 
-\begin_inset Formula $\mbox{s=S(c_{1},...,c_{d})}$
+\begin_inset Formula $\mbox{S_{j}(c_{1},...,c_{d})}$
 \end_inset
 
  these including mesh rectangles are:
@@ -1045,7 +1053,7 @@ For any axis
 \noun off
 \color none
 
-\begin_inset Formula $s=S(c_{1},...,c_{d})$
+\begin_inset Formula $s=S_{j}(c_{1},...,c_{d})$
 \end_inset
 
  perpendicular to axis 
@@ -1625,7 +1633,7 @@ support_interior_num
 \begin_layout Standard
 \begin_inset Formula 
 \[
-i_{\#}=(b-1)\,\backslash\,\nu_{1}+1
+i_{\#}(b)=(b-1)\,\backslash\,\nu_{1}+1
 \]
 
 \end_inset
@@ -1661,7 +1669,7 @@ support_side_num
 \color none
 \begin_inset Formula 
 \[
-s_{\#}=(b-(b_{int}+1))\,\backslash\,\nu_{2}+1
+s_{\#}(b)=(b-(b_{int}+1))\,\backslash\,\nu_{2}+1
 \]
 
 \end_inset
@@ -1692,7 +1700,7 @@ reference "sub:Enumeration-of-Basis"
 \begin_layout Standard
 \begin_inset Formula 
 \[
-m_{\#}=\begin{cases}
+m_{\#}(b)=\begin{cases}
 (b-1)\, mod\,\nu_{1}+1, & b\le b_{int}\\
 (b-(b_{int}+1))\, mod\,\nu_{2}+1, & b\ge b_{int}+1
 \end{cases}
