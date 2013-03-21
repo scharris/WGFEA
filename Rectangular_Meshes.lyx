@@ -1358,35 +1358,7 @@ name "sub:Basis-Implementation"
 Since the mesh interfaces and implentatiions do not consider at all the
  overlay of polynomials on the mesh parts as basis elements, we will sketch
  how such a basis has been implemented for an arbitrary mesh.
- We will limit ourselves to using the mesh's abstract interface as described
- in 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "sub:Abstract-Mesh-Interface"
-
-\end_inset
-
-, which makes no assumptions about the mesh other than the implicit assumptions
- that it consists of polygonal shapes (because they have faces) and that
- it is regular so that a reference element may be used for efficiency, though
- the WG method itself requires additional assumptions about the shapes employed.
- In particular the mesh need not be rectangular.
-\end_layout
-
-\begin_layout Standard
-Our purpose is to provide, for a given mesh, polynomial degree, and domain
- dimension, an object representing a basis and its enumeration for the WG
- approximation space 
-\begin_inset Formula $V_{h}^{0}$
-\end_inset
-
-, together with functions to interrogate the basis to determine the supporting
- finite element, face and monomial for any given basis element by its sequence
- number in the enumeration.
-\end_layout
-
-\begin_layout Standard
-A basis element for 
+ A basis element for 
 \begin_inset Formula $V_{h}^{0}$
 \end_inset
 
@@ -1407,6 +1379,32 @@ A basis element for
 \end_inset
 
  on finite element sides.
+ Our purpose is to provide, for a given mesh, polynomial degree, and domain
+ dimension, an object representing a basis and its enumeration for the WG
+ approximation space 
+\begin_inset Formula $V_{h}^{0}$
+\end_inset
+
+, together with functions to interrogate the basis to determine the supporting
+ finite element, face and monomial for any given basis element by its sequence
+ number in the enumeration.
+\end_layout
+
+\begin_layout Standard
+We will limit ourselves to using the mesh's abstract interface as described
+ in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Abstract-Mesh-Interface"
+
+\end_inset
+
+, which makes no assumptions about the mesh other than the implicit assumptions
+ that it consists of polygonal shapes (because they have faces) and that
+ it is regular so that a reference element may be used for efficiency, though
+ the WG method itself requires additional assumptions about the shapes employed.
+ In particular we do not have to assume that the mesh is rectangular, for
+ the implementation sketched here.
 \end_layout
 
 \begin_layout Subsubsection
