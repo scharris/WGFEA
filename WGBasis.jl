@@ -1,12 +1,20 @@
 module WGBasis
 
 export BElNum, bel_num,
+       MonNum, mon_num,
        WeakFunsPolyBasis,
        is_interior_supported,
        support_interior_num,
        is_side_supported,
        support_side_num,
-       support_face_monomial
+       interior_monomial_num,
+       interior_monomial_by_num,
+       interior_monomial,
+       side_monomial_num,
+       side_monomial_by_num,
+       side_monomial,
+       num_monomials_per_fe_interior,
+       num_monomials_per_fe_side
 
 using Common
 import Mesh, Mesh.AbstractMesh
@@ -63,6 +71,9 @@ import Poly, Poly.Monomial
 typealias BElNum Uint64
 bel_num(i::Integer) = if i > 0 uint64(i) else error("basis number out of range") end
 const no_bel = uint64(0)
+
+typealias MonNum Uint16
+mon_num(i::Integer) = if i > 0 uint16(i) else error("monomial number out of range") end
 
 type WeakFunsPolyBasis
   k::Deg # max degree of finite element interior polynomials (k-1 for sides)
@@ -124,18 +135,30 @@ function support_side_num(i::BElNum, basis::WeakFunsPolyBasis)
   div(sides_rel_bel_ix, basis.num_per_fe_side_mons) + 1
 end
 
-function support_face_monomial(i::BElNum, basis::WeakFunsPolyBasis)
-  if is_interior_supported(i, basis)
-    const interiors_rel_bel_ix = i-1
-    const mon_num = mod(interiors_rel_bel_ix, basis.num_per_fe_interior_mons) + 1
-    basis.per_fe_interior_mons[mon_num]
-  else
-    assert(is_side_supported(i, basis))
-    const sides_relative_bel_ix = i - basis.first_side_bel
-    const mon_num = mod(sides_relative_bel_ix, basis.num_per_fe_side_mons) + 1
-    basis.per_fe_side_mons[mon_num]
-  end
+num_monomials_per_fe_interior(basis::WeakFunsPolyBasis) = basis.num_per_fe_interior_mons
+
+num_monomials_per_fe_side(basis::WeakFunsPolyBasis) = basis.num_per_fe_side_mons
+
+function interior_monomial_num(i::BElNum, basis::WeakFunsPolyBasis)
+  assert(is_interior_supported(i, basis))
+  const interiors_rel_bel_ix = i-1
+  convert(MonNum, mod(interiors_rel_bel_ix, basis.num_per_fe_interior_mons) + 1)
 end
+
+function side_monomial_num(i::BElNum, basis::WeakFunsPolyBasis)
+  assert(is_side_supported(i, basis))
+  const sides_relative_bel_ix = i - basis.first_side_bel
+  convert(MonNum, mod(sides_relative_bel_ix, basis.num_per_fe_side_mons) + 1)
+end
+
+interior_monomial_by_num(mon_num::MonNum, basis::WeakFunsPolyBasis) = basis.per_fe_interior_mons[mon_num]
+
+side_monomial_by_num(mon_num::MonNum, basis::WeakFunsPolyBasis) = basis.per_fe_side_mons[mon_num]
+
+
+interior_monomial(i::BElNum, basis::WeakFunsPolyBasis) = interior_monomial_by_num(interior_monomial_num(i, basis), basis)
+
+side_monomial(i::BElNum, basis::WeakFunsPolyBasis) = side_monomial_by_num(side_monomial_num(i, basis), basis)
 
 
 # ============================================
@@ -149,16 +172,15 @@ type BElSummary
 end
 
 function bel_summary(i::BElNum, basis::WeakFunsPolyBasis)
-  suppt,supp =
+  suppt,supp,mon =
     if is_interior_supported(i, basis)
-      "interior", support_interior_num(i,basis)
+      "interior", support_interior_num(i,basis), interior_monomial_by_num(interior_monomial_num(i, basis))
     else
       begin
         incls = Mesh.fe_inclusions_of_nb_side(i, basis.mesh)
-        "side", incls
+        "side", incls, side_monomial_by_num(side_monomial_num(i, basis))
       end
     end
-  mon = support_face_monomial(i, basis)
   BElSummary(i, suppt, supp, mon)
 end
 

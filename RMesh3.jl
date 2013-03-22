@@ -4,7 +4,7 @@ export RectMesh3,
        FEInfo, fe_info
 
 using Common
-import Mesh, Mesh.FENum, Mesh.SideNum, Mesh.Face, Mesh.AbstractMesh, Mesh.NBSideInclusions
+import Mesh, Mesh.FENum, Mesh.SideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
 import Poly, Poly.Monomial, Poly.VectorMonomial
 
 # Abbreviations
@@ -113,11 +113,17 @@ end # type RectMesh3
 # ------------------------------------------
 # Implement functions required of all meshes.
 
+import Mesh.space_dim
+space_dim(m::RectMesh3) = dim(3)
+
 import Mesh.num_fes
 num_fes(mesh::RectMesh3) = mesh.num_elements
 
 import Mesh.num_nb_sides
 num_nb_sides(mesh::RectMesh3) = mesh.num_nb_sides
+
+import Mesh.num_side_faces_per_fe
+num_side_faces_per_fe(mesh::RectMesh3) = 6
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(i::SideNum, mesh::RectMesh3, fe_incls::NBSideInclusions)
@@ -173,7 +179,7 @@ integral_on_ref_fe_interior(mon::Monomial, mesh::RectMesh3) =
   Poly.integral_on_rect_at_origin(mon, mesh.fe_width, mesh.fe_height, mesh.fe_depth)
 
 import Mesh.integral_on_ref_fe_side_vs_outward_normal
-function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::Face, mesh::RectMesh3)
+function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEFace, mesh::RectMesh3)
   if face == x_min_face
     # On the x min face, vm . n = -vm[1], and dim 1 is 0.
     # Recognize trivially zero cases early to avoid unnecessary allocations.
@@ -239,12 +245,12 @@ is_z_nb_side(i::SideNum, mesh::RectMesh3) = mesh.sidenum_first_z_nb_side <= i <=
 
 # face numbers
 # Only side faces are defined here, the interior_face is defined in the Mesh module.
-const x_min_face = convert(Face, 1)
-const x_max_face = convert(Face, 2)
-const y_min_face = convert(Face, 3)
-const y_max_face = convert(Face, 4)
-const z_min_face = convert(Face, 5)
-const z_max_face = convert(Face, 6)
+const x_min_face = fe_face(1)
+const x_max_face = fe_face(2)
+const y_min_face = fe_face(3)
+const y_max_face = fe_face(4)
+const z_min_face = fe_face(5)
+const z_max_face = fe_face(6)
 const num_sides = 0x06
 
 function fe_row_ix(fe_ix::FENum, mesh::RectMesh3)

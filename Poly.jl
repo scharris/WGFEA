@@ -4,6 +4,7 @@ export Monomial,
        Polynomial,
        VectorMonomial,
        PolynomialVector,
+       Nomial,
        canonical_form,
        monomial_value,
        polynomial_value,
@@ -70,6 +71,8 @@ type PolynomialVector
     new(ps)
   end
 end
+
+Nomial = Union(Monomial, Polynomial)
 
 import Base.isequal
 isequal(m1::Monomial, m2::Monomial) = m1.exps == m2.exps

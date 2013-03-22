@@ -2,7 +2,7 @@ module RMesh2
 export RectMesh2
 
 using Common
-import Mesh.FENum, Mesh.SideNum, Mesh.Face, Mesh.AbstractMesh, Mesh.NBSideInclusions
+import Mesh.FENum, Mesh.SideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
 import Poly, Poly.Monomial, Poly.VectorMonomial
 
 # Ordering of Faces
@@ -78,11 +78,17 @@ end # type RectMesh2
 # ------------------------------------------
 # Implement functions required of all meshes.
 
+import Mesh.space_dim
+space_dim(m::RectMesh2) = dim(2)
+
 import Mesh.num_fes
 num_fes(m::RectMesh2) = m.num_elements
 
 import Mesh.num_nb_sides
 num_nb_sides(m::RectMesh2) = m.num_nb_sides
+
+import Mesh.num_side_faces_per_fe
+num_side_faces_per_fe(mesh::RectMesh2) = 4
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(i::SideNum, mesh::RectMesh2, fe_incls::NBSideInclusions)
@@ -117,7 +123,7 @@ integral_on_ref_fe_interior(mon::Monomial, mesh::RectMesh2) =
   Poly.integral_on_rect_at_origin(mon, mesh.fe_width, mesh.fe_height)
 
 import Mesh.integral_on_ref_fe_side_vs_outward_normal
-function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::Face, mesh::RectMesh2)
+function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEFace, mesh::RectMesh2)
   if face == top_face
     # On the top face, vm dotted with the outward normal is vm[2], vm . n = vm[2].
     # Also dimension 2 is constantly fe_height on this face, which reduces the dimensions of integration.
@@ -164,10 +170,10 @@ is_horz_nb_side(i::SideNum, mesh::RectMesh2) = mesh.sidenum_first_nb_horz_side <
 
 # face numbers
 # Only side faces are defined here, the interior_face is defined in the Mesh module.
-const top_face      = convert(Face, 1)
-const right_face    = convert(Face, 2)
-const bottom_face   = convert(Face, 3)
-const left_face     = convert(Face, 4)
+const top_face      = fe_face(1)
+const right_face    = fe_face(2)
+const bottom_face   = fe_face(3)
+const left_face     = fe_face(4)
 const num_sides = 0x04
 
 fe_row(fe::FENum, mesh::RectMesh2) = fe_rix(fe-1, mesh) + 1

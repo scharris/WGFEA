@@ -1,7 +1,7 @@
 using Test
+using WGBasis
 
 using Common
-using WGBasis
 import Mesh, Mesh.fe_num
 import RMesh2
 import Poly, Poly.Monomial
@@ -24,6 +24,8 @@ basis = WeakFunsPolyBasis(deg(2), dim(2), RMesh2.RectMesh2((0.,0.), (3.,2.), 2, 
 @test map(m -> m.exps, basis.per_fe_side_mons) == {[0x00, 0x00], [0x00, 0x01], [0x01, 0x00]}
 @test length(basis.per_fe_interior_mons) == 6 == Poly.count_monomials_of_degree_le(deg(2), dim(2))
 @test length(basis.per_fe_side_mons) == 3 == Poly.count_monomials_of_degree_le(deg(1), dim(2))
+@test length(basis.per_fe_interior_mons) == num_monomials_per_fe_interior(basis)
+@test length(basis.per_fe_side_mons) == num_monomials_per_fe_side(basis)
 
 @test is_interior_supported(bel_num(1), basis)
 @test is_interior_supported(bel_num(36), basis)
@@ -100,46 +102,46 @@ Mesh.fe_inclusions_of_nb_side!(support_side_num(bel_num(49), basis), basis.mesh,
 # Test support face monomial retrieval
 
 # all interior monomials in finite element 1
-@test support_face_monomial(bel_num(1), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(2), basis) == Monomial(0,1)
-@test support_face_monomial(bel_num(3), basis) == Monomial(1,0)
-@test support_face_monomial(bel_num(4), basis) == Monomial(0,2)
-@test support_face_monomial(bel_num(5), basis) == Monomial(1,1)
-@test support_face_monomial(bel_num(6), basis) == Monomial(2,0)
+@test interior_monomial(bel_num(1), basis) == Monomial(0,0)
+@test interior_monomial(bel_num(2), basis) == Monomial(0,1)
+@test interior_monomial(bel_num(3), basis) == Monomial(1,0)
+@test interior_monomial(bel_num(4), basis) == Monomial(0,2)
+@test interior_monomial(bel_num(5), basis) == Monomial(1,1)
+@test interior_monomial(bel_num(6), basis) == Monomial(2,0)
 
 # interior monomials, finite element 2
-@test support_face_monomial(bel_num(7), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(12), basis) == Monomial(2,0)
+@test interior_monomial(bel_num(7), basis) == Monomial(0,0)
+@test interior_monomial(bel_num(12), basis) == Monomial(2,0)
 
 # interior monomials, finite element 6
-@test support_face_monomial(bel_num(31), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(36), basis) == Monomial(2,0)
+@test interior_monomial(bel_num(31), basis) == Monomial(0,0)
+@test interior_monomial(bel_num(36), basis) == Monomial(2,0)
 
 # monomials on vertical side between finite elements 1 and 2
-@test support_face_monomial(bel_num(37), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(38), basis) == Monomial(0,1)
-@test support_face_monomial(bel_num(39), basis) == Monomial(1,0)
+@test side_monomial(bel_num(37), basis) == Monomial(0,0)
+@test side_monomial(bel_num(38), basis) == Monomial(0,1)
+@test side_monomial(bel_num(39), basis) == Monomial(1,0)
 
 # monomials on vertical side between finite elements 2 and 3
-@test support_face_monomial(bel_num(40), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(42), basis) == Monomial(1,0)
+@test side_monomial(bel_num(40), basis) == Monomial(0,0)
+@test side_monomial(bel_num(42), basis) == Monomial(1,0)
 
 # monomials on vertical side between finite elements 5 and 6
-@test support_face_monomial(bel_num(46), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(47), basis) == Monomial(0,1)
-@test support_face_monomial(bel_num(48), basis) == Monomial(1,0)
+@test side_monomial(bel_num(46), basis) == Monomial(0,0)
+@test side_monomial(bel_num(47), basis) == Monomial(0,1)
+@test side_monomial(bel_num(48), basis) == Monomial(1,0)
 
 # monomials on horizontal side between finite elements 1 and 4
-@test support_face_monomial(bel_num(49), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(50), basis) == Monomial(0,1)
-@test support_face_monomial(bel_num(51), basis) == Monomial(1,0)
+@test side_monomial(bel_num(49), basis) == Monomial(0,0)
+@test side_monomial(bel_num(50), basis) == Monomial(0,1)
+@test side_monomial(bel_num(51), basis) == Monomial(1,0)
 
 # monomials on horizontal side between finite elements 1 and 4
-@test support_face_monomial(bel_num(52), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(53), basis) == Monomial(0,1)
-@test support_face_monomial(bel_num(54), basis) == Monomial(1,0)
+@test side_monomial(bel_num(52), basis) == Monomial(0,0)
+@test side_monomial(bel_num(53), basis) == Monomial(0,1)
+@test side_monomial(bel_num(54), basis) == Monomial(1,0)
 
 # monomials on horizontal side between finite elements 3 and 6
-@test support_face_monomial(bel_num(55), basis) == Monomial(0,0)
-@test support_face_monomial(bel_num(56), basis) == Monomial(0,1)
-@test support_face_monomial(bel_num(57), basis) == Monomial(1,0)
+@test side_monomial(bel_num(55), basis) == Monomial(0,0)
+@test side_monomial(bel_num(56), basis) == Monomial(0,1)
+@test side_monomial(bel_num(57), basis) == Monomial(1,0)
