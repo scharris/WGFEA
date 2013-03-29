@@ -65,7 +65,7 @@ vm3 = VectorMonomial(x * y, dim(2))
 @test dot(vm1,vm3) == as_poly(x^3 * y^2)
 
 # component extraction of vector monomials
-@test vm1[1] == zero_poly(dim(2))
+@test vm1[1] == zeroR
 @test vm1[2] == x^2 * y
 
 # monomial times vector monomial
