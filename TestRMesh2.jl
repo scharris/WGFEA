@@ -83,55 +83,55 @@ rmesh10x20 = RectMesh2((0.,0.), (20.,10.), 10, 20)
 
 
 rmesh2x3 = RMesh2.RectMesh2((0.,0.), (3.,2.), 2, 3)
-@test RMesh2.is_vert_nb_side(side_num(1), rmesh2x3)
-@test RMesh2.is_vert_nb_side(side_num(4), rmesh2x3)
-@test RMesh2.is_horz_nb_side(side_num(5), rmesh2x3)
-@test RMesh2.is_horz_nb_side(side_num(7), rmesh2x3)
-@test RMesh2.is_horz_nb_side(side_num(7), rmesh2x3)
-@test !RMesh2.is_horz_nb_side(side_num(8), rmesh2x3)
+@test RMesh2.is_vert_nb_side(nbside_num(1), rmesh2x3)
+@test RMesh2.is_vert_nb_side(nbside_num(4), rmesh2x3)
+@test RMesh2.is_horz_nb_side(nbside_num(5), rmesh2x3)
+@test RMesh2.is_horz_nb_side(nbside_num(7), rmesh2x3)
+@test RMesh2.is_horz_nb_side(nbside_num(7), rmesh2x3)
+@test !RMesh2.is_horz_nb_side(nbside_num(8), rmesh2x3)
 
 # Test side inclusions
 incls = Mesh.NBSideInclusions()
 
 # fe vertical sides
-fe_inclusions_of_nb_side!(side_num(1), rmesh2x3, incls)
+fe_inclusions_of_nb_side!(nbside_num(1), rmesh2x3, incls)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == RMesh2.right_face
 @test incls.fe2 == fe_num(2)
 @test incls.face_in_fe2 == RMesh2.left_face
 
-fe_inclusions_of_nb_side!(side_num(2), rmesh2x3, incls)
+fe_inclusions_of_nb_side!(nbside_num(2), rmesh2x3, incls)
 @test incls.fe1 == fe_num(2)
 @test incls.face_in_fe1 == RMesh2.right_face
 @test incls.fe2 == fe_num(3)
 @test incls.face_in_fe2 == RMesh2.left_face
 
-fe_inclusions_of_nb_side!(side_num(3), rmesh2x3, incls)
+fe_inclusions_of_nb_side!(nbside_num(3), rmesh2x3, incls)
 @test incls.fe1 == fe_num(4)
 @test incls.face_in_fe1 == RMesh2.right_face
 @test incls.fe2 == fe_num(5)
 @test incls.face_in_fe2 == RMesh2.left_face
 
-fe_inclusions_of_nb_side!(side_num(4), rmesh2x3, incls)
+fe_inclusions_of_nb_side!(nbside_num(4), rmesh2x3, incls)
 @test incls.fe1 == fe_num(5)
 @test incls.face_in_fe1 == RMesh2.right_face
 @test incls.fe2 == fe_num(6)
 @test incls.face_in_fe2 == RMesh2.left_face
 
 # fe horizontal sides
-fe_inclusions_of_nb_side!(side_num(5), rmesh2x3, incls)
+fe_inclusions_of_nb_side!(nbside_num(5), rmesh2x3, incls)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == RMesh2.top_face
 @test incls.fe2 == fe_num(4)
 @test incls.face_in_fe2 == RMesh2.bottom_face
 
-fe_inclusions_of_nb_side!(side_num(6), rmesh2x3, incls)
+fe_inclusions_of_nb_side!(nbside_num(6), rmesh2x3, incls)
 @test incls.fe1 == fe_num(2)
 @test incls.face_in_fe1 == RMesh2.top_face
 @test incls.fe2 == fe_num(5)
 @test incls.face_in_fe2 == RMesh2.bottom_face
 
-fe_inclusions_of_nb_side!(side_num(7), rmesh2x3, incls)
+fe_inclusions_of_nb_side!(nbside_num(7), rmesh2x3, incls)
 @test incls.fe1 == fe_num(3)
 @test incls.face_in_fe1 == RMesh2.top_face
 @test incls.fe2 == fe_num(6)

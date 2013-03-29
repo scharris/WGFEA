@@ -1,11 +1,11 @@
 module RMesh3
 export RectMesh3,
-       SideInfo, side_info,
+       NBSideInfo, nbside_info,
        FEInfo, fe_info
 
 using Common
-import Mesh, Mesh.FENum, Mesh.SideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
-import Poly, Poly.Monomial, Poly.VectorMonomial
+import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
+import Poly, Poly.Monomial, Poly.VectorMonomial, Poly.Polynomial
 
 # Abbreviations
 # nb: non-boundary
@@ -37,19 +37,19 @@ type RectMesh3 <: AbstractMesh
 
   num_elements::FENum
 
-  num_x_nb_sides::SideNum
-  num_y_nb_sides::SideNum
-  num_z_nb_sides::SideNum
-  num_nb_sides::SideNum
+  num_x_nb_sides::NBSideNum
+  num_y_nb_sides::NBSideNum
+  num_z_nb_sides::NBSideNum
+  num_nb_sides::NBSideNum
 
-  sidenum_first_x_nb_side::SideNum
-  sidenum_first_y_nb_side::SideNum
-  sidenum_first_z_nb_side::SideNum
+  sidenum_first_x_nb_side::NBSideNum
+  sidenum_first_y_nb_side::NBSideNum
+  sidenum_first_z_nb_side::NBSideNum
 
-  num_fes_per_stack::SideNum
-  num_x_nb_sides_per_stack::SideNum
-  num_y_nb_sides_per_stack::SideNum
-  num_z_nb_sides_per_stack::SideNum
+  num_fes_per_stack::NBSideNum
+  num_x_nb_sides_per_stack::NBSideNum
+  num_y_nb_sides_per_stack::NBSideNum
+  num_z_nb_sides_per_stack::NBSideNum
 
   function RectMesh3(min_coords::(R,R,R), max_coords::(R,R,R), ncols::Integer, nrows::Integer, nstacks::Integer)
     assert(ncols > 0 && nrows > 0 && nstacks > 0, "positive columns, rows and stacks required")
@@ -116,6 +116,9 @@ end # type RectMesh3
 import Mesh.space_dim
 space_dim(m::RectMesh3) = dim(3)
 
+import Mesh.one_mon
+one_mon(m::RectMesh3) = Monomial(0,0,0)
+
 import Mesh.num_fes
 num_fes(mesh::RectMesh3) = mesh.num_elements
 
@@ -126,7 +129,7 @@ import Mesh.num_side_faces_per_fe
 num_side_faces_per_fe(mesh::RectMesh3) = 6
 
 import Mesh.fe_inclusions_of_nb_side!
-function fe_inclusions_of_nb_side!(i::SideNum, mesh::RectMesh3, fe_incls::NBSideInclusions)
+function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh3, fe_incls::NBSideInclusions)
   if is_x_nb_side(i, mesh)
     const side_type_rel_ix = i - mesh.sidenum_first_x_nb_side
     const sides_per_stack = mesh.num_x_nb_sides_per_stack
@@ -174,74 +177,77 @@ function fe_inclusions_of_nb_side!(i::SideNum, mesh::RectMesh3, fe_incls::NBSide
   end
 end
 
-import Mesh.integral_on_ref_fe_interior
-integral_on_ref_fe_interior(mon::Monomial, mesh::RectMesh3) =
-  Poly.integral_on_rect_at_origin(mon, mesh.fe_width, mesh.fe_height, mesh.fe_depth)
-
-import Mesh.integral_on_ref_fe_side_vs_outward_normal
-function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEFace, mesh::RectMesh3)
-  if face == x_min_face
-    # On the x min face, vm . n = -vm[1], and dim 1 is 0.
-    # Recognize trivially zero cases early to avoid unnecessary allocations.
-    if vm.mon_pos != 1 || vm[1].exps[1] != 0
+import Mesh.integral_on_ref_fe_face
+integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh3) =
+  if face == Mesh.interior_face
+    Poly.integral_on_rect_at_origin(mon, mesh.fe_width, mesh.fe_height, mesh.fe_depth)
+  elseif face == x_min_face
+    if mon.exps[1] != 0
       zeroR
     else
-      const vm_dot_n = -vm[1]
-      # Fix dim 1 and integrate the function of the remaining dimensions.
-      dim_reduced = Poly.reduce_dim_by_fixing(dim(1), zeroR, vm_dot_n)
+      dim_reduced = Poly.reduce_dim_by_fixing(dim(1), zeroR, mon)
       Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_height, mesh.depth)
     end
   elseif face == x_max_face
-    # On the x max face, vm . n = vm[1], and dim 1 is constantly fe_width.
-    const vm_dot_n = vm[1]
-    # Fix dim 1 and integrate over the remaining non-fixed dimensions.
-    dim_reduced = Poly.reduce_dim_by_fixing(dim(1), mesh.fe_width, vm_dot_n)
+    dim_reduced = Poly.reduce_dim_by_fixing(dim(1), mesh.fe_width, mon)
     Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_height, mesh.depth)
   elseif face == y_min_face
-    # On the y min face, vm . n = -vm[2], and dim 2 is constantly 0.
-    if vm.mon_pos != 2 || vm[2].exps[2] != 0
+    if mon.exps[2] != 0
       zeroR
     else
-      const vm_dot_n = -vm[2]
-      # Fix dim 2 and integrate over the remaining non-fixed dimensions.
-      dim_reduced = Poly.reduce_dim_by_fixing(dim(2), zeroR, vm_dot_n)
+      dim_reduced = Poly.reduce_dim_by_fixing(dim(2), zeroR, mon)
       Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_depth)
     end
   elseif face == y_max_face
-    # On the y max face, vm . n = vm[2], and dim 2 is constantly fe_height.
-    const vm_dot_n = vm[2]
-    # Fix dim 2 and integrate over the remaining non-fixed dimensions.
-    dim_reduced = Poly.reduce_dim_by_fixing(dim(2), mesh.fe_height, vm_dot_n)
+    dim_reduced = Poly.reduce_dim_by_fixing(dim(2), mesh.fe_height, mon)
     Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_depth)
   elseif face == z_min_face
-    # On the z min face, vm . n = -vm[3], and dim 3 is constantly 0.
-    if vm.mon_pos != 3 || vm[3].exps[3] != 0
+    if mon.exps[3] != 0
       zeroR
     else
-      const vm_dot_n = -vm[3]
-      # Fix dim 3 and integrate over the remaining non-fixed dimensions.
-      dim_reduced = Poly.reduce_dim_by_fixing(dim(3), zeroR, vm_dot_n)
+      dim_reduced = Poly.reduce_dim_by_fixing(dim(3), zeroR, mon)
       Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_height)
     end
   elseif face == z_max_face
-    # On the z max face, vm . n = vm[3], and dim 3 is constantly fe_depth.
-    const vm_dot_n = vm[3]
-    # Fix dim 3 and integrate over the remaining non-fixed dimensions.
-    dim_reduced = Poly.reduce_dim_by_fixing(dim(3), mesh.fe_depth, vm_dot_n)
+    dim_reduced = Poly.reduce_dim_by_fixing(dim(3), mesh.fe_depth, mon)
     Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_height)
   else
     error("invalid face: $face")
   end
+
+
+
+import Mesh.integral_on_ref_fe_side_vs_outward_normal
+function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEFace, mesh::RectMesh3)
+  if face == x_min_face
+    -integral_on_ref_fe_face(vm[1], face, mesh)
+  elseif face == x_max_face
+    integral_on_ref_fe_face(vm[1], face, mesh)
+  elseif face == y_min_face
+    -integral_on_ref_fe_face(vm[2], face, mesh)
+  elseif face == y_max_face
+    integral_on_ref_fe_face(vm[2], face, mesh)
+  elseif face == z_min_face
+    -integral_on_ref_fe_face(vm[3], face, mesh)
+  elseif face == z_max_face
+     integral_on_ref_fe_face(vm[3], face, mesh)
+  else
+    error("invalid face: $face")
+  end
 end
+
+
+# TODO: Add remaining integral methods over specific fe's (e.g. integral_prod_on_[ref_]fe_face methods).
+
 
 #
 # ------------------------------------------
 
 # functions specific to rectangular meshes
 
-is_x_nb_side(i::SideNum, mesh::RectMesh3) = mesh.sidenum_first_x_nb_side <= i < mesh.sidenum_first_y_nb_side
-is_y_nb_side(i::SideNum, mesh::RectMesh3) = mesh.sidenum_first_y_nb_side <= i < mesh.sidenum_first_z_nb_side
-is_z_nb_side(i::SideNum, mesh::RectMesh3) = mesh.sidenum_first_z_nb_side <= i <= mesh.num_nb_sides
+is_x_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_x_nb_side <= i < mesh.sidenum_first_y_nb_side
+is_y_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_y_nb_side <= i < mesh.sidenum_first_z_nb_side
+is_z_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_z_nb_side <= i <= mesh.num_nb_sides
 
 # face numbers
 # Only side faces are defined here, the interior_face is defined in the Mesh module.
@@ -330,35 +336,35 @@ print(io::IO, fei::FEInfo) = print(io, string(fei))
 show(io::IO, fei::FEInfo) = print(io, fei)
 
 
-type SideInfo
-  side_num::SideNum
+type NBSideInfo
+  side_num::NBSideNum
   perp_axis::Char
   lesser_adjoining_fe::FEInfo
   greater_adjoining_fe::FEInfo
 end
 
-function side_info(side_num::SideNum, mesh::RectMesh3)
+function nbside_info(side_num::NBSideNum, mesh::RectMesh3)
   incls = Mesh.fe_inclusions_of_nb_side(side_num, mesh)
   perp_to_axis = is_x_nb_side(side_num, mesh) ? 'x' : is_y_nb_side(side_num, mesh) ? 'y' : 'z'
 
-  SideInfo(side_num, perp_to_axis, fe_info(incls.fe1, mesh), fe_info(incls.fe2, mesh))
+  NBSideInfo(side_num, perp_to_axis, fe_info(incls.fe1, mesh), fe_info(incls.fe2, mesh))
 end
 
-isequal(si1::SideInfo, si2::SideInfo) =
+isequal(si1::NBSideInfo, si2::NBSideInfo) =
   si1.side_num  == si2.side_num &&
   si1.perp_axis == si2.perp_axis &&
   isequal(si1.lesser_adjoining_fe, si2.lesser_adjoining_fe) &&
   isequal(si1.greater_adjoining_fe, si2.greater_adjoining_fe)
 
 import Base.hash
-hash(si::SideInfo) = si.side_num + 3*si.perp_axis + 5*hash(si.lesser_adjoining_fe) + 7*hash(si.greater_adjoining_fe)
+hash(si::NBSideInfo) = si.side_num + 3*si.perp_axis + 5*hash(si.lesser_adjoining_fe) + 7*hash(si.greater_adjoining_fe)
 
 # string representation
-function string(si::SideInfo)
-  "SideInfo:  side:$(dec(si.side_num))\n  perp to axis: $(si.perp_axis)\n  lesser_fe:  $(si.lesser_adjoining_fe)\n  greater_fe: $(si.greater_adjoining_fe)"
+function string(si::NBSideInfo)
+  "NBSideInfo:  side:$(dec(si.side_num))\n  perp to axis: $(si.perp_axis)\n  lesser_fe:  $(si.lesser_adjoining_fe)\n  greater_fe: $(si.greater_adjoining_fe)"
 end
-print(io::IO, si::SideInfo) = print(io, string(si))
-show(io::IO, si::SideInfo) = print(io, si)
+print(io::IO, si::NBSideInfo) = print(io, string(si))
+show(io::IO, si::NBSideInfo) = print(io, si)
 
 
 end # end of module

@@ -43,19 +43,19 @@ rmesh200x400x600 = RectMesh3((1.,2.,3.), (201.,402.,603.), 200, 400, 600)
 
 incls = Mesh.NBSideInclusions()
 
-fe_inclusions_of_nb_side!(side_num(1), rmesh200x400x600, incls)
+fe_inclusions_of_nb_side!(nbside_num(1), rmesh200x400x600, incls)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == RMesh3.x_max_face
 @test incls.fe2 == fe_num(2)
 @test incls.face_in_fe2 == RMesh3.x_min_face
 
-fe_inclusions_of_nb_side!(side_num(199), rmesh200x400x600, incls)
+fe_inclusions_of_nb_side!(nbside_num(199), rmesh200x400x600, incls)
 @test incls.fe1 == fe_num(199)
 @test incls.face_in_fe1 == RMesh3.x_max_face
 @test incls.fe2 == fe_num(200)
 @test incls.face_in_fe2 == RMesh3.x_min_face
 
-fe_inclusions_of_nb_side!(side_num(200), rmesh200x400x600, incls)
+fe_inclusions_of_nb_side!(nbside_num(200), rmesh200x400x600, incls)
 @test incls.fe1 == fe_num(201)
 @test incls.face_in_fe1 == RMesh3.x_max_face
 @test incls.fe2 == fe_num(202)
@@ -65,165 +65,165 @@ fe_inclusions_of_nb_side!(side_num(200), rmesh200x400x600, incls)
 m0 = [1.,2.,3.] # mesh origin
 
 # first x-perpendicular nb side
-@test side_info(side_num(1), rmesh200x400x600) ==
-      SideInfo(side_num(1), 'x',
+@test nbside_info(nbside_num(1), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(1), 'x',
         FEInfo(fe_num(1), 1,1,1, m0),
         FEInfo(fe_num(2), 2,1,1, [1.,0.,0.]+m0))
 
 # second x-perpendicular nb side
-@test side_info(side_num(2), rmesh200x400x600) ==
-      SideInfo(side_num(2), 'x',
+@test nbside_info(nbside_num(2), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(2), 'x',
         FEInfo(fe_num(2), 2,1,1, [1.,0.,0.]+m0),
         FEInfo(fe_num(3), 3,1,1, [2.,0.,0.]+m0))
 
 # last x-perpendicular nb side in first row
-@test side_info(side_num(199), rmesh200x400x600) ==
-      SideInfo(side_num(199), 'x',
+@test nbside_info(nbside_num(199), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(199), 'x',
         FEInfo(fe_num(199), 199,1,1, [198.,0.,0.]+m0),
         FEInfo(fe_num(200), 200,1,1, [199.,0.,0.]+m0))
 
 # first x-perpendicular nb side in second row
-@test side_info(side_num(200), rmesh200x400x600) ==
-      SideInfo(side_num(200), 'x',
+@test nbside_info(nbside_num(200), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(200), 'x',
         FEInfo(fe_num(201), 1,2,1, [0.,1.,0.]+m0),
         FEInfo(fe_num(202), 2,2,1, [1.,1.,0.]+m0))
 
 # last x-perpendicular nb side in second row
-@test side_info(side_num(398), rmesh200x400x600) ==
-      SideInfo(side_num(398), 'x',
+@test nbside_info(nbside_num(398), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(398), 'x',
         FEInfo(fe_num(399), 199,2,1, [198.,1.,0.]+m0),
         FEInfo(fe_num(400), 200,2,1, [199.,1.,0.]+m0))
 
 # last x-perpendicular nb side in the first stack
-@test side_info(side_num(199*400), rmesh200x400x600) ==
-      SideInfo(side_num(199*400), 'x',
+@test nbside_info(nbside_num(199*400), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(199*400), 'x',
         FEInfo(fe_num(200*400-1), 199,400,1, [198.,399.,0.]+m0),
         FEInfo(fe_num(200*400),   200,400,1, [199.,399.,0.]+m0))
 
 # first x-perpendicular nb side in the second stack
-@test side_info(side_num(199*400+1), rmesh200x400x600) ==
-      SideInfo(side_num(199*400+1), 'x',
+@test nbside_info(nbside_num(199*400+1), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(199*400+1), 'x',
         FEInfo(fe_num(200*400+1), 1,1,2, [0.,0.,1.]+m0),
         FEInfo(fe_num(200*400+2), 2,1,2, [1.,0.,1.]+m0))
 
 # second x-perpendicular nb side in the second stack
-@test side_info(side_num(199*400+2), rmesh200x400x600) ==
-      SideInfo(side_num(199*400+2), 'x',
+@test nbside_info(nbside_num(199*400+2), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(199*400+2), 'x',
         FEInfo(fe_num(200*400+2), 2,1,2, [1.,0.,1.]+m0),
         FEInfo(fe_num(200*400+3), 3,1,2, [2.,0.,1.]+m0))
 
 # last x-perpendicular nb side in the last stack
-@test side_info(side_num(199*400*600), rmesh200x400x600) ==
-      SideInfo(side_num(199*400*600), 'x',
+@test nbside_info(nbside_num(199*400*600), rmesh200x400x600) ==
+      NBSideInfo(nbside_num(199*400*600), 'x',
         FEInfo(fe_num(200*400*600-1), 199,400,600, [198.,399.,599.]+m0),
         FEInfo(fe_num(200*400*600),   200,400,600, [199.,399.,599.]+m0))
 
 
-yside(i::Integer) = side_num(199*400*600) + i
+yside(i::Integer) = nbside_num(199*400*600) + i
 
 # first y-perpendicular nb side in the first stack
-@test side_info(yside(1), rmesh200x400x600) ==
-      SideInfo(yside(1), 'y',
+@test nbside_info(yside(1), rmesh200x400x600) ==
+      NBSideInfo(yside(1), 'y',
         FEInfo(fe_num(1),   1,1,1, [0.,0.,0.]+m0),
         FEInfo(fe_num(201), 1,2,1, [0.,1.,0.]+m0))
 
 # second y-perpendicular nb side in the first stack
-@test side_info(yside(2), rmesh200x400x600) ==
-      SideInfo(yside(2), 'y',
+@test nbside_info(yside(2), rmesh200x400x600) ==
+      NBSideInfo(yside(2), 'y',
         FEInfo(fe_num(2),   2,1,1, [1.,0.,0.]+m0),
         FEInfo(fe_num(202), 2,2,1, [1.,1.,0.]+m0))
 
 # last y-perpendicular nb side in the first row of the first stack
-@test side_info(yside(200), rmesh200x400x600) ==
-      SideInfo(yside(200), 'y',
+@test nbside_info(yside(200), rmesh200x400x600) ==
+      NBSideInfo(yside(200), 'y',
         FEInfo(fe_num(200), 200,1,1, [199.,0.,0.]+m0),
         FEInfo(fe_num(400), 200,2,1, [199.,1.,0.]+m0))
 
 # first y-perpendicular nb side in the second row of the first stack
-@test side_info(yside(201), rmesh200x400x600) ==
-      SideInfo(yside(201), 'y',
+@test nbside_info(yside(201), rmesh200x400x600) ==
+      NBSideInfo(yside(201), 'y',
         FEInfo(fe_num(201), 1,2,1, [0.,1.,0.]+m0),
         FEInfo(fe_num(401), 1,3,1, [0.,2.,0.]+m0))
 
 # last y-perpendicular nb side in the first stack
-@test side_info(yside(200*399), rmesh200x400x600) ==
-      SideInfo(yside(200*399), 'y',
+@test nbside_info(yside(200*399), rmesh200x400x600) ==
+      NBSideInfo(yside(200*399), 'y',
         FEInfo(fe_num(200*399), 200,399,1, [199.,398.,0.]+m0),
         FEInfo(fe_num(200*400), 200,400,1, [199.,399.,0.]+m0))
 
 # first y-perpendicular nb side in the second stack
-@test side_info(yside(200*399+1), rmesh200x400x600) ==
-      SideInfo(yside(200*399+1), 'y',
+@test nbside_info(yside(200*399+1), rmesh200x400x600) ==
+      NBSideInfo(yside(200*399+1), 'y',
         FEInfo(fe_num(200*400+1),   1,1,2, [0.,0.,1.]+m0),
         FEInfo(fe_num(200*400+201), 1,2,2, [0.,1.,1.]+m0))
 
 # second y-perpendicular nb side in the second stack
-@test side_info(yside(200*399+1), rmesh200x400x600) ==
-      SideInfo(yside(200*399+1), 'y',
+@test nbside_info(yside(200*399+1), rmesh200x400x600) ==
+      NBSideInfo(yside(200*399+1), 'y',
         FEInfo(fe_num(200*400+1),   1,1,2, [0.,0.,1.]+m0),
         FEInfo(fe_num(200*400+201), 1,2,2, [0.,1.,1.]+m0))
 
 # last y-perpendicular nb side in the second stack
-@test side_info(yside(200*399 + 200*399), rmesh200x400x600) ==
-      SideInfo(yside(200*399 + 200*399), 'y',
+@test nbside_info(yside(200*399 + 200*399), rmesh200x400x600) ==
+      NBSideInfo(yside(200*399 + 200*399), 'y',
         FEInfo(fe_num(200*400 + 200*399), 200,399,2, [199.,398.,1.]+m0),
         FEInfo(fe_num(200*400 + 200*400), 200,400,2, [199.,399.,1.]+m0))
 
 # last y-perpendicular nb side in the last stack
-@test side_info(yside(200*399*600), rmesh200x400x600) ==
-      SideInfo(yside(200*399*600), 'y',
+@test nbside_info(yside(200*399*600), rmesh200x400x600) ==
+      NBSideInfo(yside(200*399*600), 'y',
         FEInfo(fe_num(200*400*600-200), 200,399,600, [199.,398.,599.]+m0),
         FEInfo(fe_num(200*400*600),     200,400,600, [199.,399.,599.]+m0))
 
-zside(i::Integer) = side_num(199*400*600) + side_num(200*399*600) + i
+zside(i::Integer) = nbside_num(199*400*600) + nbside_num(200*399*600) + i
 
 # first z-perpendicular nb side in the first stack
-@test side_info(zside(1), rmesh200x400x600) ==
-      SideInfo(zside(1), 'z',
+@test nbside_info(zside(1), rmesh200x400x600) ==
+      NBSideInfo(zside(1), 'z',
         FEInfo(fe_num(1),         1,1,1, [0.,0.,0.]+m0),
         FEInfo(fe_num(1+200*400), 1,1,2, [0.,0.,1.]+m0))
 
 # second z-perpendicular nb side in the first stack
-@test side_info(zside(2), rmesh200x400x600) ==
-      SideInfo(zside(2), 'z',
+@test nbside_info(zside(2), rmesh200x400x600) ==
+      NBSideInfo(zside(2), 'z',
         FEInfo(fe_num(2),         2,1,1, [1.,0.,0.]+m0),
         FEInfo(fe_num(2+200*400), 2,1,2, [1.,0.,1.]+m0))
 
 # last z-perpendicular nb side in the first row of the first stack
-@test side_info(zside(200), rmesh200x400x600) ==
-      SideInfo(zside(200), 'z',
+@test nbside_info(zside(200), rmesh200x400x600) ==
+      NBSideInfo(zside(200), 'z',
         FEInfo(fe_num(200),         200,1,1, [199.,0.,0.]+m0),
         FEInfo(fe_num(200+200*400), 200,1,2, [199.,0.,1.]+m0))
 
 # first z-perpendicular nb side in the second row of the first stack
-@test side_info(zside(201), rmesh200x400x600) ==
-      SideInfo(zside(201), 'z',
+@test nbside_info(zside(201), rmesh200x400x600) ==
+      NBSideInfo(zside(201), 'z',
         FEInfo(fe_num(201),         1,2,1, [0.,1.,0.]+m0),
         FEInfo(fe_num(201+200*400), 1,2,2, [0.,1.,1.]+m0))
 
 # last z-perpendicular nb side in the first stack
-@test side_info(zside(200*400), rmesh200x400x600) ==
-      SideInfo(zside(200*400), 'z',
+@test nbside_info(zside(200*400), rmesh200x400x600) ==
+      NBSideInfo(zside(200*400), 'z',
         FEInfo(fe_num(200*400),           200,400,1, [199.,399.,0.]+m0),
         FEInfo(fe_num(200*400 + 200*400), 200,400,2, [199.,399.,1.]+m0))
 
 # first z-perpendicular nb side in the second stack
-@test side_info(zside(200*400+1), rmesh200x400x600) ==
-      SideInfo(zside(200*400+1), 'z',
+@test nbside_info(zside(200*400+1), rmesh200x400x600) ==
+      NBSideInfo(zside(200*400+1), 'z',
         FEInfo(fe_num(200*400+1),           1,1,2, [0.,0.,1.]+m0),
         FEInfo(fe_num(200*400+1 + 200*400), 1,1,3, [0.,0.,2.]+m0))
 
 # first z-perpendicular nb side in the third row of the second stack
-@test side_info(zside(1+200*400+2*200), rmesh200x400x600) ==
-      SideInfo(zside(1+200*400+2*200), 'z',
+@test nbside_info(zside(1+200*400+2*200), rmesh200x400x600) ==
+      NBSideInfo(zside(1+200*400+2*200), 'z',
         FEInfo(fe_num(1+200*400+2*200),           1,3,2, [0.,2.,1.]+m0),
         FEInfo(fe_num(1+200*400+2*200 + 200*400), 1,3,3, [0.,2.,2.]+m0))
 
 # last z-perpendicular nb side in the last stack
-@test side_info(zside(200*400*599), rmesh200x400x600) ==
-      SideInfo(zside(200*400*599), 'z',
+@test nbside_info(zside(200*400*599), rmesh200x400x600) ==
+      NBSideInfo(zside(200*400*599), 'z',
         FEInfo(fe_num(200*400*599), 200,400,599, [199.,399.,598.]+m0),
         FEInfo(fe_num(200*400*600), 200,400,600, [199.,399.,599.]+m0))
 
 # side out of range
-@test_fails side_info(zside(200*400*599+1), rmesh200x400x600)
+@test_fails nbside_info(zside(200*400*599+1), rmesh200x400x600)

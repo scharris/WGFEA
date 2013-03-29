@@ -18,30 +18,30 @@ import Poly, Poly.Monomial
 # vertical side basis els: 2 * 2 * 3 = 12
 # horizontal side basis els: 3 * 3 = 9
 
-basis = WeakFunsPolyBasis(deg(2), dim(2), RMesh2.RectMesh2((0.,0.), (3.,2.), 2, 3))
+basis = WeakFunsPolyBasis(deg(2), deg(1), RMesh2.RectMesh2((0.,0.), (3.,2.), 2, 3))
 
-@test map(m -> m.exps, basis.per_fe_interior_mons) == {[0x00, 0x00], [0x00, 0x01], [0x01, 0x00], [0x00, 0x02], [0x01, 0x01], [0x02, 0x00]}
-@test map(m -> m.exps, basis.per_fe_side_mons) == {[0x00, 0x00], [0x00, 0x01], [0x01, 0x00]}
-@test length(basis.per_fe_interior_mons) == 6 == Poly.count_monomials_of_degree_le(deg(2), dim(2))
-@test length(basis.per_fe_side_mons) == 3 == Poly.count_monomials_of_degree_le(deg(1), dim(2))
-@test length(basis.per_fe_interior_mons) == num_monomials_per_fe_interior(basis)
-@test length(basis.per_fe_side_mons) == num_monomials_per_fe_side(basis)
+@test map(m -> m.exps, basis.ref_interior_mons) == {[0x00, 0x00], [0x00, 0x01], [0x01, 0x00], [0x00, 0x02], [0x01, 0x01], [0x02, 0x00]}
+@test map(m -> m.exps, basis.ref_side_mons) == {[0x00, 0x00], [0x00, 0x01], [0x01, 0x00]}
+@test length(basis.ref_interior_mons) == 6 == Poly.count_monomials_of_degree_le(deg(2), dim(2))
+@test length(basis.ref_side_mons) == 3 == Poly.count_monomials_of_degree_le(deg(1), dim(2))
+@test length(basis.ref_interior_mons) == basis.mons_per_fe_interior
+@test length(basis.ref_side_mons) == basis.mons_per_fe_side
 
 @test is_interior_supported(bel_num(1), basis)
 @test is_interior_supported(bel_num(36), basis)
-@test RMesh2.is_vert_nb_side(support_side_num(bel_num(37), basis), basis.mesh)
-@test RMesh2.is_vert_nb_side(support_side_num(bel_num(48), basis), basis.mesh)
-@test RMesh2.is_horz_nb_side(support_side_num(bel_num(49), basis), basis.mesh)
-@test RMesh2.is_horz_nb_side(support_side_num(bel_num(55), basis), basis.mesh)
-@test RMesh2.is_horz_nb_side(support_side_num(bel_num(57), basis), basis.mesh)
-@test_fails !RMesh2.is_horz_nb_side(support_side_num(bel_num(58), basis), basis.mesh)
+@test RMesh2.is_vert_nb_side(support_nb_side_num(bel_num(37), basis), basis.mesh)
+@test RMesh2.is_vert_nb_side(support_nb_side_num(bel_num(48), basis), basis.mesh)
+@test RMesh2.is_horz_nb_side(support_nb_side_num(bel_num(49), basis), basis.mesh)
+@test RMesh2.is_horz_nb_side(support_nb_side_num(bel_num(55), basis), basis.mesh)
+@test RMesh2.is_horz_nb_side(support_nb_side_num(bel_num(57), basis), basis.mesh)
+@test_fails !RMesh2.is_horz_nb_side(support_nb_side_num(bel_num(58), basis), basis.mesh)
 
 
 function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
   if is_interior_supported(i, basis)
     [support_interior_num(i, basis)]
   else
-    side_num = support_side_num(i, basis)
+    side_num = support_nb_side_num(i, basis)
     fe_incls = Mesh.fe_inclusions_of_nb_side(side_num, basis.mesh)
     [fe_incls.fe1, fe_incls.fe2]
   end
@@ -86,14 +86,14 @@ end
 incls = Mesh.NBSideInclusions()
 
 # fe vertical side supported basis element
-Mesh.fe_inclusions_of_nb_side!(support_side_num(bel_num(37), basis), basis.mesh, incls)
+Mesh.fe_inclusions_of_nb_side!(support_nb_side_num(bel_num(37), basis), basis.mesh, incls)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == RMesh2.right_face
 @test incls.fe2 == fe_num(2)
 @test incls.face_in_fe2 == RMesh2.left_face
 
 # fe horizontal side supported basis element
-Mesh.fe_inclusions_of_nb_side!(support_side_num(bel_num(49), basis), basis.mesh, incls)
+Mesh.fe_inclusions_of_nb_side!(support_nb_side_num(bel_num(49), basis), basis.mesh, incls)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == RMesh2.top_face
 @test incls.fe2 == fe_num(4)

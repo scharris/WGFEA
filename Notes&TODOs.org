@@ -1,43 +1,43 @@
 Commit Notes
 ------------
-Mesh:
-  Add generic interface functions
-    - integral_prod_on_ref_fe_side_vs_outward_normal, to allow integrating polynomial * monomial vector against an outward normal on a face, and to allow mesh implementations to specialize products against outward normals on faces efficently (avoid allocation if trivially zero).
-    - function num_side_faces_per_fe: to allow clients to enumerate sides, e.g. to precompute integrals over faces
-    - space_dim
-  Renamed Face to FEFace for clarity and introduced constructor function fe_face.
-
-WGBasis
-  - Add interior/side_monomial_num and accessors interior/side_monomial_by_num to allow clients to create caches of computations by monomial number.
-  - Add functions num_interior/side_monomials_per_fe
-WGMethod
-  - Created WGSolver type to hold precomputed values not depending on rhs function f in the variational problem or boundary value function g.
-  - Created basis tests file.
-
-Notes
------
-Add to rmesh docs:
-  New interface functions:
-    integral_prod_on_ref_fe_side_vs_outward_normal
-    num_side_faces_per_fe
-    space_dim
+Implement WG (renamed from WGMethod) with abstract variational bilinear form (not tested).
+New VarBF module representing bilinear forms for variational problems.
+Add support in WGBasis for separate arbitrary polynomial degrees for interior and boundary.
+Eliminate domain dimension constructor params from WGBasis and WGradSolver, which information can be obtained from the mesh instead.
+Add new interface functions in Mesh:
+ - integral_vs_local_monomial_on_fe_interior
+ - integral_on_ref_fe_face (replaces integral_on_ref_fe_interior)
+ - integral_prod_on_fe_face
+ - integral_prod_on_ref_fe_face
+ - is_boundary_side
+ - one_mon
+Change non-boundary side related function and type names in Mesh to explicitly distinguish from boundary sides.
+New Proj module for projecting onto polynomial spaces on fe faces.
 
 TODO
 ----
-(WGRAD)
-  - Compute weak gradient of polynomial Q_b g on each finite element intersecting the outside boundary.
-  - Compute parts of a_s(p, b_i)_T for a polynomial p on an outside boundary segment.
+Poly:  Support d > 3 everywhere, start with monomials
 
-(Mesh)
- - Determine whether a given fe includes a segment of the outside boundary.
-   for: a_s(Q_b g, b_i)
+MinusDivAGradVarBF
+ Implement
 
- - Project an arbitrary function g onto space of polynomials of a given degree on a face of a fe
-   (can't do this on ref element, need actual fe coords)
-   for: Q_b g
+Proj
+ Test
 
- - Integrate an arbitrary function f against a basis element on a mesh element.
-   for: (f, (b_i)_0)
+Mesh
+  Implement R^d.
+  Test
+  Add integral tests for each impl.
 
 
 
+Documentation Changes
+---------------------
+Add to rmesh docs:
+  New interface functions:
+    integral_prod_on_ref_fe_side_vs_outward_normal
+    integral_vs_local_monomial_on_fe_interior
+    integral_on_ref_fe_face
+    num_side_faces_per_fe
+    space_dim
+    is_boundary_side

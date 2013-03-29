@@ -1,5 +1,5 @@
 using Test
-using WGMethod
+using WG
 
 using Common
 import RMesh2.RectMesh2

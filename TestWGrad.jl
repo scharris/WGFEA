@@ -7,11 +7,9 @@ import Mesh
 import RMesh2, RMesh2.RectMesh2
 import WGBasis.WeakFunsPolyBasis
 
-
 const k = 4
 rmesh = RectMesh2((0.,0.), (3.,3.), 3, 3)
-basis = WeakFunsPolyBasis(deg(k), dim(2), rmesh)
-wgrad_solver = WGradSolver(deg(k-1), dim(2), rmesh)
+wgrad_solver = WGradSolver(deg(k-1), rmesh)
 
 x = Monomial(1,0)
 y = Monomial(0,1)
@@ -29,7 +27,6 @@ end
 
 
 # Test wgrad of monomials.
-
 pv1 = sum_wgrad_all_faces(x*y)
 @test Poly.coefs_closer_than(10e-5, pv1, PolynomialVector([1y,1x]))
 

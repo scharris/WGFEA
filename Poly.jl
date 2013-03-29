@@ -5,6 +5,8 @@ export Monomial,
        VectorMonomial,
        PolynomialVector,
        Nomial,
+       NomialOrConst,
+       MonOrConst,
        canonical_form,
        monomial_value,
        polynomial_value,
@@ -73,6 +75,9 @@ type PolynomialVector
 end
 
 Nomial = Union(Monomial, Polynomial)
+NomialOrConst = Union(Polynomial, Monomial, R)
+MonOrConst = Union(Monomial, R)
+
 
 import Base.isequal
 isequal(m1::Monomial, m2::Monomial) = m1.exps == m2.exps
@@ -269,7 +274,7 @@ import Base.(-)
 
 
 import Base.ref
-ref(vm::VectorMonomial, i::Integer) = if i == vm.mon_pos vm.mon else zero_poly(domain_dim(vm)) end
+ref(vm::VectorMonomial, i::Integer) = if i == vm.mon_pos vm.mon else zeroR end::MonOrConst
 ref(pv::PolynomialVector, i::Integer) = pv.polys[i]
 
 
@@ -381,22 +386,23 @@ end
 count_monomials_of_degree_eq(deg::Deg, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
 count_monomials_of_degree_le(deg::Deg, dom_dim::Dim) = sum([count_monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=0:deg])
 
-monomials_of_degree_eq(deg::Deg, dom_dim::Dim) =
+function monomials_of_degree_eq(deg::Deg, dom_dim::Dim)
   if dom_dim == 1
     [Monomial(deg)]
   elseif dom_dim == 2
-    [Monomial(i,deg-i) for i=zero(Deg):deg]
+    [Monomial(i,deg-i)::Monomial for i=0:deg]
   elseif dom_dim == 3
-    local mons = Array(Monomial, count_monomials_of_degree_eq(deg,dom_dim)),
-          pos = 1
+    const mons = Array(Monomial, count_monomials_of_degree_eq(deg,dom_dim))
+    pos = 1
     for i=0:deg, j=0:(deg-i)
       mons[pos] = Monomial(i,j,deg-i-j)
       pos += 1
     end
-    mons
+    mons::Array{Monomial,1}
   else
     error("dimensions greater than 3 are currently not supported")
   end
+end
 
 monomials_of_degree_le(deg::Deg, dom_dim::Dim) =
   flatten([monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=zero(Deg):deg]) # convert shouldn't be necessary here but currently is as of Julia 0.1.
