@@ -4,6 +4,7 @@ export RectMesh2
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
 import Poly, Poly.Monomial, Poly.VectorMonomial, Poly.Polynomial
+import Cubature.hcubature, Cubature.hquadrature
 
 # Ordering of Faces
 # -----------------
@@ -35,25 +36,40 @@ import Poly, Poly.Monomial, Poly.VectorMonomial, Poly.Polynomial
 # (x,y) -> (x-x0, y-y0), where (x0,y0) is the lower left corner of the element.
 
 
-typealias MeshAxisVal Uint64
+typealias MeshCoord Uint64
+
+const default_integration_rel_err = 10e-8
+const default_integration_abs_err = 10e-8
 
 type RectMesh2 <: AbstractMesh
   bottom_left_x::R
   bottom_left_y::R
   top_right_x::R
   top_right_y::R
-  rows::MeshAxisVal
-  cols::MeshAxisVal
+  rows::MeshCoord
+  cols::MeshCoord
   # Computed values
-  fe_width::R
-  fe_height::R
   num_elements::FENum
   num_nb_sides::NBSideNum
   num_nb_vert_sides::NBSideNum
   num_nb_horz_sides::NBSideNum
   sidenum_first_nb_horz_side::NBSideNum
 
-  function RectMesh2(bottom_left::(R,R), top_right::(R,R), nrows::Integer, ncols::Integer)
+  fe_dims::Array{R,1}
+  fe_dims_wo_1::Array{R,1}
+  fe_dims_wo_2::Array{R,1}
+
+  # integration support members
+  intgd_args_work_array::Vector{R}
+  ref_fe_min_bounds::Vector{R}
+  ref_fe_min_bounds_short::Vector{R}
+  integration_rel_err::R
+  integration_abs_err::R
+
+  function RectMesh2(bottom_left::(R,R), top_right::(R,R),
+                     nrows::Integer, ncols::Integer,
+                     integration_rel_err::R,
+                     integration_abs_err::R)
     assert(nrows > 0 && ncols > 0, "positive rows and columns required")
     assert(top_right[1] > bottom_left[1] && top_right[2] > bottom_left[2], "proper rectangle required")
     fe_w = (top_right[1] - bottom_left[1]) / ncols
@@ -63,16 +79,32 @@ type RectMesh2 <: AbstractMesh
     nb_hsides = (nrows-1) * ncols
     nb_sides = nb_vsides + nb_hsides
     sidenum_first_nb_hside = nb_vsides + 1
-    new(bottom_left[1], bottom_left[2], top_right[1], top_right[2], convert(MeshAxisVal,nrows), convert(MeshAxisVal,ncols),
-        fe_w, fe_h,
+
+    fe_dims = [fe_w, fe_h]
+    fe_dims_wo_1 = [fe_h]
+    fe_dims_wo_2 = [fe_w]
+
+    new(bottom_left[1], bottom_left[2], top_right[1], top_right[2],
+        convert(MeshCoord, nrows), convert(MeshCoord, ncols),
         els,
         nb_sides,
         nb_vsides,
         nb_hsides,
-        sidenum_first_nb_hside)
+        sidenum_first_nb_hside,
+        fe_dims,
+        fe_dims_wo_1,
+        fe_dims_wo_2,
+        Array(R, 2), # integrand args work array
+        zeros(R, 2), # ref fe min bounds
+        zeros(R, 1), # ref fe min bounds, short
+        integration_rel_err,
+        integration_abs_err)
   end # RectMesh2 constructor
 
 end # type RectMesh2
+
+RectMesh2(bottom_left::(R,R), top_right::(R,R), nrows::Integer, ncols::Integer) =
+  RectMesh2(bottom_left, top_right, nrows, ncols, default_integration_rel_err, default_integration_abs_err)
 
 
 # ------------------------------------------
@@ -81,8 +113,9 @@ end # type RectMesh2
 import Mesh.space_dim
 space_dim(m::RectMesh2) = dim(2)
 
+const one_monomial = Monomial(0,0)
 import Mesh.one_mon
-one_mon(m::RectMesh2) = Monomial(0,0)
+one_mon(m::RectMesh2) = one_monomial
 
 import Mesh.num_fes
 num_fes(m::RectMesh2) = m.num_elements
@@ -121,29 +154,44 @@ function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh2, fe_incls::NBSi
   end
 end
 
+import Mesh.is_boundary_side
+function is_boundary_side(fe::FENum, face::FEFace, mesh::RectMesh2)
+  if face == top_face
+    fe_row(fe, mesh) == mesh.rows
+  elseif face == bottom_face
+    fe_row(fe, mesh) == 1
+  elseif face == right_face
+    fe_col(fe, mesh) == mesh.cols
+  elseif face == left_face
+    fe_col(fe, mesh) == 1
+  else
+    error("invalid face: $face")
+  end
+end
+
 import Mesh.integral_on_ref_fe_face
 function integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh2)
   if face == Mesh.interior_face
-    Poly.integral_on_rect_at_origin(mon, mesh.fe_width, mesh.fe_height)
+    Poly.integral_on_rect_at_origin(mon, mesh.fe_dims)
   elseif face == top_face
-    dim_red_intgd = Poly.reduce_dim_by_fixing(dim(2), mesh.fe_height, mon)
-    Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_width) # integral over dim 1 from 0 to fe_width
+    dim_red_intgd = Poly.reduce_dim_by_fixing(dim(2), mesh.fe_dims[2], mon)
+    Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_dims_wo_2) # integral over dim 1 from 0 to fe_width
   elseif face == right_face
-    dim_red_intgd = Poly.reduce_dim_by_fixing(dim(1), mesh.fe_width, mon)
-    Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_height) # integral over the remaining non-fixed dimension
+    dim_red_intgd = Poly.reduce_dim_by_fixing(dim(1), mesh.fe_dims[1], mon)
+    Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_dims_wo_1) # integral over the remaining non-fixed dimension
   elseif face == bottom_face
     if mon.exps[2] != 0
       zeroR
     else
       dim_red_intgd = Poly.reduce_dim_by_fixing(dim(2), zeroR, mon)
-      Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_width) # integral over the remaining non-fixed dimension
+      Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_dims_wo_2) # integral over the remaining non-fixed dimension
     end
   elseif face == left_face
     if mon.exps[1] != 0
       zeroR
     else
       dim_red_intgd = Poly.reduce_dim_by_fixing(dim(1), zeroR, mon)
-      Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_height) # integral over the remaining non-fixed dimensions
+      Poly.integral_on_rect_at_origin(dim_red_intgd, mesh.fe_dims_wo_1) # integral over the remaining non-fixed dimensions
     end
   else
     error("invalid face: $face")
@@ -165,7 +213,39 @@ function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEF
   end
 end
 
-# TODO: Add remaining integral methods over specific fe's (e.g. integral_prod_on_[ref_]fe_face methods).
+import Mesh.integral_prod_on_fe_face
+function integral_prod_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::RectMesh2)
+  const d = 2
+  const fe_local_origin = fe_coords(fe, mesh)
+  const fe_x = mesh.intgd_args_work_array
+  if face == Mesh.interior_face
+    function ref_intgd(x::Vector{R})
+      fe_x[1] = fe_local_origin[1] + x[1]
+      fe_x[2] = fe_local_origin[2] + x[2]
+      f(fe_x) * Poly.monomial_value(mon, x)
+    end
+    hcubature(ref_intgd, mesh.ref_fe_min_bounds, mesh.fe_dims, mesh.integration_rel_err, mesh.integration_abs_err)[1]
+  else # side face
+    # perp axis for the side
+    const a = face == left_face || face == right_face ? 1 : 2
+    const a_coord_of_ref_side = face == left_face || face == bottom_face ? zeroR : mesh.fe_dims[a]
+    const a_coord_of_fe_side = fe_local_origin[a] + a_coord_of_ref_side
+    const dim_reduced_poly = Poly.reduce_dim_by_fixing(dim(a), a_coord_of_ref_side, mon)
+    function ref_intgd(x::R)
+      if a == 1
+        fe_x[1] = a_coord_of_fe_side
+        fe_x[2] = fe_local_origin[2] + x
+      else
+        fe_x[1] = fe_local_origin[1] + x
+        fe_x[2] = a_coord_of_fe_side
+      end
+      f(fe_x) * Poly.polynomial_value(dim_reduced_poly, x)
+    end
+    const non_a_fe_dim = a == 1 ? mesh.fe_dims_wo_1[1] : mesh.fe_dims_wo_2[1]
+    hquadrature(ref_intgd, 0., non_a_fe_dim, mesh.integration_rel_err, mesh.integration_abs_err)[1]
+  end
+end
+
 
 #
 # ------------------------------------------
@@ -192,8 +272,8 @@ fe_cix(fe_ix::FENum, mesh::RectMesh2) = mod(fe_ix, mesh.cols)
 # Fill the passed 2 element array with the coordinates of the corner with range minimum coordinates.
 function fe_coords!(fe::FENum, mesh::RectMesh2, coords::Vector{R})
   const fe_ix = fe - 1
-  coords[1] = mesh.bottom_left_x + fe_cix(fe_ix, mesh) * mesh.fe_width
-  coords[2] = mesh.bottom_left_y + fe_rix(fe_ix, mesh) * mesh.fe_height
+  coords[1] = mesh.bottom_left_x + fe_cix(fe_ix, mesh) * mesh.fe_dims[1]
+  coords[2] = mesh.bottom_left_y + fe_rix(fe_ix, mesh) * mesh.fe_dims[2]
 end
 
 # Functional variant of the above.

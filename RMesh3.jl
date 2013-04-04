@@ -1,11 +1,13 @@
 module RMesh3
 export RectMesh3,
-       NBSideInfo, nbside_info,
+       MeshCoord, mesh_coord,
+       NBSideInfo, nb_side_info,
        FEInfo, fe_info
 
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
 import Poly, Poly.Monomial, Poly.VectorMonomial, Poly.Polynomial
+import Cubature.hcubature
 
 # Abbreviations
 # nb: non-boundary
@@ -13,7 +15,12 @@ import Poly, Poly.Monomial, Poly.VectorMonomial, Poly.Polynomial
 #
 
 # type for mesh coords (columns, rows, stacks)
-typealias MeshAxisVal Uint64
+typealias MeshCoord Uint64
+mesh_coord(i::Integer) = convert(MeshCoord, i)
+
+const default_integration_rel_err = 10e-8
+const default_integration_abs_err = 10e-8
+
 
 type RectMesh3 <: AbstractMesh
 
@@ -25,15 +32,16 @@ type RectMesh3 <: AbstractMesh
   max_y::R
   max_z::R
 
-  cols::MeshAxisVal
-  rows::MeshAxisVal
-  stacks::MeshAxisVal
+  cols::MeshCoord
+  rows::MeshCoord
+  stacks::MeshCoord
 
   # Computed values
 
-  fe_width::R
-  fe_height::R
-  fe_depth::R
+  fe_dims::Array{R,1}
+  fe_dims_wo_1::Array{R,1}
+  fe_dims_wo_2::Array{R,1}
+  fe_dims_wo_3::Array{R,1}
 
   num_elements::FENum
 
@@ -51,7 +59,17 @@ type RectMesh3 <: AbstractMesh
   num_y_nb_sides_per_stack::NBSideNum
   num_z_nb_sides_per_stack::NBSideNum
 
-  function RectMesh3(min_coords::(R,R,R), max_coords::(R,R,R), ncols::Integer, nrows::Integer, nstacks::Integer)
+  # integration support members
+  intgd_args_work_array::Vector{R}
+  ref_fe_min_bounds::Vector{R}
+  ref_fe_min_bounds_short::Vector{R}
+  integration_rel_err::R
+  integration_abs_err::R
+
+
+  function RectMesh3(min_coords::(R,R,R), max_coords::(R,R,R),
+                     ncols::Integer, nrows::Integer, nstacks::Integer,
+                     integration_rel_err::R, integration_abs_err::R)
     assert(ncols > 0 && nrows > 0 && nstacks > 0, "positive columns, rows and stacks required")
     assert(max_coords[1] > min_coords[1] && max_coords[2] > min_coords[2] && max_coords[3] > min_coords[3], "min exceeds max")
 
@@ -65,12 +83,17 @@ type RectMesh3 <: AbstractMesh
 
     const fes_per_stack = ncols * nrows
 
+    const fe_dims = [(max_coords[1] - min_coords[1]) / ncols,
+                     (max_coords[2] - min_coords[2]) / nrows,
+                     (max_coords[3] - min_coords[3]) / nstacks]
+    const fe_dims_wo_1 = fe_dims[2:3]
+    const fe_dims_wo_2 = fe_dims[[1,3]]
+    const fe_dims_wo_3 = fe_dims[1:2]
+
     new(min_coords[1], min_coords[2], min_coords[3],
         max_coords[1], max_coords[2], max_coords[3],
-        convert(MeshAxisVal, ncols), convert(MeshAxisVal, nrows), convert(MeshAxisVal, nstacks),
-        (max_coords[1] - min_coords[1]) / ncols,   # fe width
-        (max_coords[2] - min_coords[2]) / nrows,   # fe height
-        (max_coords[3] - min_coords[3]) / nstacks, # fe depth
+        convert(MeshCoord, ncols), convert(MeshCoord, nrows), convert(MeshCoord, nstacks),
+        fe_dims, fe_dims_wo_1, fe_dims_wo_2, fe_dims_wo_3,
         nrows * ncols * nstacks, # total fes
         num_x_nb_sides,
         num_y_nb_sides,
@@ -82,42 +105,29 @@ type RectMesh3 <: AbstractMesh
         fes_per_stack,
         (ncols-1) * nrows, # num_x_nb_sides_per_stack
         ncols * (nrows-1), # num_y_nb_sides_per_stack
-        fes_per_stack)     # num_z_nb_sides_per_stack
+        fes_per_stack,     # num_z_nb_sides_per_stack
+        Array(R, 3), # integrand args work array
+        zeros(R, 3), # ref fe min bounds
+        zeros(R, 2), # ref fe min bounds, short
+        integration_rel_err,
+        integration_abs_err)
   end # RectMesh3 constructor
 end # type RectMesh3
 
-## The following three functions compute 0-based row, col, and stack indexes in
-## the grid consisting of items of the same type only (e.g. faces of a
-## particular orientation), for a given item index relative to the first of the
-## same type, when the items are enumerated by column first (changing fastest),
-## then more significantly by row, and most significantly by stack. The number
-## of columns and rows are passed in because they depend on the type of item
-## being enumerated, e.g. nonboundary sides of constant x only have mesh.cols-1
-## columns per row.
-#function mesh_item_row_ix(item_ix::Integer, num_item_cols::Integer, num_item_rows::Integer)
-#  const items_per_stack = num_item_rows * num_item_cols
-#  const stack_rel_ix = mod(item_ix, items_per_stack)
-#  div(stack_rel_ix, num_item_cols)
-#end
-#function mesh_item_col_ix(item_ix::Integer, num_item_cols::Integer, num_item_rows::Integer)
-#  const items_per_stack = num_item_rows * num_item_cols
-#  const stack_rel_ix = mod(item_ix, items_per_stack)
-#  mod(stack_rel_ix, num_item_cols)
-#end
-#function mesh_item_stack_ix(item_ix::Integer, num_item_cols::Integer, num_item_rows::Integer)
-#  const items_per_stack = num_item_rows * num_item_cols
-#  div(item_ix, items_per_stack)
-#end
+RectMesh3(min_coords::(R,R,R), max_coords::(R,R,R),
+          ncols::Integer, nrows::Integer, nstacks::Integer) =
+  RectMesh3(min_coords, max_coords, ncols, nrows, nstacks, default_integration_rel_err, default_integration_abs_err)
 
 
-# ------------------------------------------
+#############################################
 # Implement functions required of all meshes.
 
 import Mesh.space_dim
 space_dim(m::RectMesh3) = dim(3)
 
+const one_monomial = Monomial(0,0,0)
 import Mesh.one_mon
-one_mon(m::RectMesh3) = Monomial(0,0,0)
+one_mon(m::RectMesh3) = one_monomial
 
 import Mesh.num_fes
 num_fes(mesh::RectMesh3) = mesh.num_elements
@@ -177,40 +187,59 @@ function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh3, fe_incls::NBSi
   end
 end
 
+import Mesh.is_boundary_side
+function is_boundary_side(fe::FENum, face::FEFace, mesh::RectMesh3)
+  if face == x_min_face
+    fe_col(fe, mesh) == 1
+  elseif face == x_max_face
+    fe_col(fe, mesh) == mesh.cols
+  elseif face == y_min_face
+    fe_row(fe, mesh) == 1
+  elseif face == y_max_face
+    fe_row(fe, mesh) == mesh.rows
+  elseif face == z_min_face
+    fe_stack(fe, mesh) == 1
+  elseif face == z_max_face
+    fe_stack(fe, mesh) == mesh.stacks
+  else
+    error("invalid face: $face")
+  end
+end
+
 import Mesh.integral_on_ref_fe_face
 integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh3) =
   if face == Mesh.interior_face
-    Poly.integral_on_rect_at_origin(mon, mesh.fe_width, mesh.fe_height, mesh.fe_depth)
+    Poly.integral_on_rect_at_origin(mon, mesh.fe_dims)
   elseif face == x_min_face
     if mon.exps[1] != 0
       zeroR
     else
       dim_reduced = Poly.reduce_dim_by_fixing(dim(1), zeroR, mon)
-      Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_height, mesh.depth)
+      Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_1)
     end
   elseif face == x_max_face
-    dim_reduced = Poly.reduce_dim_by_fixing(dim(1), mesh.fe_width, mon)
-    Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_height, mesh.depth)
+    dim_reduced = Poly.reduce_dim_by_fixing(dim(1), mesh.fe_dims[1], mon)
+    Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_1)
   elseif face == y_min_face
     if mon.exps[2] != 0
       zeroR
     else
       dim_reduced = Poly.reduce_dim_by_fixing(dim(2), zeroR, mon)
-      Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_depth)
+      Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_2)
     end
   elseif face == y_max_face
-    dim_reduced = Poly.reduce_dim_by_fixing(dim(2), mesh.fe_height, mon)
-    Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_depth)
+    dim_reduced = Poly.reduce_dim_by_fixing(dim(2), mesh.fe_dims[2], mon)
+    Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_2)
   elseif face == z_min_face
     if mon.exps[3] != 0
       zeroR
     else
       dim_reduced = Poly.reduce_dim_by_fixing(dim(3), zeroR, mon)
-      Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_height)
+      Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_3)
     end
   elseif face == z_max_face
-    dim_reduced = Poly.reduce_dim_by_fixing(dim(3), mesh.fe_depth, mon)
-    Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_width, mesh.fe_height)
+    dim_reduced = Poly.reduce_dim_by_fixing(dim(3), mesh.fe_dims[3], mon)
+    Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_3)
   else
     error("invalid face: $face")
   end
@@ -236,12 +265,45 @@ function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEF
   end
 end
 
-
-# TODO: Add remaining integral methods over specific fe's (e.g. integral_prod_on_[ref_]fe_face methods).
+# TODO: unit tests
+import Mesh.integral_prod_on_fe_face
+function integral_prod_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::RectMesh3)
+  const d = 3
+  const fe_local_origin = fe_coords(fe, mesh)
+  const fe_x = mesh.intgd_args_work_array
+  if face == Mesh.interior_face
+    function ref_intgd(x::Vector{R})
+      for r=1:d
+        fe_x[r] = fe_local_origin[r] + x[r]
+      end
+      f(fe_x) * Poly.monomial_value(mon, x)
+    end
+    hcubature(ref_intgd, mesh.ref_fe_min_bounds, mesh.fe_dims, mesh.integration_rel_err, mesh.integration_abs_err)[1]
+  else # side face
+    # perp axis for the side
+    const a = face == x_min_face || face == x_max_face ? 1 : face == y_min_face || face == y_max_face ? 2 : 3
+    const a_coord_of_ref_side = face == x_min_face || face == y_min_face || face == z_min_face ? zeroR : mesh.fe_dims[a]
+    const a_coord_of_fe_side = fe_local_origin[a] + a_coord_of_ref_side
+    const dim_reduced_poly = Poly.reduce_dim_by_fixing(dim(a), a_coord_of_ref_side, mon)
+    function ref_intgd(x::Vector{R}) # x has 1 component
+      for i=1:a-1
+        fe_x[i] = fe_local_origin[i] + x[i]
+      end
+      fe_x[a] = a_coord_of_fe_side
+      for i=a+1:d
+        fe_x[i] = fe_local_origin[i] + x[i-1]
+      end
+      f(fe_x) * Poly.polynomial_value(dim_reduced_poly, x)
+    end
+    const fe_dims_wo_a = a == 1 ? mesh.fe_dims_wo_1 : a == 2 ? mesh.fe_dims_wo_2 : mesh.fe_dims_wo_3
+    hcubature(ref_intgd, mesh.ref_fe_min_bounds_short, fe_dims_wo_a, mesh.integration_rel_err, mesh.integration_abs_err)[1]
+  end
+end
 
 
 #
-# ------------------------------------------
+##############################################
+
 
 # functions specific to rectangular meshes
 
@@ -278,12 +340,12 @@ fe_col(fe::FENum, mesh::RectMesh3) = fe_col_ix(fe-1, mesh) + 1
 fe_stack(fe::FENum, mesh::RectMesh3) = fe_stack_ix(fe-1, mesh) + 1
 
 
-# Fill the passed 3 element array with the coordinates of corner with range-minimum coordinates.
+# Fill the passed 3 element array with the coordinates of the finite element corner with range-minimum coordinates.
 function fe_coords!(fe::FENum, mesh::RectMesh3, coords::Vector{R})
   const fe_ix = fe - 1
-  coords[1] = mesh.min_x + fe_col_ix(fe_ix, mesh)   * mesh.fe_width
-  coords[2] = mesh.min_y + fe_row_ix(fe_ix, mesh)   * mesh.fe_height
-  coords[3] = mesh.min_z + fe_stack_ix(fe_ix, mesh) * mesh.fe_depth
+  coords[1] = mesh.min_x + fe_col_ix(fe_ix, mesh)   * mesh.fe_dims[1]
+  coords[2] = mesh.min_y + fe_row_ix(fe_ix, mesh)   * mesh.fe_dims[2]
+  coords[3] = mesh.min_z + fe_stack_ix(fe_ix, mesh) * mesh.fe_dims[3]
 end
 
 # Functional variant of the above.
@@ -299,13 +361,13 @@ fe_coords(fe::FENum, mesh::RectMesh3) =
 
 type FEInfo
   fe_num::FENum
-  col::MeshAxisVal
-  row::MeshAxisVal
-  stack::MeshAxisVal
+  col::MeshCoord
+  row::MeshCoord
+  stack::MeshCoord
   coords::Array{R,1}
   function FEInfo(fe::FENum, col::Integer, row::Integer, stack::Integer, coords::Array{R,1})
     new(Mesh.fe_num(fe),
-        convert(MeshAxisVal,col), convert(MeshAxisVal,row), convert(MeshAxisVal,stack),
+        convert(MeshCoord,col), convert(MeshCoord,row), convert(MeshCoord,stack),
         coords)
   end
 end
@@ -343,7 +405,7 @@ type NBSideInfo
   greater_adjoining_fe::FEInfo
 end
 
-function nbside_info(side_num::NBSideNum, mesh::RectMesh3)
+function nb_side_info(side_num::NBSideNum, mesh::RectMesh3)
   incls = Mesh.fe_inclusions_of_nb_side(side_num, mesh)
   perp_to_axis = is_x_nb_side(side_num, mesh) ? 'x' : is_y_nb_side(side_num, mesh) ? 'y' : 'z'
 

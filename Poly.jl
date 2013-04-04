@@ -265,8 +265,9 @@ end
   PolynomialVector(polys)
 end
 
-# unary minus
+# minus
 import Base.(-)
+-(mon_or_poly_1::Nomial, mon_or_poly_2::Nomial) = mon_or_poly_1 + -mon_or_poly_2
 -(m::Monomial) = Polynomial([m],[-oneR])
 -(p::Polynomial) = (-oneR) * p
 -(vm::VectorMonomial) = (-oneR) * vm
@@ -310,7 +311,7 @@ domain_dim(vm::VectorMonomial) = domain_dim(vm.mon)
 
 monomials_in_same_component(vmon1::VectorMonomial, vmon2::VectorMonomial) = vmon1.mon_pos == vmon2.mon_pos
 
-function monomial_value(mon::Monomial, x::R...)
+function monomial_value(mon::Monomial, x::Vector{R})
   v = x[1]^mon.exps[1]
   for i=2:length(x)
     v *= x[i]^mon.exps[i]
@@ -318,15 +319,26 @@ function monomial_value(mon::Monomial, x::R...)
   v
 end
 
+function monomial_value(mon::Monomial, x::R)
+  assert(length(mon.exps) == 1)
+  x^(mon.exps[1])
+end
 
-function polynomial_value(p::Polynomial, x::R...)
+function polynomial_value(p::Polynomial, x::Vector{R})
   sum = zeroR
   for i in 1:length(p.mons)
-    sum += p.coefs[i] * monomial_value(p.mons[i],x...)
+    sum += p.coefs[i] * monomial_value(p.mons[i], x)
   end
   sum
 end
 
+function polynomial_value(p::Polynomial, x::R)
+  sum = zeroR
+  for i in 1:length(p.mons)
+    sum += p.coefs[i] * monomial_value(p.mons[i], x)
+  end
+  sum
+end
 
 without_dim{T}(i::Integer, a::Array{T,1}) = vcat(a[1:i-1],a[i+1:])
 
@@ -335,7 +347,7 @@ function reduce_dim_by_fixing(dim::Dim, val::R, p::Polynomial)
 end
 
 function reduce_dim_by_fixing(dim::Dim, val::R, m::Monomial)
-  c = val^m.exps[dim]
+  c = val^(m.exps[dim])
   new_exps = without_dim(dim, m.exps)
   Polynomial([Monomial(new_exps)],[c])
 end
@@ -361,21 +373,21 @@ end
 # integration
 
 # Integrate a monomial on a rectangle of the given dimensions having lower left corner at the origin.
-function integral_on_rect_at_origin(mon::Monomial, rect_dims::R...)
+function integral_on_rect_at_origin(mon::Monomial, rect_dims::Array{R,1})
   assert(length(rect_dims) > 0, "rectangle dimensions must be supplied")
   prod = oneR
   for i = 1:length(rect_dims)
     deg_plus_1 = mon.exps[i] + 1
-    prod *= rect_dims[i]^deg_plus_1 / deg_plus_1
+    prod *= (rect_dims[i]^deg_plus_1 / deg_plus_1)
   end
   prod
 end
 
 # Integrate a polynomial on a rectangle of the given dimensions having lower left corner at the origin.
-function integral_on_rect_at_origin(p::Polynomial, rect_dims::R...)
+function integral_on_rect_at_origin(p::Polynomial, rect_dims::Array{R,1})
   sum = zeroR
   for i=1:length(p.coefs)
-    sum += p.coefs[i] * integral_on_rect_at_origin(p.mons[i], rect_dims...)
+    sum += p.coefs[i] * integral_on_rect_at_origin(p.mons[i], rect_dims)
   end
   sum
 end
@@ -455,7 +467,7 @@ function drop_coefs_lt(eps::R, p::Polynomial)
   const mons = Array(Monomial,0)
   const coefs = Array(R,0)
   for i=1:length(p.mons)
-    if p.coefs[i] > eps
+    if abs(p.coefs[i]) > eps
       push!(coefs, p.coefs[i])
       push!(mons, p.mons[i])
     end

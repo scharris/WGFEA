@@ -9,13 +9,13 @@ y = Monomial(0,1)
 @test x * y^2 == Monomial(1,2)
 @test domain_dim(x) == 2
 
-@test monomial_value(x * y^2, 1., 2.) == 4.
-@test polynomial_value(2x + 2(x*y), 1.0, 2.0) == 6.
+@test monomial_value(x * y^2, [1., 2.]) == 4.
+@test polynomial_value(2x + 2(x*y), [1.0, 2.0]) == 6.
 
 
 function test_poly_vals_eq(p1::Polynomial, p2::Polynomial)
   for x in [0.0, 1.0, 2.0, 3.0, 4.0], y in [10.0, 11.0, 12.0, 13.0]
-    @test polynomial_value(p1, x, y) == polynomial_value(p2, x, y)
+    @test polynomial_value(p1, [x, y]) == polynomial_value(p2, [x, y])
   end
 end
 
@@ -73,12 +73,12 @@ vm3 = VectorMonomial(x * y, dim(2))
 @test vm1[2] * vm1 == VectorMonomial(x^4 * y^2, dim(2))
 
 # integration of monomials
-@test integral_on_rect_at_origin(x*y, 1.0, 1.0) == .25
-@test integral_on_rect_at_origin(x*y, 2.0, 3.0) == 9.
+@test integral_on_rect_at_origin(x*y, [1.0, 1.0]) == .25
+@test integral_on_rect_at_origin(x*y, [2.0, 3.0]) == 9.
 
 # integration of polynomials
-@test integral_on_rect_at_origin(2(x*y), 1.0, 1.0) == 0.5
-@test integral_on_rect_at_origin(2(x*y) + 4(x*y), 1.0, 1.0) == 1.5
+@test integral_on_rect_at_origin(2(x*y), [1.0, 1.0]) == 0.5
+@test integral_on_rect_at_origin(2(x*y) + 4(x*y), [1.0, 1.0]) == 1.5
 
 # 3D polynomial integration
 
@@ -86,8 +86,8 @@ x1 = Monomial(1,0,0)
 x2 = Monomial(0,1,0)
 x3 = Monomial(0,0,1)
 
-@test integral_on_rect_at_origin(x1*x2*x3, 1.0,2.0,3.0) == 4.5
-@test integral_on_rect_at_origin(x1*x2^2*x3, 1.0,2.0,3.0) == 6.
+@test integral_on_rect_at_origin(x1*x2*x3, [1.0,2.0,3.0]) == 4.5
+@test integral_on_rect_at_origin(x1*x2^2*x3, [1.0,2.0,3.0]) == 6.
 
 # dimension reduction by fixing an input value in one dimension
 @test reduce_dim_by_fixing(dim(2), 2.0, x^2 + -2x*y + y^2) == let x = Monomial(1); x^2 + -4x + 4 end

@@ -1,7 +1,7 @@
 module Mesh
 
 export FENum, fe_num, no_fe,
-       NBSideNum, nbside_num,
+       NBSideNum, nb_side_num,
        FEFace, fe_face, interior_face, no_face,
        NBSideInclusions,
        AbstractMesh,
@@ -9,7 +9,6 @@ export FENum, fe_num, no_fe,
        one_mon,
        num_fes,
        num_nb_sides,
-       num_b_sides,
        num_side_faces_per_fe,
        fe_inclusions_of_nb_side,
        fe_inclusions_of_nb_side!,
@@ -30,7 +29,7 @@ const no_fe = zero(FENum)
 
 # Number type for enumeration of all non-boundary sides in a mesh.
 typealias NBSideNum Uint64
-nbside_num(i::Integer) = if i > 0 uint64(i) else error("non-boundary side number out of range") end
+nb_side_num(i::Integer) = if i > 0 uint64(i) else error("non-boundary side number out of range") end
 
 # Number type for enumerating face positions (top, left, etc) on a finite element.
 # For all meshes, the interior face is always numbered 0, while the sides are
@@ -54,6 +53,7 @@ NBSideInclusions() = NBSideInclusions(no_fe, no_face, no_fe, no_face)
 # An abstract type representing any finite element mesh.
 abstract AbstractMesh
 
+####################################################################
 # Generic functions which every specific mesh type should implement.
 
 space_dim{M <: AbstractMesh}(mesh::M) =
@@ -69,9 +69,6 @@ num_fes{M <: AbstractMesh}(mesh::M) =
 num_nb_sides{M <: AbstractMesh}(mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-num_b_sides{M <: AbstractMesh}(mesh::M) =
-  error("not implemented, mesh implementation is incomplete")
-
 num_side_faces_per_fe{M <: AbstractMesh}(mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
@@ -84,16 +81,26 @@ is_boundary_side{M <: AbstractMesh}(fe::FENum, face::FEFace, mesh::M) =
 integral_on_ref_fe_face{M <: AbstractMesh}(m::Monomial, face::FEFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-integral_prod_on_fe_face{M <: AbstractMesh}(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::M) =
-  error("not implemented, mesh implementation is incomplete")
-
 integral_on_ref_fe_side_vs_outward_normal{M <: AbstractMesh}(vm::VectorMonomial, face::FEFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
+integral_prod_on_fe_face{M <: AbstractMesh}(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::M) =
+  error("not implemented, mesh implementation is incomplete")
+
+#
+####################################################################
 
 
 # The following have default implementations or are defined in terms of the required
 # generic functions and usually won't need to be implemented for specific mesh types.
+
+function integral_on_ref_fe_face{M <: AbstractMesh}(c::R, face::FEFace, mesh::M)
+  if c == zeroR
+    zeroR
+  else
+    c * integral_on_ref_fe_face(one_mon(mesh), face, mesh)
+  end
+end
 
 function integral_on_ref_fe_face{M <: AbstractMesh}(p::Polynomial, face::FEFace, mesh::M)
   sum = zeroR
@@ -101,14 +108,6 @@ function integral_on_ref_fe_face{M <: AbstractMesh}(p::Polynomial, face::FEFace,
     sum += p.coefs[i] * integral_on_ref_fe_face(p.mons[i], face, mesh)
   end
   sum
-end
-
-function integral_on_ref_fe_face{M <: AbstractMesh}(c::R, face::FEFace, mesh::M)
-  if c == zeroR
-    zeroR
-  else
-    c * integral_on_ref_fe_face(one_mon(mesh))
-  end
 end
 
 # Implementations could specialize this to avoid creating the product monomial.
@@ -123,14 +122,30 @@ function integral_prod_on_ref_fe_face{M <: AbstractMesh}(mon::Monomial, p::Polyn
   sum
 end
 
-function integral_prod_on_ref_fe_face{M <: AbstractMesh}(p::Polynomial, mon::Monomial, face::FEFace, mesh::M)
+integral_prod_on_ref_fe_face{M <: AbstractMesh}(p::Polynomial, mon::Monomial, face::FEFace, mesh::M) =
   integral_prod_on_ref_fe_face(mon, p, face, mesh)
-end
 
 function integral_prod_on_ref_fe_face{M <: AbstractMesh}(p1::Polynomial, p2::Polynomial, face::FEFace, mesh::M)
   sum = zeroR
-  for i=1:length(p1.coefs)
-    sum += p1.coefs[i] * integral_prod_on_ref_fe_face(p1.mons[i], p2, face, mesh)
+  for i=1:length(p1.coefs), j=1:length(p2.coefs)
+    sum += p1.coefs[i] * p2.coefs[j] * integral_prod_on_ref_fe_face(p1.mons[i], p2.mons[j], face, mesh)
+  end
+  sum
+end
+
+# Some subtype implementations (e.g. rectangular meshes) may be able to specialize the following for efficiency
+# by returning 0 immediately in many cases without constructing v*q.
+
+integral_prod_on_ref_fe_side_vs_outward_normal(v::Monomial, q::VectorMonomial, side::FEFace, mesh::AbstractMesh) =
+  integral_on_ref_fe_side_vs_outward_normal(v * q, side, mesh)
+
+function integral_prod_on_ref_fe_side_vs_outward_normal(v::Polynomial, q::VectorMonomial, side::FEFace, mesh::AbstractMesh)
+  const prod_poly = q.mon * v
+  const vm = VectorMonomial(prod_poly.mons[1], q.mon_pos)
+  sum = prod_poly.coefs[1] * integral_on_ref_fe_side_vs_outward_normal(vm, side, mesh)
+  for i=2:length(prod_poly.mons)
+    vm.mon = prod_poly.mons[i]
+    sum += prod_poly.coefs[i] * integral_on_ref_fe_side_vs_outward_normal(vm, side, mesh)
   end
   sum
 end
@@ -143,22 +158,13 @@ fe_inclusions_of_nb_side{M <: AbstractMesh}(side_num::NBSideNum, mesh::M) =
     side_incls
   end
 
-# For the next two functions, some subtype implementations (e.g. rectangular meshes) may be able to
-# specialize for efficiency by returning 0 immediately in many cases without constructing v*q.
 
-function integral_prod_on_ref_fe_side_vs_outward_normal(v::Monomial, q::VectorMonomial, side::FEFace, mesh::AbstractMesh)
-  integral_on_ref_fe_side_vs_outward_normal(v * q, side, mesh)
-end
-
-function integral_prod_on_ref_fe_side_vs_outward_normal(v::Polynomial, q::VectorMonomial, side::FEFace, mesh::AbstractMesh)
-  const prod_poly = q.mon * v
-  const vm = VectorMonomial(prod_poly.mons[1], q.mon_pos)
-  sum = prod_poly.coefs[1] * integral_on_ref_fe_side_vs_outward_normal(vm, side, mesh)
-  for i=2:length(prod_poly.mons)
-    vm.mon = prod_poly.mons[i]
-    sum += prod_poly.coefs[i] * integral_on_ref_fe_side_vs_outward_normal(vm, side, mesh)
-  end
-  sum
-end
+import Base.isequal
+isequal(incls1::NBSideInclusions, incls2::NBSideInclusions) =
+  incls1.fe1 == incls2.fe1 && incls1.face_in_fe1 == incls2.face_in_fe1 &&
+  incls1.fe2 == incls2.fe2 && incls1.face_in_fe2 == incls2.face_in_fe2
+import Base.hash
+hash(incls::NBSideInclusions) =
+  fe1 + 3*face_in_fe1 + 5 * fe2 + 7*face_in_fe2
 
 end # end of module

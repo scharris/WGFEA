@@ -4,7 +4,18 @@ Commit Notes
 
 TODO
 ----
-Poly:  Support d > 3 everywhere, start with monomials
+WGBasis:
+  The side bases are wrong, the elements are linearly dependent.
+  Use a subset of the same monomials, but we don't need all of them.  For rectangular meshes, we don't need monomials where
+  the axis dimension factor has nonzero exponent.
+  More generally, a mesh should be able to answer for each side which dimension is dependent on the others on the side.
+  For each side, there is a coordinate j for which c_i exist with x_j = c_0 + sum_i c_i x_i for all x=(x_1,...,x_d) in the
+  side [call this "affine-dependent"?]. There may be more than one such coordinate number, the mesh just returns any one.
+  The basis will need to be modified to keep a reference list of monomials for each reference side, after asking the mesh.
+
+
+Poly:
+  Support d > 3 everywhere, start with monomials
 
 MinusDivAGradVarBF
  Implement
@@ -13,11 +24,7 @@ Proj
  Test
 
 Mesh
-  Implement R^d.
-  Test
-  Add integral tests for each impl.
-
-
+  For d=2,3 add numerical prod integral implementations and tests.
 
 Documentation Changes
 ---------------------
