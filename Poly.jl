@@ -14,9 +14,9 @@ export Monomial,
        as_poly,
        zero_poly,
        domain_dim,
-       monomials_of_degree_eq,
        count_monomials_of_degree_le,
        monomials_of_degree_le,
+       monomials_of_degree_le_with_const_dim,
        vector_monomials_of_degree_le,
        reduce_dim_by_fixing,
        partial,
@@ -39,6 +39,10 @@ type Monomial
   Monomial(k1::Integer, k2::Integer) = check_degs(k1,k2) && new([convert(Deg,k1), convert(Deg,k2)])
   Monomial(k1::Integer, k2::Integer, k3::Integer) = check_degs(k1,k2,k3) &&
     new([convert(Deg,k1), convert(Deg,k2), convert(Deg,k3)])
+  Monomial(k1::Integer, k2::Integer, k3::Integer, k4::Integer) = check_degs(k1,k2,k3,k4) &&
+    new([convert(Deg,k1), convert(Deg,k2), convert(Deg,k3), convert(Deg,k4)])
+  Monomial(k1::Integer, k2::Integer, k3::Integer, k4::Integer, k5::Integer) = check_degs(k1,k2,k3,k4,k5) &&
+    new([convert(Deg,k1), convert(Deg,k2), convert(Deg,k3), convert(Deg,k4), convert(Deg,k5)])
 end
 
 type Polynomial
@@ -398,26 +402,81 @@ end
 count_monomials_of_degree_eq(deg::Deg, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
 count_monomials_of_degree_le(deg::Deg, dom_dim::Dim) = sum([count_monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=0:deg])
 
-function monomials_of_degree_eq(deg::Deg, dom_dim::Dim)
+#function monomials_of_degree_eq(deg::Deg, dom_dim::Dim)
+#  if dom_dim == 1
+#    [Monomial(deg)]
+#  elseif dom_dim == 2
+#    [Monomial(i,deg-i)::Monomial for i=0:deg]
+#  elseif dom_dim == 3
+#    const mons = Array(Monomial, count_monomials_of_degree_eq(deg, dom_dim))
+#    pos = 1
+#    for i=0:deg, j=0:(deg-i)
+#      mons[pos] = Monomial(i,j,deg-i-j)
+#      pos += 1
+#    end
+#    mons::Array{Monomial,1}
+#  elseif dom_dim == 4 #TODO
+#    const mons = Array(Monomial, count_monomials_of_degree_eq(deg, dom_dim))
+#    pos = 1
+#    for i=0:deg, j=0:(deg-i), k=0:(deg-i-j)
+#      mons[pos] = Monomial(i, j, k, deg-i-j-k)
+#      pos += 1
+#    end
+#    mons::Array{Monomial,1}
+#  else
+#    error("dimensions greater than 3 are currently not supported")
+#  end
+#end
+
+function monomials_of_degree_le(deg::Deg, dom_dim::Dim)
+  const mons = Array(Monomial, count_monomials_of_degree_le(deg, dom_dim))
   if dom_dim == 1
-    [Monomial(deg)]
-  elseif dom_dim == 2
-    [Monomial(i,deg-i)::Monomial for i=0:deg]
-  elseif dom_dim == 3
-    const mons = Array(Monomial, count_monomials_of_degree_eq(deg,dom_dim))
     pos = 1
-    for i=0:deg, j=0:(deg-i)
-      mons[pos] = Monomial(i,j,deg-i-j)
+    for i=0:deg
+      mons[pos] = Monomial(i)
       pos += 1
     end
-    mons::Array{Monomial,1}
+  elseif dom_dim == 2
+    pos = 1
+    for i=0:deg, j=0:(deg-i)
+      mons[pos] = Monomial(i,j)
+      pos += 1
+    end
+  elseif dom_dim == 3
+    pos = 1
+    for i=0:deg, j=0:(deg-i), k=0:(deg-i-j)
+      mons[pos] = Monomial(i,j,k)
+      pos += 1
+    end
+  elseif dom_dim == 4
+    pos = 1
+    for i=0:deg, j=0:(deg-i), k=0:(deg-i-j), l=0:(deg-i-j-k)
+      mons[pos] = Monomial(i, j, k, l)
+      pos += 1
+    end
+  elseif dom_dim == 5
+    pos = 1
+    for i=0:deg, j=0:(deg-i), k=0:(deg-i-j), l=0:(deg-i-j-k), m=0:(deg-i-j-k-l)
+      mons[pos] = Monomial(i, j, k, l, m)
+      pos += 1
+    end
   else
-    error("dimensions greater than 3 are currently not supported")
+    error("monomials of domain dimension $dom_dim are currently not supported")
   end
+  mons
 end
 
-monomials_of_degree_le(deg::Deg, dom_dim::Dim) =
-  flatten([monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=zero(Deg):deg]) # convert shouldn't be necessary here but currently is as of Julia 0.1.
+function monomials_of_degree_le_with_const_dim(deg::Deg, const_dim::Dim, dom_dim::Dim)
+  filter(m -> m.exps[const_dim] == 0,
+         monomials_of_degree_le(deg, dom_dim))
+end
+
+#monomials_of_degree_le(deg::Deg, dom_dim::Dim) =
+#  flatten([monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=zero(Deg):deg])
+
+#function monomials_of_degree_le_with_const_dim(deg::Deg, const_dim::Dim, dom_dim::Dim)
+#  flatten([monomials_of_degree_eq_with_const_dim(convert(Deg,k), const_dim, dom_dim) for k=zero(Deg):deg])
+#end
 
 # All VectorMonomials not exceeding the passed degree, to be used as a basis for spaces of vector valued functions with polynomial components.
 vector_monomials_of_degree_le(deg::Deg, dom_dim::Dim) =

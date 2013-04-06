@@ -16,12 +16,12 @@ import WGBasis, WGBasis.WeakFunsPolyBasis
 function project_onto_fe_face(g::Function, fe::FENum, face::FEFace, basis::WeakFunsPolyBasis)
   const proj_poly =
     if face == Mesh.interior_face
-      const ips_bel_vs_bel = WGBasis.ref_interior_mons_L2ips_matrix(basis)
+      const ips_bel_vs_bel = WGBasis.ips_ref_interior_mons(basis)
       const ips_g_vs_bels = [Mesh.integral_prod_on_fe_face(g, mon, fe, face, basis.mesh)::R for mon in basis.ref_interior_mons]
       const coefs = ips_bel_vs_bel \ ips_g_vs_bels
       Polynomial(basis.ref_interior_mons, coefs)
     else
-      const ips_bel_vs_bel = WGBasis.ref_side_mons_L2ips_matrix(face, basis)
+      const ips_bel_vs_bel = WGBasis.ips_ref_side_mons(face, basis)
       const ips_g_vs_bels = [Mesh.integral_prod_on_fe_face(g, mon, fe, face, basis.mesh)::R for mon in basis.ref_side_mons]
       const coefs = ips_bel_vs_bel \ ips_g_vs_bels
       Polynomial(basis.ref_side_mons, coefs)
@@ -31,12 +31,12 @@ end
 
 function project_local_poly_onto_face(p::Polynomial, face::FEFace, basis::WeakFunsPolyBasis)
   if face == Mesh.interior_face
-    const ips_bel_vs_bel = WGBasis.ref_interior_mons_L2ips_matrix(basis)
+    const ips_bel_vs_bel = WGBasis.ips_ref_interior_mons(basis)
     const ips_g_vs_bels = [Mesh.integral_prod_on_ref_fe_face(p, mon, face, basis.mesh)::R for mon in basis.ref_interior_mons]
     const coefs = ips_bel_vs_bel \ ips_g_vs_bels
     Polynomial(basis.ref_interior_mons, coefs)
   else
-    const ips_bel_vs_bel = WGBasis.ref_side_mons_L2ips_matrix(face, basis)
+    const ips_bel_vs_bel = WGBasis.ips_ref_side_mons(face, basis)
     const ips_g_vs_bels = [Mesh.integral_prod_on_ref_fe_face(p, mon, face, basis.mesh)::R for mon in basis.ref_side_mons]
     const coefs = ips_bel_vs_bel \ ips_g_vs_bels
     Polynomial(basis.ref_side_mons, coefs)

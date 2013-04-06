@@ -4,18 +4,15 @@ Commit Notes
 
 TODO
 ----
-WGBasis:
-  The side bases are wrong, the elements are linearly dependent.
-  Use a subset of the same monomials, but we don't need all of them.  For rectangular meshes, we don't need monomials where
-  the axis dimension factor has nonzero exponent.
-  More generally, a mesh should be able to answer for each side which dimension is dependent on the others on the side.
-  For each side, there is a coordinate j for which c_i exist with x_j = c_0 + sum_i c_i x_i for all x=(x_1,...,x_d) in the
-  side [call this "affine-dependent"?]. There may be more than one such coordinate number, the mesh just returns any one.
-  The basis will need to be modified to keep a reference list of monomials for each reference side, after asking the mesh.
+Q: Are side basis elements well defined?  We are using local monomials defined by the fe's coordinate system,
+   but the side has two such fe's, leading to contradictory definitions.
+   For rectanglar meshes, the definitions aren't really contradictory, because the dimension that would differ is
+   not a factor in the monomial (the dependent dimension).
 
+   Maybe this is a non issue. But check all uses of side monomials in actual computations.  Make sure the side
+   monomials are always interpreted in a way that's independent of the side's embedding in any finite elment.
+   Consider e.g. a side like \ on a hexagon.
 
-Poly:
-  Support d > 3 everywhere, start with monomials
 
 MinusDivAGradVarBF
  Implement
@@ -26,9 +23,14 @@ Proj
 Mesh
   For d=2,3 add numerical prod integral implementations and tests.
 
+Long Term
+---------
+Allow multiple reference elements, e.g. for triangular meshes, which have alternating triangle orientations.
+Most methods that just take a face would have to take a reference element code and a face, or a fe num and a face.
+
 Documentation Changes
 ---------------------
-Add to rmesh docs:
+rmesh docs:
   New interface functions:
     integral_prod_on_ref_fe_side_vs_outward_normal
     integral_vs_local_monomial_on_fe_interior
@@ -36,3 +38,7 @@ Add to rmesh docs:
     num_side_faces_per_fe
     space_dim
     is_boundary_side
+    side_face
+    dependent_axis_for_side_face
+  Change description of basis ordering, now pure lexicographically ordered.
+  Change description of side basis size, and describe interaction with mesh to find "dependent dimension" for a side to form the basis there.

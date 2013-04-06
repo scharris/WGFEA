@@ -69,7 +69,7 @@ type RectMesh <: AbstractMesh
     const fe_dims_wo_dim = make_fe_dims_with_drops(fe_dims)
 
     const cumprods_mesh_ldims = cumprod(mesh_ldims)
-    const cumprods_nb_side_mesh_ldims = cumprods_nb_side_mesh_ldims_by_perp_axis(mesh_ldims)
+    const cumprods_nb_side_mesh_ldims = make_cumprods_nb_side_mesh_ldims_by_perp_axis(mesh_ldims)
 
     const nb_side_counts_by_perp_axis = map(last, cumprods_nb_side_mesh_ldims)
     const first_nb_side_nums_by_perp_axis = cumsum(vcat(1, nb_side_counts_by_perp_axis[1:space_dim-1]))
@@ -128,13 +128,13 @@ function make_fe_dims_with_drops(fe_dims::Array{R,1})
   dims_wo_dim
 end
 
-function cumprods_nb_side_mesh_ldims_by_perp_axis(fe_mesh_ldims::Array{MeshCoord,1})
+function make_cumprods_nb_side_mesh_ldims_by_perp_axis(fe_mesh_ldims::Array{MeshCoord,1})
   const space_dim = length(fe_mesh_ldims)
-  [ [cumprod_nb_side_mesh_ldims_to(r, perp_axis, fe_mesh_ldims) for r=1:space_dim]
+  [ [make_cumprod_nb_side_mesh_ldims_to(r, perp_axis, fe_mesh_ldims) for r=1:space_dim]
     for perp_axis=1:space_dim ]
 end
 
-function cumprod_nb_side_mesh_ldims_to(r::Int, perp_axis::Int, fe_mesh_ldims::Array{MeshCoord,1})
+function make_cumprod_nb_side_mesh_ldims_to(r::Int, perp_axis::Int, fe_mesh_ldims::Array{MeshCoord,1})
   prod = one(NBSideNum)
   for i=1:r
     prod *= (i != perp_axis ? fe_mesh_ldims[i] : fe_mesh_ldims[i]-1)
@@ -160,6 +160,12 @@ num_nb_sides(mesh::RectMesh) = mesh.num_nb_sides
 
 import Mesh.num_side_faces_per_fe
 num_side_faces_per_fe(mesh::RectMesh) = mesh.num_side_faces_per_fe
+
+import Mesh.dependent_dim_for_nb_side
+dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh) = perp_axis_for_nb_side(i, mesh)
+
+import Mesh.dependent_dim_for_ref_side_face
+dependent_dim_for_ref_side_face(side_face::FEFace, mesh::RectMesh) = side_face_perp_axis(side_face)
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(n::NBSideNum, mesh::RectMesh, incls::NBSideInclusions)
@@ -236,10 +242,10 @@ end
 
 
 import Mesh.integral_on_ref_fe_side_vs_outward_normal
-function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, side::FEFace, mesh::RectMesh)
-  const a = side_face_perp_axis(side)
-  const int_vm_a = integral_on_ref_fe_face(vm[a], side, mesh)
-  side_face_is_lesser_on_perp_axis(side) ? -int_vm_a : int_vm_a
+function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, side_face::FEFace, mesh::RectMesh)
+  const a = side_face_perp_axis(side_face)
+  const int_vm_a = integral_on_ref_fe_face(vm[a], side_face, mesh)
+  side_face_is_lesser_on_perp_axis(side_face) ? -int_vm_a : int_vm_a
 end
 
 ##

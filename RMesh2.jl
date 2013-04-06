@@ -126,6 +126,15 @@ num_nb_sides(m::RectMesh2) = m.num_nb_sides
 import Mesh.num_side_faces_per_fe
 num_side_faces_per_fe(mesh::RectMesh2) = 4
 
+import Mesh.dependent_dim_for_nb_side
+dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh2) =
+  is_vert_nb_side(i, mesh) ? 1 : 2
+
+import Mesh.dependent_dim_for_ref_side_face
+dependent_dim_for_ref_side_face(side_face::FEFace, mesh::RectMesh2) =
+  side_face == left_face || side_face == right_face ? 1 : 2
+
+
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh2, fe_incls::NBSideInclusions)
   const mesh_cols = mesh.cols
@@ -169,6 +178,8 @@ function is_boundary_side(fe::FENum, face::FEFace, mesh::RectMesh2)
   end
 end
 
+# TODO: These should use the *side-local* coordinate system in each case below.  In which case it brings up the
+#       question of why we care about the side's role ("face") in the reference fe at all?
 import Mesh.integral_on_ref_fe_face
 function integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh2)
   if face == Mesh.interior_face

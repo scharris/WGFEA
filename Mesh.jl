@@ -10,6 +10,8 @@ export FENum, fe_num, no_fe,
        num_fes,
        num_nb_sides,
        num_side_faces_per_fe,
+       dependent_dim_for_nb_side,
+       dependent_dim_for_ref_side_face,
        fe_inclusions_of_nb_side,
        fe_inclusions_of_nb_side!,
        is_boundary_side,
@@ -72,6 +74,17 @@ num_nb_sides{M <: AbstractMesh}(mesh::M) =
 num_side_faces_per_fe{M <: AbstractMesh}(mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
+# The next two functions provide, for a given side, the dimension j which is affine-dependent on
+# the other dimensions on the side. That is, the function returns a j for which c_0,...,c_d exist
+# such that
+#             x_j = c_0 + sum_{i=1..d} c_i x_i for all (x_1,...,x_d) in the side.
+# There may be more than one such coordinate number, in which case any one of these is returned.
+dependent_dim_for_nb_side{M <: AbstractMesh}(i::NBSideNum, mesh::M) =
+  error("not implemented, mesh implementation is incomplete")
+
+dependent_dim_for_ref_side_face{M <: AbstractMesh}(side_face::FEFace, mesh::M) =
+  error("not implemented, mesh implementation is incomplete")
+
 fe_inclusions_of_nb_side!{M <: AbstractMesh}(i::NBSideNum, mesh::M, nb_side_incls::NBSideInclusions) =
   error("not implemented, mesh implementation is incomplete")
 
@@ -81,7 +94,7 @@ is_boundary_side{M <: AbstractMesh}(fe::FENum, face::FEFace, mesh::M) =
 integral_on_ref_fe_face{M <: AbstractMesh}(m::Monomial, face::FEFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-integral_on_ref_fe_side_vs_outward_normal{M <: AbstractMesh}(vm::VectorMonomial, face::FEFace, mesh::M) =
+integral_on_ref_fe_side_vs_outward_normal{M <: AbstractMesh}(vm::VectorMonomial, side_face::FEFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
 integral_prod_on_fe_face{M <: AbstractMesh}(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::M) =
@@ -139,13 +152,13 @@ end
 integral_prod_on_ref_fe_side_vs_outward_normal(v::Monomial, q::VectorMonomial, side::FEFace, mesh::AbstractMesh) =
   integral_on_ref_fe_side_vs_outward_normal(v * q, side, mesh)
 
-function integral_prod_on_ref_fe_side_vs_outward_normal(v::Polynomial, q::VectorMonomial, side::FEFace, mesh::AbstractMesh)
+function integral_prod_on_ref_fe_side_vs_outward_normal(v::Polynomial, q::VectorMonomial, side_face::FEFace, mesh::AbstractMesh)
   const prod_poly = q.mon * v
   const vm = VectorMonomial(prod_poly.mons[1], q.mon_pos)
-  sum = prod_poly.coefs[1] * integral_on_ref_fe_side_vs_outward_normal(vm, side, mesh)
+  sum = prod_poly.coefs[1] * integral_on_ref_fe_side_vs_outward_normal(vm, side_face, mesh)
   for i=2:length(prod_poly.mons)
     vm.mon = prod_poly.mons[i]
-    sum += prod_poly.coefs[i] * integral_on_ref_fe_side_vs_outward_normal(vm, side, mesh)
+    sum += prod_poly.coefs[i] * integral_on_ref_fe_side_vs_outward_normal(vm, side_face, mesh)
   end
   sum
 end

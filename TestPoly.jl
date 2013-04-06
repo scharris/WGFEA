@@ -43,8 +43,12 @@ vm2 = VectorMonomial(x^2*y^3, dim(1))
 div_vm2 = divergence(vm2)
 @test div_vm2 == 2.0 * x*y^3
 
-@test Poly.count_monomials_of_degree_eq(deg(3), dim(2)) == 4 # x^3, x^2 y, x y^2, y^3
+#@test Poly.count_monomials_of_degree_eq(deg(3), dim(2)) == 4 # x^3, x^2 y, x y^2, y^3
 @test count_monomials_of_degree_le(deg(2), dim(2)) == 6
+@test length(monomials_of_degree_le(deg(5), dim(4))) == count_monomials_of_degree_le(deg(5), dim(4))
+@test length(monomials_of_degree_le(deg(6), dim(5))) == count_monomials_of_degree_le(deg(6), dim(5))
+# If we hold one dimension constant (with exponent 0), we should get the same count as reducing the domain dimension by 1.
+@test length(monomials_of_degree_le_with_const_dim(deg(3), dim(1), dim(3))) == count_monomials_of_degree_le(deg(3), dim(2))
 
 mons = monomials_of_degree_le(deg(2), dim(2))
 @test length(mons) == 6

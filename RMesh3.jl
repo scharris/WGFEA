@@ -138,6 +138,13 @@ num_nb_sides(mesh::RectMesh3) = mesh.num_nb_sides
 import Mesh.num_side_faces_per_fe
 num_side_faces_per_fe(mesh::RectMesh3) = 6
 
+import Mesh.dependent_dim_for_nb_side
+dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh2) =
+  is_x_nb_side(i, mesh) ? 1 : is_y_nb_side(i, mesh) ? 2 : 3
+
+import Mesh.dependent_dim_for_ref_side_face
+dependent_dim_for_ref_side_face(side_face::FEFace, mesh::RectMesh2) = side_face_perp_axis(side_face)
+
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh3, fe_incls::NBSideInclusions)
   if is_x_nb_side(i, mesh)
@@ -310,6 +317,9 @@ end
 is_x_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_x_nb_side <= i < mesh.sidenum_first_y_nb_side
 is_y_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_y_nb_side <= i < mesh.sidenum_first_z_nb_side
 is_z_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_z_nb_side <= i <= mesh.num_nb_sides
+
+side_face_perp_axis(side_face::FEFace) =
+  face == x_min_face || face == x_max_face ? 1 : face == y_min_face || face == y_max_face ? 2 : 3
 
 # face numbers
 # Only side faces are defined here, the interior_face is defined in the Mesh module.

@@ -39,8 +39,8 @@ function interior_bel_vs_interior_bel(bel1::BElNum, bel2::BElNum, basis::WeakFun
       const mon_2 = WGBasis.interior_monomial_by_num(mon_num_2, basis)
       sum_over_sides = zeroR
       for s=1:Mesh.num_side_faces_per_fe(mesh)
-        const side = fe_face(s)
-        sum_over_sides += Mesh.integral_prod_on_ref_fe_face(mon_1, mon_2, side, mesh)
+        const side_face = fe_face(s)
+        sum_over_sides += Mesh.integral_prod_on_ref_fe_face(mon_1, mon_2, side_face, mesh)
       end
       sum_over_sides
     end

@@ -95,19 +95,19 @@ function bf_proj_g_on_fe_b_sides_vs_bel(bf::AbstractVariationalBilinearForm,
   # because of the linearity of the bf in its first parameter.
   bside_contrs_sum = zeroR
   for j=1:Mesh.num_side_faces_per_fe(mesh)
-    const side = fe_face(j)
-    if Mesh.is_boundary_side(fe, side, mesh)
+    const side_face = fe_face(j)
+    if Mesh.is_boundary_side(fe, side_face, mesh)
       const proj_g = begin
-        const cached_proj = projs_cache[fe, side]
+        const cached_proj = projs_cache[fe, side_face]
         if cached_proj != 0
           cached_proj
         else
-          const proj = Proj.project_onto_fe_face(g, fe, side, basis)
-          cached_projs[fe, side] = proj
+          const proj = Proj.project_onto_fe_face(g, fe, side_face, basis)
+          cached_projs[fe, side_face] = proj
           proj
         end
       end
-      bside_contrs_sum += VBF.poly_on_fe_face_vs_bel(proj_g, fe, side, bel, basis, bf)
+      bside_contrs_sum += VBF.poly_on_fe_face_vs_bel(proj_g, fe, side_face, bel, basis, bf)
     end
   end
   bside_contrs_sum

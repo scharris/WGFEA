@@ -14,7 +14,7 @@ wgrad_solver = WGradSolver(deg(k-1), rmesh)
 x = Monomial(1,0)
 y = Monomial(0,1)
 
-# Compute the weak gradient of a weak function which equals a single monomial on the entire finite element,
+# Compute the weak gradient of a weak function which equals a single monomial on each face of a finite element,
 # so that the weak gradient should equal the standard gradient.
 function sum_wgrad_all_faces(v::Nomial)
   wg = wgrad(v, Mesh.interior_face, wgrad_solver) +
