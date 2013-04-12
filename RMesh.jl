@@ -4,7 +4,7 @@ export RectMesh,
        lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis
 
 using Common
-import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFace, Mesh.AbstractMesh, Mesh.NBSideInclusions, Mesh.fe_face
+import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FERelFace, Mesh.AbstractMesh, Mesh.NBSideInclusions, Mesh.fe_face
 import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
@@ -47,7 +47,10 @@ type RectMesh <: AbstractMesh
   num_nb_sides::NBSideNum
   num_side_faces_per_fe::Uint
 
+  fe_diameter_inv::R
+
   one_mon::Monomial
+
 
   # integration support members
   intgd_args_work_array::Vector{R}
@@ -78,6 +81,8 @@ type RectMesh <: AbstractMesh
     const num_nb_sides = sum(nb_side_counts_by_perp_axis)
     const num_side_faces_per_fe = 2 * space_dim
 
+    const fe_diameter_inv = 1/sqrt(dot(fe_dims, fe_dims))
+
     new(dim(space_dim),
         min_bounds,
         max_bounds,
@@ -90,6 +95,7 @@ type RectMesh <: AbstractMesh
         num_fes,
         num_nb_sides,
         num_side_faces_per_fe,
+        fe_diameter_inv,
         Monomial(zeros(Deg,space_dim)),
         Array(R, space_dim), # integrand args work array
         zeros(R, space_dim), # ref fe min bounds
@@ -165,7 +171,7 @@ import Mesh.dependent_dim_for_nb_side
 dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh) = perp_axis_for_nb_side(i, mesh)
 
 import Mesh.dependent_dim_for_ref_side_face
-dependent_dim_for_ref_side_face(side_face::FEFace, mesh::RectMesh) = side_face_perp_axis(side_face)
+dependent_dim_for_ref_side_face(side_face::FERelFace, mesh::RectMesh) = side_face_perp_axis(side_face)
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(n::NBSideNum, mesh::RectMesh, incls::NBSideInclusions)
@@ -177,39 +183,50 @@ function fe_inclusions_of_nb_side!(n::NBSideNum, mesh::RectMesh, incls::NBSideIn
   incls.face_in_fe1 = greater_side_face_perp_to_axis(a)
   incls.fe2 = greater_fe
   incls.face_in_fe2 = lesser_side_face_perp_to_axis(a)
+  incls.nb_side_num = n
 end
 
 import Mesh.is_boundary_side
-function is_boundary_side(fe::FENum, side_face::FEFace, mesh::RectMesh)
+function is_boundary_side(fe::FENum, side_face::FERelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
   const coord_a = fe_mesh_coord(a, fe, mesh)
   const is_lesser_side = side_face_is_lesser_on_perp_axis(side_face)
   coord_a == 1 && is_lesser_side || coord_a == mesh.mesh_ldims[a] && !is_lesser_side
 end
 
-import Mesh.integral_on_ref_fe_face
-function integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh)
+import Mesh.fe_diameter_inv
+fe_diameter_inv(fe::FENum, mesh::RectMesh) =
+  mesh.fe_diameter_inv
+
+
+# integration functions
+
+# Local Origins in Integration Functions
+# --------------------------------------
+# For each face in the mesh, the mesh must assign a local origin to be used to
+# evaluate face-local functions. In this implementation, for each face F we choose
+# the coordinate minimums vertex for the face, whose r^th coordinate is
+#   o_r(F) = min {x_r | x in F}
+# One consequence of this for our implementation, which employs coordinate-aligned
+# sides, is useful in the integral methods below.  Which is, that for any function
+# defined locally on a side S perpendicular to axis r, the r^th component of every
+# input from S to the local function will be 0, and all other components will be
+# the same as for the finite element relative origin.
+
+
+import Mesh.integral_face_rel_on_face
+function integral_face_rel_on_face(mon::Monomial, face::FERelFace, mesh::RectMesh)
   if face == Mesh.interior_face
     Poly.integral_on_rect_at_origin(mon, mesh.fe_dims)
   else
     const a = side_face_perp_axis(face)
-    if side_face_is_lesser_on_perp_axis(face)
-      # Lesser side of reference element along coordinate a is at 0 in coordinate a.
-      if mon.exps[a] != 0
-        zeroR
-      else
-        dim_reduced = Poly.reduce_dim_by_fixing(a, zeroR, mon)
-        Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_dim[a])
-      end
-    else # greater side on perp axis
-      dim_reduced = Poly.reduce_dim_by_fixing(a, mesh.fe_dims[a], mon)
-      Poly.integral_on_rect_at_origin(dim_reduced, mesh.fe_dims_wo_dim[a])
-    end
+    dim_reduced_intgd = Poly.reduce_dim_by_fixing(a, zeroR, mon)
+    Poly.integral_on_rect_at_origin(dim_reduced_intgd, mesh.fe_dims_wo_dim[a])
   end
 end
 
-import Mesh.integral_prod_on_fe_face
-function integral_prod_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::RectMesh)
+import Mesh.integral_global_x_face_rel_on_fe_face
+function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FERelFace, mesh::RectMesh)
   const d = mesh.space_dim
   const fe_local_origin = fe_coords(fe, mesh)
   const fe_x = mesh.intgd_args_work_array
@@ -223,9 +240,8 @@ function integral_prod_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::F
     hcubature(ref_intgd, mesh.ref_fe_min_bounds, mesh.fe_dims, mesh.integration_rel_err, mesh.integration_abs_err)[1]
   else # side face
     const a = side_face_perp_axis(face)
-    const a_coord_of_ref_side = side_face_is_lesser_on_perp_axis(face) ? zeroR : mesh.fe_dims[a]
-    const a_coord_of_fe_side = fe_local_origin[a] + a_coord_of_ref_side
-    const dim_reduced_poly = Poly.reduce_dim_by_fixing(dim(a), a_coord_of_ref_side, mon)
+    const a_coord_of_fe_side = fe_local_origin[a] + (side_face_is_lesser_on_perp_axis(face) ? zeroR : mesh.fe_dims[a])
+    const mon_dim_reduced_poly = Poly.reduce_dim_by_fixing(a, zeroR, mon)
     function ref_intgd(x::Vector{R}) # x has d-1 components
       for i=1:a-1
         fe_x[i] = fe_local_origin[i] + x[i]
@@ -234,18 +250,37 @@ function integral_prod_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::F
       for i=a+1:d
         fe_x[i] = fe_local_origin[i] + x[i-1]
       end
-      f(fe_x) * Poly.polynomial_value(dim_reduced_poly, x)
+      f(fe_x) * Poly.polynomial_value(mon_dim_reduced_poly, x)
     end
     hcubature(ref_intgd, mesh.ref_fe_min_bounds_short, mesh.fe_dims_wo_dim[a], mesh.integration_rel_err, mesh.integration_abs_err)[1]
   end
 end
 
-
-import Mesh.integral_on_ref_fe_side_vs_outward_normal
-function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, side_face::FEFace, mesh::RectMesh)
+# Integrate a side-relative monomial m on its side face vs. an fe-relative vector monomial dotted with the outward normal.
+import Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side
+function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(m::Monomial, q::VectorMonomial, side_face::FERelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
-  const int_vm_a = integral_on_ref_fe_face(vm[a], side_face, mesh)
-  side_face_is_lesser_on_perp_axis(side_face) ? -int_vm_a : int_vm_a
+  const qa = q[a]
+  if qa == zeroR
+    zeroR
+  else
+    const is_lesser_side = side_face_is_lesser_on_perp_axis(side_face)
+    const side_fe_rel_a_coord = is_lesser_side ? zeroR : mesh.fe_dims[a]
+    const qa_dim_red = Poly.reduce_dim_by_fixing(a, side_fe_rel_a_coord, qa)
+    const m_dim_red = Poly.reduce_dim_by_fixing(a, zeroR, m)
+    const int_m_qa = Poly.integral_on_rect_at_origin(m_dim_red * qa_dim_red, mesh.fe_dims_wo_dim[a])
+    is_lesser_side ? -int_m_qa : int_m_qa
+  end
+end
+
+import Mesh.integral_fe_rel_x_side_rel_on_side
+function integral_fe_rel_x_side_rel_on_side(fe_mon::Monomial, side_mon::Monomial, side_face::FERelFace, mesh::RectMesh)
+  const a = side_face_perp_axis(side_face)
+  const is_lesser_side = side_face_is_lesser_on_perp_axis(side_face)
+  const side_fe_rel_a_coord = is_lesser_side ? zeroR : mesh.fe_dims[a]
+  const fe_mon_dim_red = Poly.reduce_dim_by_fixing(a, side_fe_rel_a_coord, fe_mon)
+  const side_mon_dim_red = Poly.reduce_dim_by_fixing(a, zeroR, side_mon)
+  Poly.integral_on_rect_at_origin(fe_mon_dim_red * side_mon_dim_red, mesh.fe_dims_wo_dim[a])
 end
 
 ##
@@ -266,8 +301,8 @@ end
 function fe_mesh_coords(fe::FENum, mesh::RectMesh)
   const d = mesh.space_dim
   const coords = Array(R, d)
-  for r=1:d
-    coords[r] = fe_mesh_coord(dim(r), fe, mesh)
+  for r=dim(1):dim(d)
+    coords[r] = fe_mesh_coord(r, fe, mesh)
   end
   coords
 end
@@ -306,10 +341,10 @@ end
 # side-related functions
 
 # Find the axis which is perpendicular to the given side face.
-side_face_perp_axis(side::FEFace) = dim(div(side-1, 2) + 1)
+side_face_perp_axis(side::FERelFace) = dim(div(side-1, 2) + 1)
 
 # Determine whether a side face is the one with lesser axis value along its perpendicular axis.
-side_face_is_lesser_on_perp_axis(side::FEFace) = mod(side-1, 2) == 0
+side_face_is_lesser_on_perp_axis(side::FERelFace) = mod(side-1, 2) == 0
 
 # Returns the side face with lesser axis value along the indicated axis.
 lesser_side_face_perp_to_axis(a::Dim) = fe_face(2*a - 1)

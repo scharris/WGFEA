@@ -1,24 +1,30 @@
 module WGBasis
 
-export BElNum, bel_num,
+export WeakFunsPolyBasis,
+       BElNum, bel_num,
        MonNum, mon_num,
-       WeakFunsPolyBasis,
        is_interior_supported,
        support_interior_num,
        is_side_supported,
        support_nb_side_num,
+       fe_inclusions_of_side_support,
+       ref_interior_mons,
        interior_monomial,
        interior_monomial_num,
        interior_monomial_by_num,
+       ref_side_mons,
        side_monomial,
+       side_monomial_num,
        side_monomial_by_face_and_num,
-       wgrad_for_interior_mon_num,
+       mon_num_for_mon_on_side_face,
+       wgrad_for_mon_on_interior,
+       wgrad_for_mon_on_side_face,
        wgrads_for_side_bel,
        ips_ref_interior_mons,
        ips_ref_side_mons
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.FEFace, Mesh.fe_face
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.FERelFace, Mesh.fe_face
 import Poly, Poly.Monomial, Poly.PolynomialVector
 import WGrad, WGrad.WGradSolver
 
@@ -97,6 +103,9 @@ type WeakFunsPolyBasis
   # the generic monomials which on interiors and sides will be used to define basis functions
   ref_interior_mons::Array{Monomial,1}
   ref_side_mons::Array{Array{Monomial,1},1} # indexed by side dependent dimension as declared by the mesh
+  # maps to lookup monomial numbers for monomials for a given face
+  # interior_mon_to_mon_num_map::Dict{Monomial, MonNum}
+  mon_to_mon_num_map_by_side::Array{Dict{Monomial, MonNum},1}
 
   mons_per_fe_interior::Uint
   mons_per_fe_side::Uint
@@ -113,6 +122,7 @@ type WeakFunsPolyBasis
   # L2 inner products of basis elements
   ips_ref_interior_mons::Matrix{R} # by mon #, mon #
   ips_ref_side_mons::Array{Matrix{R},1} # by side face, then mon #, mon #
+
 
   function WeakFunsPolyBasis(interior_polys_max_deg::Deg, side_polys_max_deg::Deg, mesh::AbstractMesh)
     const dom_dim = Mesh.space_dim(mesh)
@@ -131,6 +141,8 @@ type WeakFunsPolyBasis
         dom_dim,
         ref_interior_mons,
         ref_side_mons,
+        #make_interior_mon_to_mon_num_map(ref_interior_mons),
+        make_side_mon_to_mon_num_maps(ref_side_mons),
         mons_per_fe_interior,
         mons_per_fe_side,
         num_interior_bels,
@@ -155,6 +167,33 @@ function make_ref_side_mons(side_polys_max_deg::Deg, dom_dim::Dim)
     mons[r] = Poly.monomials_of_degree_le_with_const_dim(side_polys_max_deg, r, dom_dim)
   end
   mons
+end
+
+#function make_interior_mon_to_mon_num_map(ref_interior_mons::Array{Monomial,1})
+#  const mon_nums_by_mon = Dict{Monomial, MonNum}()
+#  const num_mons = length(ref_interior_mons)
+#  sizehint(mon_nums_by_mon, num_mons)
+#  for m=1:num_mons
+#    mon_nums_by_mon[ref_interior_mons[m]] = m
+#  end
+#  mon_nums_by_mon
+#end
+
+# Return an array of monomial -> monomial # maps, as an array indexed by side dependent dimension.
+function make_side_mon_to_mon_num_maps(ref_side_mons::Array{Array{Monomial,1},1})
+  const d = length(ref_side_mons)
+  const maps = Array(Dict{Monomial, MonNum}, d)
+  for dep_dim=1:d
+    const ref_mons = ref_side_mons[dep_dim]
+    const num_mons = length(ref_mons)
+    const mon_nums_by_mon = Dict{Monomial, MonNum}()
+    sizehint(mon_nums_by_mon, num_mons)
+    for m=1:num_mons
+      mon_nums_by_mon[ref_mons[m]] = m
+    end
+    maps[dep_dim] = mon_nums_by_mon
+  end
+  maps
 end
 
 function make_interior_supported_bel_wgrads(wgrad_solver::WGradSolver, interior_mons::Array{Monomial,1})
@@ -186,11 +225,11 @@ function make_mon_vs_mon_L2_ips_over_ref_interior(mons::Array{Monomial,1}, mesh:
   for i=1:num_mons
     const mon_i = mons[i]
     for j=1:i-1
-      const ip = Mesh.integral_prod_on_ref_fe_face(mon_i, mons[j], Mesh.interior_face, mesh)
+      const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, mons[j], Mesh.interior_face, mesh)
       m[i,j] = ip
       m[j,i] = ip
     end
-    m[i,i] = Mesh.integral_prod_on_ref_fe_face(mon_i, mon_i, Mesh.interior_face, mesh)
+    m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, mon_i, Mesh.interior_face, mesh)
   end
   m
 end
@@ -207,11 +246,11 @@ function make_mon_vs_mon_L2_ips_over_ref_sides(ref_side_mons_by_dep_dim::Array{A
     for i=1:num_mons
       const mon_i = ref_mons[i]
       for j=1:i-1
-        const ip = Mesh.integral_prod_on_ref_fe_face(mon_i, ref_mons[j], s, mesh)
+        const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, ref_mons[j], s, mesh)
         m[i,j] = ip
         m[j,i] = ip
       end
-      m[i,i] = Mesh.integral_prod_on_ref_fe_face(mon_i, mon_i, s, mesh)
+      m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, mon_i, s, mesh)
     end
     ips[s] = m
   end
@@ -239,7 +278,15 @@ function support_nb_side_num(i::BElNum, basis::WeakFunsPolyBasis)
   div(sides_rel_bel_ix, basis.mons_per_fe_side) + 1
 end
 
+function fe_inclusions_of_side_support(side_beln::BElNum, basis::WeakFunsPolyBasis)
+  const nb_side_num = support_nb_side_num(side_beln, basis)
+  Mesh.fe_inclusions_of_nb_side(nb_side_num, basis.mesh)
+end
+
 # retrieval of monomials on support faces
+
+ref_interior_mons(basis::WeakFunsPolyBasis) = basis.ref_interior_mons
+
 
 function interior_monomial(i::BElNum, basis::WeakFunsPolyBasis)
   const interiors_rel_bel_ix = i-1
@@ -254,6 +301,10 @@ end
 
 interior_monomial_by_num(mon_num::MonNum, basis::WeakFunsPolyBasis) = basis.ref_interior_mons[mon_num]
 
+function ref_side_mons(side_face::FERelFace, basis::WeakFunsPolyBasis)
+  const side_dep_dim = Mesh.dependent_dim_for_ref_side_face(side_face, basis.mesh)
+  basis.ref_side_mons[side_dep_dim]
+end
 
 function side_monomial_num(i::BElNum, basis::WeakFunsPolyBasis)
   const sides_relative_bel_ix = i - basis.first_side_bel
@@ -262,36 +313,43 @@ end
 
 function side_monomial(i::BElNum, basis::WeakFunsPolyBasis)
   const nb_side_num = support_nb_side_num(i, basis)
-  const dep_dim = Mesh.dependent_dim_for_nb_side(nb_side_num, basis.mesh)
+  const side_dep_dim = Mesh.dependent_dim_for_nb_side(nb_side_num, basis.mesh)
   const mon_num = side_monomial_num(i, basis)
-  basis.ref_side_mons[dep_dim][mon_num]
+  basis.ref_side_mons[side_dep_dim][mon_num]
 end
 
-function side_monomial_by_face_and_num(side_face::FENum, mon_num::MonNum, basis::WeakFunsPolyBasis)
-  const side_dep_dim = Mesh.dependent_dim_for_ref_side_face(s, mesh)
-  basis.ref_side_mons[side_dep_dim][m]
+function side_monomial_by_face_and_num(side_face::FERelFace, mon_num::MonNum, basis::WeakFunsPolyBasis)
+  const side_dep_dim = Mesh.dependent_dim_for_ref_side_face(side_face, basis.mesh)
+  basis.ref_side_mons[side_dep_dim][mon_num]
+end
+
+function mon_num_for_mon_on_side_face(mon::Monomial, side_face::FERelFace, basis::WeakFunsPolyBasis)
+  const side_dep_dim = Mesh.dependent_dim_for_ref_side_face(side_face, basis.mesh)
+  basis.mon_to_mon_num_map_by_side[side_dep_dim][mon]
 end
 
 
 # weak gradient accessors
 
-wgrad_for_interior_mon_num(mon_num::MonNum, basis::WeakFunsPolyBasis) = basis.interior_mon_wgrads[mon_num]
+wgrad_for_mon_on_interior(mon_num::MonNum, basis::WeakFunsPolyBasis) = basis.interior_mon_wgrads[mon_num]
 
 function wgrads_for_side_bel(i::BElNum, basis::WeakFunsPolyBasis)
-  const nb_side_num = support_nb_side_num(i, basis)
-  const side_incls = Mesh.fe_inclusions_of_nb_side(nb_side_num, basis.mesh)
+  const side_incls = fe_inclusions_of_side_support(i, basis)
   const mon_num = side_monomial_num(i, basis)
   const wgrad_pv_on_fe1 = basis.side_mon_wgrads[side_incls.face_in_fe1, mon_num]
   const wgrad_pv_on_fe2 = basis.side_mon_wgrads[side_incls.face_in_fe2, mon_num]
   NBSideWGrads(side_incls, wgrad_pv_on_fe1, wgrad_pv_on_fe2)
 end
 
+function wgrad_for_mon_on_side_face(mon_num::MonNum, side_face::FERelFace, basis::WeakFunsPolyBasis)
+  basis.side_mon_wgrads[side_face, mon_num]
+end
 
 # L2 inner product matrix accessors
 
 ips_ref_interior_mons(basis::WeakFunsPolyBasis) = basis.ips_ref_interior_mons
 
-function ips_ref_side_mons(side_face::FEFace, basis::WeakFunsPolyBasis)
+function ips_ref_side_mons(side_face::FERelFace, basis::WeakFunsPolyBasis)
   if side_face == Mesh.interior_face error("Side face is required here, got interior.")
   else
     basis.ips_ref_side_mons[side_face]
@@ -313,10 +371,7 @@ function bel_summary(i::BElNum, basis::WeakFunsPolyBasis)
     if is_interior_supported(i, basis)
       "interior", support_interior_num(i,basis), interior_monomial(i, basis)
     else
-      begin
-        incls = Mesh.fe_inclusions_of_nb_side(i, basis.mesh)
-        "side", incls, side_monomial(i, basis)
-      end
+      "side", fe_inclusions_of_side_support(i, basis), side_monomial(i, basis)
     end
   BElSummary(i, suppt, supp, mon)
 end
@@ -336,8 +391,7 @@ function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
   if is_interior_supported(i, basis)
     [support_interior_num(i, basis)]
   else
-    nb_side_num = support_nb_side_num(i, basis)
-    fe_incls = Mesh.fe_inclusions_of_nb_side(nb_side_num, basis.mesh)
+    const fe_incls = fe_inclusions_of_side_support(i, basis)
     [fe_incls.fe1, fe_incls.fe2]
   end
 end

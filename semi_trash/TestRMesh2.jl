@@ -1,6 +1,10 @@
 using Test
-import RMesh2, RMesh2.RectMesh2, RMesh2.fe_col, RMesh2.fe_row, RMesh2.fe_coords
+require("../Common")
+require("../Poly")
+require("../Mesh")
+require("../RMesh2")
 
+import RMesh2, RMesh2.RectMesh2, RMesh2.fe_col, RMesh2.fe_row, RMesh2.fe_coords
 using Common
 using Mesh
 import Poly.Monomial, Poly.VectorMonomial
@@ -181,34 +185,34 @@ y = Monomial(0,1)
 one_mon = RMesh2.one_mon(rmesh2x3)
 
 # Integrate constants on faces of reference element.
-@test Mesh.integral_on_ref_fe_face(one_mon, Mesh.interior_face, rmesh2x3) == 1.
-@test Mesh.integral_on_ref_fe_face(one_mon, RMesh2.left_face, rmesh2x3) == 1.
-@test Mesh.integral_on_ref_fe_face(one_mon, RMesh2.right_face, rmesh2x3) == 1.
-@test Mesh.integral_on_ref_fe_face(one_mon, RMesh2.bottom_face, rmesh2x3) == 1.
-@test Mesh.integral_on_ref_fe_face(one_mon, RMesh2.top_face, rmesh2x3) == 1.
-@test Mesh.integral_on_ref_fe_face(3., Mesh.interior_face, rmesh2x3) == 3.
-@test Mesh.integral_on_ref_fe_face(3., RMesh2.top_face, rmesh2x3) == 3.
+@test Mesh.integral_face_rel_on_face(one_mon, Mesh.interior_face, rmesh2x3) == 1.
+@test Mesh.integral_face_rel_on_face(one_mon, RMesh2.left_face, rmesh2x3) == 1.
+@test Mesh.integral_face_rel_on_face(one_mon, RMesh2.right_face, rmesh2x3) == 1.
+@test Mesh.integral_face_rel_on_face(one_mon, RMesh2.bottom_face, rmesh2x3) == 1.
+@test Mesh.integral_face_rel_on_face(one_mon, RMesh2.top_face, rmesh2x3) == 1.
+@test Mesh.integral_face_rel_on_face(3., Mesh.interior_face, rmesh2x3) == 3.
+@test Mesh.integral_face_rel_on_face(3., RMesh2.top_face, rmesh2x3) == 3.
 
 # Integrate monomials on faces of reference element.
 
-@test Mesh.integral_on_ref_fe_face(x*y^2, Mesh.interior_face, rmesh2x3) == 1/6
-@test Mesh.integral_on_ref_fe_face(x*y^2, RMesh2.left_face, rmesh2x3) == 0
-@test Mesh.integral_on_ref_fe_face(x*y^2, RMesh2.right_face, rmesh2x3) == 1/3
-@test Mesh.integral_on_ref_fe_face(x*y^2, RMesh2.bottom_face, rmesh2x3) == 0
-@test Mesh.integral_on_ref_fe_face(x*y^2, RMesh2.top_face, rmesh2x3) == 1/2
+@test Mesh.integral_face_rel_on_face(x*y^2, Mesh.interior_face, rmesh2x3) == 1/6
+@test Mesh.integral_face_rel_on_face(x*y^2, RMesh2.left_face, rmesh2x3) == 0
+@test Mesh.integral_face_rel_on_face(x*y^2, RMesh2.right_face, rmesh2x3) == 1/3
+@test Mesh.integral_face_rel_on_face(x*y^2, RMesh2.bottom_face, rmesh2x3) == 0
+@test Mesh.integral_face_rel_on_face(x*y^2, RMesh2.top_face, rmesh2x3) == 1/2
 
-@test Mesh.integral_on_ref_fe_face(x^3*y^4, Mesh.interior_face, rmesh2x3) == 1/20
-@test Mesh.integral_on_ref_fe_face(x^3*y^4, RMesh2.left_face, rmesh2x3) == 0
-@test Mesh.integral_on_ref_fe_face(x^3*y^4, RMesh2.right_face, rmesh2x3) == 1/5
-@test Mesh.integral_on_ref_fe_face(x^3*y^4, RMesh2.bottom_face, rmesh2x3) == 0
-@test Mesh.integral_on_ref_fe_face(x^3*y^4, RMesh2.top_face, rmesh2x3) == 1/4
+@test Mesh.integral_face_rel_on_face(x^3*y^4, Mesh.interior_face, rmesh2x3) == 1/20
+@test Mesh.integral_face_rel_on_face(x^3*y^4, RMesh2.left_face, rmesh2x3) == 0
+@test Mesh.integral_face_rel_on_face(x^3*y^4, RMesh2.right_face, rmesh2x3) == 1/5
+@test Mesh.integral_face_rel_on_face(x^3*y^4, RMesh2.bottom_face, rmesh2x3) == 0
+@test Mesh.integral_face_rel_on_face(x^3*y^4, RMesh2.top_face, rmesh2x3) == 1/4
 
 ## Integrate polynomial on faces of reference element.
-@test Mesh.integral_on_ref_fe_face(2*x*y^2 + 3*x^3*y^4, Mesh.interior_face, rmesh2x3) == 2*(1/6) + 3*(1/20)
-@test Mesh.integral_on_ref_fe_face(1.2*x*y^2 + 3.4*x^3*y^4, RMesh2.left_face, rmesh2x3) == 0
-@test Mesh.integral_on_ref_fe_face(1.5*x*y^2 + 0.123*x^3*y^4, RMesh2.right_face, rmesh2x3) == 1.5*(1/3) + 0.123*(1/5)
-@test Mesh.integral_on_ref_fe_face(x*y^2 + x^3*y^4, RMesh2.bottom_face, rmesh2x3) == 0
-@test Mesh.integral_on_ref_fe_face(4.5*x*y^2 + x^3*y^4, RMesh2.top_face, rmesh2x3) == 4.5*(1/2) + 1/4
+@test Mesh.integral_face_rel_on_face(2*x*y^2 + 3*x^3*y^4, Mesh.interior_face, rmesh2x3) == 2*(1/6) + 3*(1/20)
+@test Mesh.integral_face_rel_on_face(1.2*x*y^2 + 3.4*x^3*y^4, RMesh2.left_face, rmesh2x3) == 0
+@test Mesh.integral_face_rel_on_face(1.5*x*y^2 + 0.123*x^3*y^4, RMesh2.right_face, rmesh2x3) == 1.5*(1/3) + 0.123*(1/5)
+@test Mesh.integral_face_rel_on_face(x*y^2 + x^3*y^4, RMesh2.bottom_face, rmesh2x3) == 0
+@test Mesh.integral_face_rel_on_face(4.5*x*y^2 + x^3*y^4, RMesh2.top_face, rmesh2x3) == 4.5*(1/2) + 1/4
 
 vm1 = VectorMonomial(x^3*y^4, dim(1))
 vm2 = VectorMonomial(x^3*y^4, dim(2))
@@ -235,18 +239,18 @@ nearly_eq(a::R, b::R) = abs(b - a) < 10e-8
 
 # Integrating the product below on fe 1 should be equivalent to integrating the monomial x^3 y^4 on the reference element interior.
 f1(x::Vector{R}) = x[1]^2 * x[2]^3
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f1, x*y, fe_num(1), Mesh.interior_face, rmesh2x3), 1/20)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f1, x*y, fe_num(1), RMesh2.left_face, rmesh2x3), 0.)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f1, x*y, fe_num(1), RMesh2.right_face, rmesh2x3), 1/5)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f1, x*y, fe_num(1), RMesh2.bottom_face, rmesh2x3), 0.)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f1, x*y, fe_num(1), RMesh2.top_face, rmesh2x3), 1/4)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f1, x*y, fe_num(1), Mesh.interior_face, rmesh2x3), 1/20)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f1, x*y, fe_num(1), RMesh2.left_face, rmesh2x3), 0.)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f1, x*y, fe_num(1), RMesh2.right_face, rmesh2x3), 1/5)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f1, x*y, fe_num(1), RMesh2.bottom_face, rmesh2x3), 0.)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f1, x*y, fe_num(1), RMesh2.top_face, rmesh2x3), 1/4)
 
 # Integrating the product below on fe 5 should be equivalent to integrating the monomial x^3 y^4 z on the reference element interior.
 fe5_coords = RMesh2.fe_coords(fe_num(5), rmesh2x3)
 f2(x::Vector{R}) = (x[1] - fe5_coords[1])^2 * (x[2] - fe5_coords[2])^3
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f2, x*y, fe_num(5), Mesh.interior_face, rmesh2x3), 1/20)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f2, x*y, fe_num(5), RMesh2.left_face, rmesh2x3), 0.)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f2, x*y, fe_num(5), RMesh2.right_face, rmesh2x3), 1/5)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f2, x*y, fe_num(5), RMesh2.bottom_face, rmesh2x3), 0.)
-@test nearly_eq(Mesh.integral_prod_on_fe_face(f2, x*y, fe_num(5), RMesh2.top_face, rmesh2x3), 1/4)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y, fe_num(5), Mesh.interior_face, rmesh2x3), 1/20)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y, fe_num(5), RMesh2.left_face, rmesh2x3), 0.)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y, fe_num(5), RMesh2.right_face, rmesh2x3), 1/5)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y, fe_num(5), RMesh2.bottom_face, rmesh2x3), 0.)
+@test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y, fe_num(5), RMesh2.top_face, rmesh2x3), 1/4)
 

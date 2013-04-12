@@ -5,7 +5,7 @@ export RectMesh3,
        FEInfo, fe_info
 
 using Common
-import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
+import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FERelFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
 import Poly, Poly.Monomial, Poly.VectorMonomial, Poly.Polynomial
 import Cubature.hcubature
 
@@ -139,14 +139,15 @@ import Mesh.num_side_faces_per_fe
 num_side_faces_per_fe(mesh::RectMesh3) = 6
 
 import Mesh.dependent_dim_for_nb_side
-dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh2) =
+dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh3) =
   is_x_nb_side(i, mesh) ? 1 : is_y_nb_side(i, mesh) ? 2 : 3
 
 import Mesh.dependent_dim_for_ref_side_face
-dependent_dim_for_ref_side_face(side_face::FEFace, mesh::RectMesh2) = side_face_perp_axis(side_face)
+dependent_dim_for_ref_side_face(side_face::FERelFace, mesh::RectMesh3) = side_face_perp_axis(side_face)
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh3, fe_incls::NBSideInclusions)
+  fe_incls.nb_side_num = i
   if is_x_nb_side(i, mesh)
     const side_type_rel_ix = i - mesh.sidenum_first_x_nb_side
     const sides_per_stack = mesh.num_x_nb_sides_per_stack
@@ -195,7 +196,7 @@ function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh3, fe_incls::NBSi
 end
 
 import Mesh.is_boundary_side
-function is_boundary_side(fe::FENum, face::FEFace, mesh::RectMesh3)
+function is_boundary_side(fe::FENum, face::FERelFace, mesh::RectMesh3)
   if face == x_min_face
     fe_col(fe, mesh) == 1
   elseif face == x_max_face
@@ -213,8 +214,8 @@ function is_boundary_side(fe::FENum, face::FEFace, mesh::RectMesh3)
   end
 end
 
-import Mesh.integral_on_ref_fe_face
-integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh3) =
+import Mesh.integral_face_rel_on_face
+integral_face_rel_on_face(mon::Monomial, face::FERelFace, mesh::RectMesh3) =
   if face == Mesh.interior_face
     Poly.integral_on_rect_at_origin(mon, mesh.fe_dims)
   elseif face == x_min_face
@@ -254,27 +255,27 @@ integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh3) =
 
 
 import Mesh.integral_on_ref_fe_side_vs_outward_normal
-function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEFace, mesh::RectMesh3)
+function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FERelFace, mesh::RectMesh3)
   if face == x_min_face
-    -integral_on_ref_fe_face(vm[1], face, mesh)
+    -integral_face_rel_on_face(vm[1], face, mesh)
   elseif face == x_max_face
-    integral_on_ref_fe_face(vm[1], face, mesh)
+    integral_face_rel_on_face(vm[1], face, mesh)
   elseif face == y_min_face
-    -integral_on_ref_fe_face(vm[2], face, mesh)
+    -integral_face_rel_on_face(vm[2], face, mesh)
   elseif face == y_max_face
-    integral_on_ref_fe_face(vm[2], face, mesh)
+    integral_face_rel_on_face(vm[2], face, mesh)
   elseif face == z_min_face
-    -integral_on_ref_fe_face(vm[3], face, mesh)
+    -integral_face_rel_on_face(vm[3], face, mesh)
   elseif face == z_max_face
-     integral_on_ref_fe_face(vm[3], face, mesh)
+     integral_face_rel_on_face(vm[3], face, mesh)
   else
     error("invalid face: $face")
   end
 end
 
 # TODO: unit tests
-import Mesh.integral_prod_on_fe_face
-function integral_prod_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::RectMesh3)
+import Mesh.integral_global_x_face_rel_on_fe_face
+function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FERelFace, mesh::RectMesh3)
   const d = 3
   const fe_local_origin = fe_coords(fe, mesh)
   const fe_x = mesh.intgd_args_work_array
@@ -318,7 +319,7 @@ is_x_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_x_nb_side <= i 
 is_y_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_y_nb_side <= i < mesh.sidenum_first_z_nb_side
 is_z_nb_side(i::NBSideNum, mesh::RectMesh3) = mesh.sidenum_first_z_nb_side <= i <= mesh.num_nb_sides
 
-side_face_perp_axis(side_face::FEFace) =
+side_face_perp_axis(side_face::FERelFace) =
   face == x_min_face || face == x_max_face ? 1 : face == y_min_face || face == y_max_face ? 2 : 3
 
 # face numbers

@@ -2,7 +2,7 @@ module WGrad
 export WGradSolver, wgrad
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FEFace
+import Mesh, Mesh.AbstractMesh, Mesh.FERelFace
 import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial, Poly.Nomial
 
 # For a weak function v on a finite element T, the weak gradient of degree r
@@ -37,9 +37,7 @@ type WGradSolver
 
   test_vec_divs::Array{Polynomial,1}
 
-  # Create a weak gradient solver for the specified weak gradient degree and
-  # domain dimension. In the WG method, wgrad_deg = k-1 where k is the max
-  # degree of the approximating polynomials on finite element interiors.
+  # Create a weak gradient solver for the specified weak gradient degree over the indicated mesh.
   function WGradSolver(wgrad_deg::Deg, mesh::AbstractMesh)
     const test_vmons = Poly.vector_monomials_of_degree_le(wgrad_deg, Mesh.space_dim(mesh))
     new(mesh,
@@ -49,7 +47,7 @@ type WGradSolver
   end
 end
 
-# Builds the matrix for the linear system described above.
+# Builds the basis vs. basis inner products matrix for the linear system described above.
 function basis_vs_basis_ips(basis::Array{VectorMonomial,1}, mesh::AbstractMesh)
   const n = length(basis)
   const m = Array(R, n,n)
@@ -59,12 +57,12 @@ function basis_vs_basis_ips(basis::Array{VectorMonomial,1}, mesh::AbstractMesh)
     for j=i-1:-1:1
       const bj = basis[j]
       const ip = if Poly.monomials_in_same_component(bi, bj)
-                   Mesh.integral_prod_on_ref_fe_face(bi_mon, bj.mon, Mesh.interior_face, mesh)
+                   Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bj.mon, Mesh.interior_face, mesh)
                  else zeroR end
       m[i,j] = ip
       m[j,i] = ip
     end
-    m[i,i] = Mesh.integral_prod_on_ref_fe_face(bi_mon, bi_mon, Mesh.interior_face, mesh)
+    m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bi_mon, Mesh.interior_face, mesh)
   end
   m
 end
@@ -73,26 +71,27 @@ end
 # On the reference finite element for our mesh, obtains the weak gradient
 # polynomial vector for the weak function v which is a monomial or polynomial
 # on supporting face v_sface and 0 elsewhere.
-function wgrad(v::Nomial, v_sface::FEFace, solver::WGradSolver)
+function wgrad(v::Nomial, v_sface::FERelFace, solver::WGradSolver)
   const rhs = [wgrad_def_rhs_comp(v, v_sface, q_num, solver) for q_num in 1:length(solver.test_vec_mons)]
   # solve the linear system
   const sol_coefs = solver.basis_vs_basis_ips \ rhs
   Poly.linear_comb(sol_coefs, solver.test_vec_mons)
 end
 
-# Compute one component of the right hand side of the equation (WGRAD_DEF)
-# on the reference finite element of the mesh for a weak function v. Here v
+# Compute one component of the right hand side of the equation (WGRAD_DEF),
+#           -(v_0, div q)_T + <v_b, q.n>_bnd(T),
+# on the reference finite element of the mesh for weak function v. Here v
 # is specified as a monomial or polynomial and the supporting face on which
 # it takes the monomial or polynomial value.
-function wgrad_def_rhs_comp(v::Nomial, v_sface::FEFace, test_vec_mon_num::Integer, solver::WGradSolver)
+function wgrad_def_rhs_comp(v::Nomial, v_sface::FERelFace, test_vec_mon_num::Integer, solver::WGradSolver)
   const q = solver.test_vec_mons[test_vec_mon_num]
   if v_sface == Mesh.interior_face
     # Interior supported v: only the -(v_0, div q)_T term can be non-zero in the rhs of (WGRAD_DEF).
     const div_q = solver.test_vec_divs[test_vec_mon_num]
-    -Mesh.integral_prod_on_ref_fe_face(v, div_q, Mesh.interior_face, solver.mesh)
+    -Mesh.integral_face_rel_x_face_rel_on_face(v, div_q, Mesh.interior_face, solver.mesh)
   else
     # Side supported v: only the <v_b, q.n>_bnd(T) term can be non-zero.
-    Mesh.integral_prod_on_ref_fe_side_vs_outward_normal(v, q, v_sface, solver.mesh)
+    Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(v, q, v_sface, solver.mesh)
   end
 end
 

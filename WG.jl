@@ -17,10 +17,10 @@ import Poly.PolynomialVector
 # With
 #   u_h = sum_j{eta_j b_j} + Q_b g, where Q_b is L2 projection on each segment of the outside
 # boundary of Omega and 0 elsewhere, this becomes
-#   bf(sum_j{eta_j b_j} + Q_b g, b_i) = (f, (b_i)_0) for all i, ie.
-#
+#   bf(sum_j{eta_j b_j} + Q_b g, b_i) = (f, (b_i)_0) for all i,
+# ie.,
 #   (sys)
-#         sum_j{bf(b_j, b_i) eta_j} = (f, (b_i)_0) - bf(Q_b g, b_i) for all i
+#         sum_j{ bf(b_j, b_i) eta_j } = (f, (b_i)_0) - bf(Q_b g, b_i) for all i
 #
 # which is a linear system we can solve for the unknown eta_j coefficients defining u_h.
 # Note that the matrix for the system m is given by m_{i,j} = bf(b_j, b_i).
@@ -62,11 +62,13 @@ function ip_on_interiors(f::Function, bel::BElNum, basis::WeakFunsPolyBasis)
   if WGBasis.is_interior_supported(bel, basis)
     const mon = WGBasis.interior_monomial(bel, basis)
     const fe = WGBasis.support_interior_num(bel, basis)
-    Mesh.integral_prod_on_fe_face(f, mon, fe, Mesh.interior_face, basis.mesh)
+    Mesh.integral_global_x_face_rel_on_fe_face(f, mon, fe, Mesh.interior_face, basis.mesh)
   else
     zeroR
   end
 end
+
+# TODO: Review the functions below, make sure function names are clear, especially as to limitation to fe.
 
 function bf_proj_g_on_b_sides_vs_bel(bf::AbstractVariationalBilinearForm,
                                      g::Function,
@@ -77,8 +79,7 @@ function bf_proj_g_on_b_sides_vs_bel(bf::AbstractVariationalBilinearForm,
     const fe = WGBasis.support_interior_num(bel, basis)
     bf_proj_g_on_fe_b_sides_vs_bel(bf, g, fe, bel, basis, projs_cache)
   else # side supported bel
-    const nb_side_num = WGBasis.support_nb_side_num(bel, basis)
-    const side_incls = fe_inclusions_of_nb_side(nb_side_num, basis.mesh)
+    const side_incls = WGBasis.fe_inclusions_of_side_support(bel, basis)
     bf_proj_g_on_fe_b_sides_vs_bel(bf, g, side_incls.fe1, bel, basis, projs_cache) +
     bf_proj_g_on_fe_b_sides_vs_bel(bf, g, side_incls.fe2, bel, basis, projs_cache)
   end
@@ -93,7 +94,7 @@ function bf_proj_g_on_fe_b_sides_vs_bel(bf::AbstractVariationalBilinearForm,
   const mesh = basis.mesh
   # Sum the contributions from the individual boundary side projections, which we can do
   # because of the linearity of the bf in its first parameter.
-  bside_contrs_sum = zeroR
+  bside_contrs = zeroR
   for j=1:Mesh.num_side_faces_per_fe(mesh)
     const side_face = fe_face(j)
     if Mesh.is_boundary_side(fe, side_face, mesh)
@@ -107,10 +108,10 @@ function bf_proj_g_on_fe_b_sides_vs_bel(bf::AbstractVariationalBilinearForm,
           proj
         end
       end
-      bside_contrs_sum += VBF.poly_on_fe_face_vs_bel(proj_g, fe, side_face, bel, basis, bf)
+      bside_contrs += VBF.poly_on_boundary_side_face_vs_bel(proj_g, fe, side_face, bel, basis, bf)
     end
   end
-  bside_contrs_sum
+  bside_contrs
 end
 
 end # end of module

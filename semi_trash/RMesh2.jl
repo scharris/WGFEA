@@ -2,7 +2,7 @@ module RMesh2
 export RectMesh2
 
 using Common
-import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
+import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FERelFace, Mesh.fe_face, Mesh.AbstractMesh, Mesh.NBSideInclusions
 import Poly, Poly.Monomial, Poly.VectorMonomial, Poly.Polynomial
 import Cubature.hcubature, Cubature.hquadrature
 
@@ -131,13 +131,14 @@ dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh2) =
   is_vert_nb_side(i, mesh) ? 1 : 2
 
 import Mesh.dependent_dim_for_ref_side_face
-dependent_dim_for_ref_side_face(side_face::FEFace, mesh::RectMesh2) =
+dependent_dim_for_ref_side_face(side_face::FERelFace, mesh::RectMesh2) =
   side_face == left_face || side_face == right_face ? 1 : 2
 
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh2, fe_incls::NBSideInclusions)
   const mesh_cols = mesh.cols
+  fe_incls.nb_side_num = i
   if is_vert_nb_side(i, mesh)
     # See "vertical nb sides ordering" diagram above as a reference for the vertical side numbering.
     # Convert to side row and column indexes (only considering the vertical sides, so rows have mesh_cols-1 items).
@@ -164,7 +165,7 @@ function fe_inclusions_of_nb_side!(i::NBSideNum, mesh::RectMesh2, fe_incls::NBSi
 end
 
 import Mesh.is_boundary_side
-function is_boundary_side(fe::FENum, face::FEFace, mesh::RectMesh2)
+function is_boundary_side(fe::FENum, face::FERelFace, mesh::RectMesh2)
   if face == top_face
     fe_row(fe, mesh) == mesh.rows
   elseif face == bottom_face
@@ -180,8 +181,8 @@ end
 
 # TODO: These should use the *side-local* coordinate system in each case below.  In which case it brings up the
 #       question of why we care about the side's role ("face") in the reference fe at all?
-import Mesh.integral_on_ref_fe_face
-function integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh2)
+import Mesh.integral_face_rel_on_face
+function integral_face_rel_on_face(mon::Monomial, face::FERelFace, mesh::RectMesh2)
   if face == Mesh.interior_face
     Poly.integral_on_rect_at_origin(mon, mesh.fe_dims)
   elseif face == top_face
@@ -210,22 +211,22 @@ function integral_on_ref_fe_face(mon::Monomial, face::FEFace, mesh::RectMesh2)
 end
 
 import Mesh.integral_on_ref_fe_side_vs_outward_normal
-function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FEFace, mesh::RectMesh2)
+function integral_on_ref_fe_side_vs_outward_normal(vm::VectorMonomial, face::FERelFace, mesh::RectMesh2)
   if face == top_face
-    integral_on_ref_fe_face(vm[2], face, mesh)
+    integral_face_rel_on_face(vm[2], face, mesh)
   elseif face == right_face
-    integral_on_ref_fe_face(vm[1], face, mesh)
+    integral_face_rel_on_face(vm[1], face, mesh)
   elseif face == bottom_face
-    -integral_on_ref_fe_face(vm[2], face, mesh)
+    -integral_face_rel_on_face(vm[2], face, mesh)
   elseif face == left_face
-    -integral_on_ref_fe_face(vm[1], face, mesh)
+    -integral_face_rel_on_face(vm[1], face, mesh)
   else
     error("invalid face: $face")
   end
 end
 
-import Mesh.integral_prod_on_fe_face
-function integral_prod_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FEFace, mesh::RectMesh2)
+import Mesh.integral_global_x_face_rel_on_fe_face
+function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FERelFace, mesh::RectMesh2)
   const d = 2
   const fe_local_origin = fe_coords(fe, mesh)
   const fe_x = mesh.intgd_args_work_array
