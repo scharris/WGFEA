@@ -1,14 +1,5 @@
 Commit Notes
 ------------
-Proj: Add project_interior_monomial_onto_side_face, which completes the implementation necessary for the method.
-WGBasis: Add functions wgrad_for_mon_on_side_face, fe_inclusions_of_side_support, mon_num.
-Meshes:
-  - Moved RMesh2/3 and their tests into semi-trash folder.  Incorporate RMesh2 unit tests into RMesh's tests.
-  - Reimplement integrals using proper face-specific origins where appropriate for monomials and polynomials.
-  - Add nb_side_num field to NBSideInclusions structure, so it can usefully be returned directly from WGBasis.
-  - Removed unnecessary integral function.
-  - Renamed integral functions to make clear how mono/polynomials should be interpreted with respect to the origin for their inputs.
-VBF/VBF_a_s: Finished VBF_a_s implementation (not yet tested).  Factored code that will be common to all var bf's into VBF module.
 
 
 TODO
@@ -45,27 +36,9 @@ WGrad
 
 TODO
 ----
-Basis element monomials should always be interpreted in a coordinate system with origin in their support interior or side,
-independently of any embedding in a finite element.
-
-What about extension of v_0T to the boundary segment?  It's projected to a polynomial on the side (second function in Proj module),
-from there it is interpreted locally on the side.  Make sure this is done properly, it is tricky.  The function before projection has
-interior coordinates, being projected onto a space with basis functions being monomials with side-local coordinates.
-
-
-MinusDivAGradVarBF
- Implement
-
-Proj
- Test
-
-Mesh
-  For d=2,3 add numerical prod integral implementations and tests.
-
-Long Term
----------
 Allow multiple reference elements, e.g. for triangular meshes, which have alternating triangle orientations.
 Most methods that just take a face would have to take a reference element code and a face, or a fe num and a face.
+
 
 Documentation Changes
 ---------------------

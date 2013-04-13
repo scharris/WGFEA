@@ -9,11 +9,9 @@ export AbstractVariationalBilinearForm,
        side_bel_vs_int_bel,
        int_bel_vs_side_bel,
        side_bel_vs_side_bel,
-       poly_on_boundary_side_face_vs_bel,
-       transpose_bel_vs_bel_matrix
+       bel_vs_bel_transpose
 
 import WGBasis.BElNum, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum
-import Poly.Polynomial
 import Mesh.FENum, Mesh.FERelFace
 
 
@@ -74,8 +72,8 @@ side_mon_vs_side_mon{BF <: AbstractVariationalBilinearForm}(fe::FENum,
 # functions above. The implementations should be valid for any variational
 # bilinear form bf satisfying the following locality assumption:
 # (Locality Assumption)
-#   For every pair of weak functions v and w, if there is no finite element which
-#   includes the supports of both v and w, then bf(v, w) = 0.
+#   For every pair of weak functions v and w, if there is no finite element
+#   which includes the supports of both v and w, then bf(v, w) = 0.
 
 
 function int_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElNum, bel_2::BElNum, basis::WeakFunsPolyBasis, bf::BF)
@@ -155,48 +153,9 @@ function side_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElN
   end
 end
 
-# This function is used to implement the -bf(Q_b g, b_i) term in the WG method (see WG module documentation).
-# The polynomial is to be interpreted as face-local, meaning its monomials are implicitly pre-composed with
-# a translation to the origin point for the face as determined by the mesh.
-function poly_on_boundary_side_face_vs_bel(p::Polynomial, p_fe::FENum, p_bside_face::FERelFace,
-                                           bel::BElNum,
-                                           basis::WeakFunsPolyBasis,
-                                           bf::A_s)
-  if WGBasis.is_interior_supported(i, basis)
-    const bel_fe = WGBasis.support_interior_num(bel, basis)
-    if bel_fe != p_fe
-      zeroR
-    else
-      const bel_monn = WGBasis.interior_monomial_num(bel, basis)
-      p_mon_contrs = zeroR
-      for i=1:length(p.mons)
-        const p_monn = WGBasis.mon_num_for_mon_on_side_face(p.mons[i], p_bside_face, basis)
-        p_mon_contrs += p.coefs[i] * side_mon_vs_int_mon(p_fe, p_monn, p_bside_face, bel_monn, basis, bf)
-      end
-      p_mon_contrs
-    end
-  else # side supported bel
-    const bel_side_incls = WGBasis.fe_inclusions_of_side_support(bel, basis)
-    # Find which face if any is the side supporting the bel in the polynomial's supporting fe.
-    const bel_side_face_in_p_fe = p_fe == bel_side_incls.fe1 ? bel_side_incls.face_in_fe1 :
-                                  p_fe == bel_side_incls.fe2 ? bel_side_incls.face_in_fe2 : Mesh.no_face
-    if bel_side_face_in_p_fe == Mesh.no_face
-      zeroR
-    else
-      const bel_monn = WGBasis.side_monomial_num(bel, basis)
-      p_mon_contrs = zeroR
-      for i=1:length(p.mons)
-        const p_monn = WGBasis.mon_num_for_mon_on_side_face(p.mons[i], p_bside_face, basis)
-        p_mon_contrs += p.coefs[i] * side_mon_vs_side_mon(p_fe, p_monn, p_bside_face, bel_monn, bel_side_face_in_p_fe, basis, bf)
-      end
-      p_mon_contrs
-    end
-  end
-end
 
 
-
-function transpose_bel_vs_bel_matrix{BF <: AbstractVariationalBilinearForm}(basis::WeakFunsPolyBasis, bf::BF)
+function bel_vs_bel_transpose{BF <: AbstractVariationalBilinearForm}(basis::WeakFunsPolyBasis, bf::BF)
   const num_int_bels = basis.num_int_bels
   const first_side_bel = basis.first_side_bel
   const m = Array(R, basis.total_bels, basis.total_bels)
