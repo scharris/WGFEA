@@ -31,21 +31,21 @@ x = Monomial(1,0)
 y = Monomial(0,1)
 one = Monomial(0,0)
 
-@test map(m -> m.exps, ref_interior_mons(basis)) == {[0x00, 0x00], [0x00, 0x01], [0x00, 0x02], [0x01, 0x00], [0x01, 0x01], [0x02, 0x00]}
+@test map(m -> m.exps, interior_mons(basis)) == {[0x00, 0x00], [0x00, 0x01], [0x00, 0x02], [0x01, 0x00], [0x01, 0x01], [0x02, 0x00]}
 
 # reference mons for sides for which dimension 1 is dependent on the others
-@test basis.ref_side_mons[1] == [one, y]
+@test basis.side_mons_by_dep_dim[1] == [one, y]
 # reference mons for sides for which dimension 2 is dependent on the others
-@test basis.ref_side_mons[2] == [one, x]
+@test basis.side_mons_by_dep_dim[2] == [one, x]
 
-@test length(ref_interior_mons(basis)) == 6 == Poly.count_monomials_of_degree_le(deg(2), dim(2))
+@test length(interior_mons(basis)) == 6 == Poly.count_mons_of_deg_le(deg(2), dim(2))
 
 # sides have reduced domain dimensions, since some dimension is affine-dependent on the others
-@test length(basis.ref_side_mons[1]) == 2 == Poly.count_monomials_of_degree_le(deg(1), dim(1))
-@test length(basis.ref_side_mons[2]) == 2 == Poly.count_monomials_of_degree_le(deg(1), dim(1))
-@test length(basis.ref_side_mons[1]) == basis.mons_per_fe_side
+@test length(basis.side_mons_by_dep_dim[1]) == 2 == Poly.count_mons_of_deg_le(deg(1), dim(1))
+@test length(basis.side_mons_by_dep_dim[2]) == 2 == Poly.count_mons_of_deg_le(deg(1), dim(1))
+@test length(basis.side_mons_by_dep_dim[1]) == basis.mons_per_fe_side
 
-@test length(ref_interior_mons(basis)) == basis.mons_per_fe_interior
+@test length(interior_mons(basis)) == basis.mons_per_fe_interior
 
 @test is_interior_supported(bel_num(1), basis)
 @test is_interior_supported(bel_num(36), basis)
@@ -118,86 +118,86 @@ incls = fe_inclusions_of_side_support(bel_num(45), basis)
 @test incls.fe2 == fe_num(4)
 @test incls.face_in_fe2 == bottom_face
 
+rshape = Mesh.oshape(1)
 
 # Test retrieving side monomial number for given monomial and face.
-@test mon_num_for_mon_on_side_face(one, right_face, basis) == 1
-@test mon_num_for_mon_on_side_face(one, left_face, basis)  == 1
-@test mon_num_for_mon_on_side_face(y,   right_face, basis) == 2
-@test mon_num_for_mon_on_side_face(y,   left_face, basis)  == 2
-@test mon_num_for_mon_on_side_face(one, top_face, basis)    == 1
-@test mon_num_for_mon_on_side_face(one, bottom_face, basis) == 1
-@test mon_num_for_mon_on_side_face(x,   top_face, basis)    == 2
-@test mon_num_for_mon_on_side_face(x,   bottom_face, basis) == 2
+@test mon_num_for_mon_on_shape_side(one, rshape, right_face, basis) == 1
+@test mon_num_for_mon_on_shape_side(one, rshape, left_face, basis)  == 1
+@test mon_num_for_mon_on_shape_side(y,   rshape, right_face, basis) == 2
+@test mon_num_for_mon_on_shape_side(y,   rshape, left_face, basis)  == 2
+@test mon_num_for_mon_on_shape_side(one, rshape, top_face, basis)    == 1
+@test mon_num_for_mon_on_shape_side(one, rshape, bottom_face, basis) == 1
+@test mon_num_for_mon_on_shape_side(x,   rshape, top_face, basis)    == 2
+@test mon_num_for_mon_on_shape_side(x,   rshape, bottom_face, basis) == 2
 
 # Test support face monomial retrieval
 
 # all interior monomials in finite element 1
-@test interior_monomial(bel_num(1), basis) == one
-@test interior_monomial(bel_num(2), basis) == y
-@test interior_monomial(bel_num(3), basis) == y^2
-@test interior_monomial(bel_num(4), basis) == x
-@test interior_monomial(bel_num(5), basis) == x*y
-@test interior_monomial(bel_num(6), basis) == x^2
+@test interior_mon(bel_num(1), basis) == one
+@test interior_mon(bel_num(2), basis) == y
+@test interior_mon(bel_num(3), basis) == y^2
+@test interior_mon(bel_num(4), basis) == x
+@test interior_mon(bel_num(5), basis) == x*y
+@test interior_mon(bel_num(6), basis) == x^2
 
-@test ref_interior_mons(basis) == [one, y, y^2, x, x*y, x^2]
+@test interior_mons(basis) == [one, y, y^2, x, x*y, x^2]
 
-@test interior_monomial_num(bel_num(3), basis) == mon_num(3)
-@test interior_monomial_num(bel_num(6), basis) == mon_num(6)
+@test interior_mon_num(bel_num(3), basis) == mon_num(3)
+@test interior_mon_num(bel_num(6), basis) == mon_num(6)
 
-@test interior_monomial_by_num(mon_num(3), basis) == y^2
-@test interior_monomial_by_num(mon_num(6), basis) == x^2
-
+@test interior_mons(basis)[3] == y^2
+@test interior_mons(basis)[6] == x^2
 
 # interior monomials, finite element 2
-@test interior_monomial(bel_num(7), basis) == one
-@test interior_monomial(bel_num(12), basis) == x^2
+@test interior_mon(bel_num(7), basis) == one
+@test interior_mon(bel_num(12), basis) == x^2
 
-@test interior_monomial_num(bel_num(7), basis) == 1
-@test interior_monomial_num(bel_num(12), basis) == 6
+@test interior_mon_num(bel_num(7), basis) == 1
+@test interior_mon_num(bel_num(12), basis) == 6
 
 # interior monomials, finite element 6
-@test interior_monomial(bel_num(31), basis) == one
-@test interior_monomial(bel_num(36), basis) == x^2
+@test interior_mon(bel_num(31), basis) == one
+@test interior_mon(bel_num(36), basis) == x^2
 
-@test interior_monomial_num(bel_num(31), basis) == 1
-@test interior_monomial_num(bel_num(36), basis) == 6
+@test interior_mon_num(bel_num(31), basis) == 1
+@test interior_mon_num(bel_num(36), basis) == 6
 
 # monomials on vertical side between finite elements 1 and 2
-@test side_monomial(bel_num(37), basis) == one
-@test side_monomial(bel_num(38), basis) == y
+@test side_mon(bel_num(37), basis) == one
+@test side_mon(bel_num(38), basis) == y
 
-@test side_monomial_num(bel_num(37), basis) == 1
-@test side_monomial_num(bel_num(38), basis) == 2
+@test side_mon_num(bel_num(37), basis) == 1
+@test side_mon_num(bel_num(38), basis) == 2
 
-@test side_monomial_by_face_and_num(right_face, mon_num(1), basis) == side_monomial_by_face_and_num(left_face, mon_num(1), basis) == one
-@test side_monomial_by_face_and_num(right_face, mon_num(2), basis) == side_monomial_by_face_and_num(right_face, mon_num(2), basis) == y
-@test ref_side_mons(right_face, basis) == ref_side_mons(left_face, basis) == [one, y]
-@test_fails side_monomial_by_face_and_num(right_face, mon_num(3), basis)
+@test side_mons_for_shape_side(rshape, right_face, basis)[1] == side_mons_for_shape_side(rshape, left_face, basis)[1] == one
+@test side_mons_for_shape_side(rshape, right_face, basis)[2]  == side_mons_for_shape_side(rshape, left_face, basis)[2] == y
+@test side_mons_for_fe_side(fe_num(1), right_face, basis) == side_mons_for_fe_side(fe_num(1), left_face, basis) == [one, y]
+@test_fails side_mons_for_shape_side(rshape, right_face, basis)[3]
 
 # monomials on vertical side between finite elements 2 and 3
-@test side_monomial(bel_num(39), basis) == one
-@test side_monomial(bel_num(40), basis) == y
+@test side_mon(bel_num(39), basis) == one
+@test side_mon(bel_num(40), basis) == y
 
 # monomials on vertical side between finite elements 5 and 6
-@test side_monomial(bel_num(43), basis) == one
-@test side_monomial(bel_num(44), basis) == y
+@test side_mon(bel_num(43), basis) == one
+@test side_mon(bel_num(44), basis) == y
 
 # monomials on horizontal side between finite elements 1 and 4
-@test side_monomial(bel_num(45), basis) == one
-@test side_monomial(bel_num(46), basis) == x
+@test side_mon(bel_num(45), basis) == one
+@test side_mon(bel_num(46), basis) == x
 
-@test side_monomial_by_face_and_num(top_face, mon_num(1), basis) == side_monomial_by_face_and_num(bottom_face, mon_num(1), basis) == one
-@test side_monomial_by_face_and_num(top_face, mon_num(2), basis) == side_monomial_by_face_and_num(bottom_face, mon_num(2), basis) == x
-@test ref_side_mons(top_face, basis) == ref_side_mons(bottom_face, basis) == [one, x]
-@test_fails side_monomial_by_face_and_num(bottom_face, mon_num(3), basis)
+@test side_mons_for_shape_side(rshape, top_face, basis)[1] == side_mons_for_shape_side(rshape, bottom_face, basis)[1] == one
+@test side_mons_for_shape_side(rshape, top_face, basis)[2] == side_mons_for_shape_side(rshape, bottom_face, basis)[2] == x
+@test side_mons_for_fe_side(fe_num(1), top_face, basis) == side_mons_for_fe_side(fe_num(1), bottom_face, basis) == [one, x]
+@test_fails side_mons_for_shape_side(rshape, bottom_face, basis)[3]
 
 # monomials on horizontal side between finite elements 2 and 5
-@test side_monomial(bel_num(47), basis) == one
-@test side_monomial(bel_num(48), basis) == x
+@test side_mon(bel_num(47), basis) == one
+@test side_mon(bel_num(48), basis) == x
 
 # monomials on horizontal side between finite elements 3 and 6
-@test side_monomial(bel_num(49), basis) == one
-@test side_monomial(bel_num(50), basis) == x
+@test side_mon(bel_num(49), basis) == one
+@test side_mon(bel_num(50), basis) == x
 
 
 # test weak gradients of basis elements
@@ -205,53 +205,40 @@ incls = fe_inclusions_of_side_support(bel_num(45), basis)
 wgrad_solver = WGradSolver(deg(1), basis.mesh)
 
 # weak gradients of interior supported elements
-@test wgrad_for_mon_on_interior(mon_num(1), basis) == WGrad.wgrad(one, Mesh.interior_face, wgrad_solver)
-@test wgrad_for_mon_on_interior(mon_num(2), basis) == WGrad.wgrad(y, Mesh.interior_face, wgrad_solver)
-@test wgrad_for_mon_on_interior(mon_num(3), basis) == WGrad.wgrad(y^2, Mesh.interior_face, wgrad_solver)
-@test wgrad_for_mon_on_interior(mon_num(4), basis) == WGrad.wgrad(x, Mesh.interior_face, wgrad_solver)
-@test wgrad_for_mon_on_interior(mon_num(5), basis) == WGrad.wgrad(x*y, Mesh.interior_face, wgrad_solver)
-@test wgrad_for_mon_on_interior(mon_num(6), basis) == WGrad.wgrad(x^2, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(mon_num(1), rshape, basis) == WGrad.wgrad(one, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(mon_num(2), rshape, basis) == WGrad.wgrad(y, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(mon_num(3), rshape, basis) == WGrad.wgrad(y^2, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(mon_num(4), rshape, basis) == WGrad.wgrad(x, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(mon_num(5), rshape, basis) == WGrad.wgrad(x*y, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(mon_num(6), rshape, basis) == WGrad.wgrad(x^2, rshape, Mesh.interior_face, wgrad_solver)
 
-@test wgrad_for_mon_on_side_face(mon_num(1), right_face, basis) == WGrad.wgrad(one, right_face, wgrad_solver)
-@test wgrad_for_mon_on_side_face(mon_num(2), right_face, basis) == WGrad.wgrad(y, right_face, wgrad_solver)
-@test_fails wgrad_for_mon_on_side_face(mon_num(3), right_face, basis)
-
-# weak gradients for monomials on vertical side between finite elements 1 and 2
-@test wgrads_for_side_bel(bel_num(37), basis).wgrad_on_fe1 == WGrad.wgrad(one, right_face, wgrad_solver)
-@test wgrads_for_side_bel(bel_num(37), basis).wgrad_on_fe2 == WGrad.wgrad(one, left_face, wgrad_solver)
-@test wgrads_for_side_bel(bel_num(38), basis).wgrad_on_fe1 == WGrad.wgrad(y, right_face, wgrad_solver)
-@test wgrads_for_side_bel(bel_num(38), basis).wgrad_on_fe2 == WGrad.wgrad(y, left_face, wgrad_solver)
-
-
-# weak gradients for monomials on horizontal side between finite elements 1 and 4
-@test wgrads_for_side_bel(bel_num(45), basis).wgrad_on_fe1 == WGrad.wgrad(one, top_face, wgrad_solver)
-@test wgrads_for_side_bel(bel_num(45), basis).wgrad_on_fe2 == WGrad.wgrad(one, bottom_face, wgrad_solver)
-@test wgrads_for_side_bel(bel_num(46), basis).wgrad_on_fe1 == WGrad.wgrad(x, top_face, wgrad_solver)
-@test wgrads_for_side_bel(bel_num(46), basis).wgrad_on_fe2 == WGrad.wgrad(x, bottom_face, wgrad_solver)
+@test wgrad_side_mon(mon_num(1), rshape, right_face, basis) == WGrad.wgrad(one, rshape, right_face, wgrad_solver)
+@test wgrad_side_mon(mon_num(2), rshape, right_face, basis) == WGrad.wgrad(y, rshape, right_face, wgrad_solver)
+@test_fails wgrad_side_mon(mon_num(3), rshape, right_face, basis)
 
 
 # test L2 inner products of basis elements
 
 # interior supported element inner products
-int_ips = ips_ref_interior_mons(basis)
-@test int_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, Mesh.interior_face, basis.mesh) == 1
-@test int_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, y, Mesh.interior_face, basis.mesh) == 1/2
-@test int_ips[1,3] == Mesh.integral_face_rel_x_face_rel_on_face(one, y^2, Mesh.interior_face, basis.mesh) == 1/3
-@test int_ips[1,4] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, Mesh.interior_face, basis.mesh) == 1/2
-@test int_ips[1,5] == Mesh.integral_face_rel_x_face_rel_on_face(one, x*y, Mesh.interior_face, basis.mesh) == 1/4
-@test int_ips[1,6] == Mesh.integral_face_rel_x_face_rel_on_face(one, x^2, Mesh.interior_face, basis.mesh) == 1/3
+int_ips = ips_interior_mons(fe_num(1), basis)
+@test int_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, rshape, Mesh.interior_face, basis.mesh) == 1
+@test int_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, y, rshape, Mesh.interior_face, basis.mesh) == 1/2
+@test int_ips[1,3] == Mesh.integral_face_rel_x_face_rel_on_face(one, y^2, rshape, Mesh.interior_face, basis.mesh) == 1/3
+@test int_ips[1,4] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, rshape, Mesh.interior_face, basis.mesh) == 1/2
+@test int_ips[1,5] == Mesh.integral_face_rel_x_face_rel_on_face(one, x*y, rshape, Mesh.interior_face, basis.mesh) == 1/4
+@test int_ips[1,6] == Mesh.integral_face_rel_x_face_rel_on_face(one, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/3
 
-@test int_ips[2,1] == Mesh.integral_face_rel_x_face_rel_on_face(y, one, Mesh.interior_face, basis.mesh) == 1/2
-@test int_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_face(y, y, Mesh.interior_face, basis.mesh) == 1/3
-@test int_ips[2,3] == Mesh.integral_face_rel_x_face_rel_on_face(y, y^2, Mesh.interior_face, basis.mesh) == 1/4
-@test int_ips[2,4] == Mesh.integral_face_rel_x_face_rel_on_face(y, x, Mesh.interior_face, basis.mesh) == 1/4
-@test int_ips[2,5] == Mesh.integral_face_rel_x_face_rel_on_face(y, x*y, Mesh.interior_face, basis.mesh) == 1/6
-@test int_ips[2,6] == Mesh.integral_face_rel_x_face_rel_on_face(y, x^2, Mesh.interior_face, basis.mesh) == 1/6
+@test int_ips[2,1] == Mesh.integral_face_rel_x_face_rel_on_face(y, one, rshape, Mesh.interior_face, basis.mesh) == 1/2
+@test int_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_face(y, y, rshape, Mesh.interior_face, basis.mesh) == 1/3
+@test int_ips[2,3] == Mesh.integral_face_rel_x_face_rel_on_face(y, y^2, rshape, Mesh.interior_face, basis.mesh) == 1/4
+@test int_ips[2,4] == Mesh.integral_face_rel_x_face_rel_on_face(y, x, rshape, Mesh.interior_face, basis.mesh) == 1/4
+@test int_ips[2,5] == Mesh.integral_face_rel_x_face_rel_on_face(y, x*y, rshape, Mesh.interior_face, basis.mesh) == 1/6
+@test int_ips[2,6] == Mesh.integral_face_rel_x_face_rel_on_face(y, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/6
 
 # side supported element inner products
-top_face_ips = ips_ref_side_mons(top_face, basis)
+top_face_ips = ips_side_mons(fe_num(1), top_face, basis)
 
-@test top_face_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, top_face, basis.mesh) == 1
-@test top_face_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, top_face, basis.mesh) == 1/2
+@test top_face_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, rshape, top_face, basis.mesh) == 1
+@test top_face_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, rshape, top_face, basis.mesh) == 1/2
 @test top_face_ips[2,1] == top_face_ips[1,2]
-@test top_face_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_face(x, x, top_face, basis.mesh) == 1/3
+@test top_face_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_face(x, x, rshape, top_face, basis.mesh) == 1/3

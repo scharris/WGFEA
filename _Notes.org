@@ -4,40 +4,18 @@ Commit Notes
 
 TODO
 ----
-Review VBF, VBF_a_s, WG
+Support multiple oriented shapes for fes.
+
+Review VBF_a_s, WG
+
+Concatenate two rectangular meshes left/right or upper/lower?
+  Only fes on the joined boundary will need to have new computations.
 
 Q: Look into caching projections where they may be multiply computed.
 
 Support multiple reference elements.
   Every mesh function that takes a face but does not take a finite element number, should take a reference element number.
   The reference element is a function of the finite element number.
-
-
-Integration Calls and Expected Coordinate Systems
--------------------------------------------------
-Proj
-  OK
-VBF
-  There are no Mesh.integral* calls in this module, but every x_mon_vs_y_mon call uses monomials expecting face-local coordinates
-  since they represent basis elements on the faces.
-  The poly_on_boundary_side_face_vs_bel function expects the polynomial to be interpeted side-locally since it results from projection
-  onto the side.  This matches the implication of the function name ("poly on boundary side") and the implementation which
-  delegates to side_mon_vs_int/side_mon which are documented to interpret monomials face-locally.
-VBF_a_s
-  All calls to Mesh.integral_on_ref_fe_face and Mesh.integral_prod_on_ref_fe_face expect face-local monomials, matching the
-  mesh's documented expectations.
-
-WGrad
-  The right term of the RHS needs an integral where the test function vector monomial is interpreted with the *fe interior*
-  local origin (not that of the face!), while the other factor (v_b) is interpreted with the face's origin.
-  Check other callers of the mesh functions involved, separate into separate functions if necessary, make the semantics clear
-  for each.
-
-
-TODO
-----
-Allow multiple reference elements, e.g. for triangular meshes, which have alternating triangle orientations.
-Most methods that just take a face would have to take a reference element code and a face, or a fe num and a face.
 
 
 Documentation Changes

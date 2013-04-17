@@ -2,7 +2,7 @@ module WGrad
 export WGradSolver, wgrad
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FERelFace
+import Mesh, Mesh.AbstractMesh, Mesh.FERelFace, Mesh.OrientedShape
 import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial, Poly.Nomial
 
 # For a weak function v on a finite element T, the weak gradient of degree r
@@ -31,51 +31,57 @@ type WGradSolver
 
   mesh::AbstractMesh
 
-  test_vec_mons::Array{VectorMonomial,1}
+  basis_vmons::Array{VectorMonomial,1}
 
-  basis_vs_basis_ips::Matrix{R}
+  ips_basis_vs_basis::Array{Matrix{R},1} # indexed by fe oriented shape
 
-  test_vec_divs::Array{Polynomial,1}
+  basis_divs::Array{Polynomial,1}
 
   # Create a weak gradient solver for the specified weak gradient degree over the indicated mesh.
   function WGradSolver(wgrad_deg::Deg, mesh::AbstractMesh)
-    const test_vmons = Poly.vector_monomials_of_degree_le(wgrad_deg, Mesh.space_dim(mesh))
+    const basis_vmons = Poly.vector_mons_of_deg_le(wgrad_deg, Mesh.space_dim(mesh))
     new(mesh,
-        test_vmons,
-        basis_vs_basis_ips(test_vmons, mesh),
-        [Poly.divergence(q) for q in test_vmons])
+        basis_vmons,
+        make_vmon_ips_by_oshape(basis_vmons, mesh),
+        [Poly.divergence(q) for q in basis_vmons])
   end
 end
 
-# Builds the basis vs. basis inner products matrix for the linear system described above.
-function basis_vs_basis_ips(basis::Array{VectorMonomial,1}, mesh::AbstractMesh)
-  const n = length(basis)
-  const m = Array(R, n,n)
-  for i=1:n
-    const bi = basis[i]
-    const bi_mon = bi.mon
-    for j=i-1:-1:1
-      const bj = basis[j]
-      const ip = if Poly.monomials_in_same_component(bi, bj)
-                   Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bj.mon, Mesh.interior_face, mesh)
-                 else zeroR end
-      m[i,j] = ip
-      m[j,i] = ip
+# Builds the array of vmon vs. vmon inner products matrices for the linear system described above, indexed by fe oriented shape.
+function make_vmon_ips_by_oshape(vmons::Array{VectorMonomial,1}, mesh::AbstractMesh)
+  const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
+  const ips_by_oshape = Array(Matrix{R}, num_oshapes)
+  const num_vmons = length(vmons)
+  for os=Mesh.oshape(1):num_oshapes
+    const m = Array(R, num_vmons,num_vmons)
+    for i=1:num_vmons
+      const bi = vmons[i]
+      const bi_mon = bi.mon
+      for j=i-1:-1:1
+        const bj = vmons[j]
+        const ip = if Poly.mons_in_same_comp_of_vmons(bi, bj)
+                     Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bj.mon, os, Mesh.interior_face, mesh)
+                   else zeroR end
+        m[i,j] = ip
+        m[j,i] = ip
+      end
+      m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bi_mon, os, Mesh.interior_face, mesh)
     end
-    m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bi_mon, Mesh.interior_face, mesh)
+    ips_by_oshape[os] = m
   end
-  m
+  ips_by_oshape
 end
 
 
 # On the reference finite element for our mesh, obtains the weak gradient
 # polynomial vector for the weak function v which is a monomial or polynomial
 # on supporting face v_sface and 0 elsewhere.
-function wgrad(v::Nomial, v_sface::FERelFace, solver::WGradSolver)
-  const rhs = [wgrad_def_rhs_comp(v, v_sface, q_num, solver) for q_num in 1:length(solver.test_vec_mons)]
+function wgrad(v::Nomial, fe_oshape::OrientedShape, v_sface::FERelFace, solver::WGradSolver)
+  const rhs = [wgrad_def_rhs_comp(v, fe_oshape, v_sface, vmon_num, solver)
+               for vmon_num in 1:length(solver.basis_vmons)]
   # solve the linear system
-  const sol_coefs = solver.basis_vs_basis_ips \ rhs
-  Poly.linear_comb(sol_coefs, solver.test_vec_mons)
+  const sol_coefs = solver.ips_basis_vs_basis[fe_oshape] \ rhs
+  Poly.linear_comb(sol_coefs, solver.basis_vmons)
 end
 
 # Compute one component of the right hand side of the equation (WGRAD_DEF),
@@ -83,15 +89,15 @@ end
 # on the reference finite element of the mesh for weak function v. Here v
 # is specified as a monomial or polynomial and the supporting face on which
 # it takes the monomial or polynomial value.
-function wgrad_def_rhs_comp(v::Nomial, v_sface::FERelFace, test_vec_mon_num::Integer, solver::WGradSolver)
-  const q = solver.test_vec_mons[test_vec_mon_num]
+function wgrad_def_rhs_comp(v::Nomial, fe_oshape::OrientedShape, v_sface::FERelFace, vmon_num::Integer, solver::WGradSolver)
+  const q = solver.basis_vmons[vmon_num]
   if v_sface == Mesh.interior_face
     # Interior supported v: only the -(v_0, div q)_T term can be non-zero in the rhs of (WGRAD_DEF).
-    const div_q = solver.test_vec_divs[test_vec_mon_num]
-    -Mesh.integral_face_rel_x_face_rel_on_face(v, div_q, Mesh.interior_face, solver.mesh)
+    const div_q = solver.basis_divs[vmon_num]
+    -Mesh.integral_face_rel_x_face_rel_on_face(v, div_q, fe_oshape, Mesh.interior_face, solver.mesh)
   else
     # Side supported v: only the <v_b, q.n>_bnd(T) term can be non-zero.
-    Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(v, q, v_sface, solver.mesh)
+    Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(v, q, fe_oshape, v_sface, solver.mesh)
   end
 end
 

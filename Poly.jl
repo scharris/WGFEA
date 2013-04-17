@@ -8,23 +8,22 @@ export Monomial,
        NomialOrConst,
        MonOrConst,
        canonical_form,
-       monomial_value,
-       polynomial_value,
+       value_at,
        linear_comb,
        as_poly,
        zero_poly,
        domain_dim,
-       count_monomials_of_degree_le,
-       monomials_of_degree_le,
-       monomials_of_degree_le_with_const_dim,
-       vector_monomials_of_degree_le,
+       count_mons_of_deg_le,
+       mons_of_deg_le,
+       mons_of_deg_le_with_const_dim,
+       vector_mons_of_deg_le,
        reduce_dim_by_fixing,
        partial,
        divergence,
        integral_on_rect_at_origin,
        drop_coefs_lt,
        coefs_closer_than,
-       monomials_in_same_component
+       mons_in_same_comp_of_vmons
 
 using Common
 
@@ -313,9 +312,9 @@ domain_dim(m::Monomial) = convert(Dim, length(m.exps))
 domain_dim(p::Polynomial) = domain_dim(p.mons[1])
 domain_dim(vm::VectorMonomial) = domain_dim(vm.mon)
 
-monomials_in_same_component(vmon1::VectorMonomial, vmon2::VectorMonomial) = vmon1.mon_pos == vmon2.mon_pos
+mons_in_same_comp_of_vmons(vmon1::VectorMonomial, vmon2::VectorMonomial) = vmon1.mon_pos == vmon2.mon_pos
 
-function monomial_value(mon::Monomial, x::Vector{R})
+function value_at(mon::Monomial, x::Vector{R})
   v = x[1]^mon.exps[1]
   for i=2:length(x)
     v *= x[i]^mon.exps[i]
@@ -323,23 +322,23 @@ function monomial_value(mon::Monomial, x::Vector{R})
   v
 end
 
-function monomial_value(mon::Monomial, x::R)
+function value_at(mon::Monomial, x::R)
   assert(length(mon.exps) == 1)
   x^(mon.exps[1])
 end
 
-function polynomial_value(p::Polynomial, x::Vector{R})
+function value_at(p::Polynomial, x::Vector{R})
   sum = zeroR
   for i in 1:length(p.mons)
-    sum += p.coefs[i] * monomial_value(p.mons[i], x)
+    sum += p.coefs[i] * value_at(p.mons[i], x)
   end
   sum
 end
 
-function polynomial_value(p::Polynomial, x::R)
+function value_at(p::Polynomial, x::R)
   sum = zeroR
   for i in 1:length(p.mons)
-    sum += p.coefs[i] * monomial_value(p.mons[i], x)
+    sum += p.coefs[i] * value_at(p.mons[i], x)
   end
   sum
 end
@@ -399,37 +398,12 @@ end
 
 # Counting and listing of monomials at or not exceeding a certain degree
 
-count_monomials_of_degree_eq(deg::Deg, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
-count_monomials_of_degree_le(deg::Deg, dom_dim::Dim) = sum([count_monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=0:deg])
+count_mons_of_deg_eq(deg::Deg, dom_dim::Dim) = binomial(convert(Int,dom_dim + deg - 1), convert(Int,deg))
+count_mons_of_deg_le(deg::Deg, dom_dim::Dim) = sum([count_mons_of_deg_eq(convert(Deg,k), dom_dim) for k=0:deg])
 
-#function monomials_of_degree_eq(deg::Deg, dom_dim::Dim)
-#  if dom_dim == 1
-#    [Monomial(deg)]
-#  elseif dom_dim == 2
-#    [Monomial(i,deg-i)::Monomial for i=0:deg]
-#  elseif dom_dim == 3
-#    const mons = Array(Monomial, count_monomials_of_degree_eq(deg, dom_dim))
-#    pos = 1
-#    for i=0:deg, j=0:(deg-i)
-#      mons[pos] = Monomial(i,j,deg-i-j)
-#      pos += 1
-#    end
-#    mons::Array{Monomial,1}
-#  elseif dom_dim == 4 #TODO
-#    const mons = Array(Monomial, count_monomials_of_degree_eq(deg, dom_dim))
-#    pos = 1
-#    for i=0:deg, j=0:(deg-i), k=0:(deg-i-j)
-#      mons[pos] = Monomial(i, j, k, deg-i-j-k)
-#      pos += 1
-#    end
-#    mons::Array{Monomial,1}
-#  else
-#    error("dimensions greater than 3 are currently not supported")
-#  end
-#end
 
-function monomials_of_degree_le(deg::Deg, dom_dim::Dim)
-  const mons = Array(Monomial, count_monomials_of_degree_le(deg, dom_dim))
+function mons_of_deg_le(deg::Deg, dom_dim::Dim)
+  const mons = Array(Monomial, count_mons_of_deg_le(deg, dom_dim))
   if dom_dim == 1
     pos = 1
     for i=0:deg
@@ -466,22 +440,16 @@ function monomials_of_degree_le(deg::Deg, dom_dim::Dim)
   mons
 end
 
-function monomials_of_degree_le_with_const_dim(deg::Deg, const_dim::Dim, dom_dim::Dim)
+
+function mons_of_deg_le_with_const_dim(deg::Deg, const_dim::Dim, dom_dim::Dim)
   filter(m -> m.exps[const_dim] == 0,
-         monomials_of_degree_le(deg, dom_dim))
+         mons_of_deg_le(deg, dom_dim))
 end
 
-#monomials_of_degree_le(deg::Deg, dom_dim::Dim) =
-#  flatten([monomials_of_degree_eq(convert(Deg,k), dom_dim) for k=zero(Deg):deg])
-
-#function monomials_of_degree_le_with_const_dim(deg::Deg, const_dim::Dim, dom_dim::Dim)
-#  flatten([monomials_of_degree_eq_with_const_dim(convert(Deg,k), const_dim, dom_dim) for k=zero(Deg):deg])
-#end
-
 # All VectorMonomials not exceeding the passed degree, to be used as a basis for spaces of vector valued functions with polynomial components.
-vector_monomials_of_degree_le(deg::Deg, dom_dim::Dim) =
+vector_mons_of_deg_le(deg::Deg, dom_dim::Dim) =
   flatten(map(mon -> [VectorMonomial(mon, dim(i)) for i=1:domain_dim(mon)],
-              monomials_of_degree_le(deg, dom_dim)))
+              mons_of_deg_le(deg, dom_dim)))
 
 
 

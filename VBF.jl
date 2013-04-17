@@ -14,11 +14,37 @@ export AbstractVariationalBilinearForm,
 import WGBasis.BElNum, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum
 import Mesh.FENum, Mesh.FERelFace
 
-
 abstract AbstractVariationalBilinearForm
 
+# We assume the following property for the bilinear forms bf
+# represented by subtypes of AbstractVariationalBilinearForm.
+# --------------------------------------------------------------------
+# (Element Summability)
+#   There exist bilinear functions bf_T whose input functions are
+#   restricted to domain T, such that
+#     bf(v, w) = sum_T { bf_T(v|T, w|T) } for all weak functions v, w
+#   where T ranges over all finite elements in the sum.
+# --------------------------------------------------------------------
+#
+# Note that if v or w has no support on a finite elmenent T, then by the
+# linearity of bf_T, it follows that bf_T(v|T, w|T) = 0. Thus we can always
+# restrict the sum above to just those elements T which include the supports of
+# both input functions [Common Support Summability Property]. Further, if v and
+# w are weak functions and no finite element includes both supports, then we
+# must have bf(v, w) = 0 [Locality Property].
+#
+# Thus we can always limit our attention to finite elements on which both
+# inputs to our bilinear form are non-zero somewhere (not necessarily at any
+# common point). And from the summability property, we can compute
+# contributions from these finite elements independently and sum them to obtain
+# the value for bf. These element-wise functions bf_T are provided by the core
+# set of functions [int/side]_mon_vs_[int/side]_mon listed below, which
+# together with the is_symmetric function are necessary and sufficient to
+# implement variational forms.
+
+
 ##########################################################################
-# Functions which should be implemented as methods for concrete subtypes.
+# Functions which should be implemented by specific variational forms.
 
 is_symmetric{BF <: AbstractVariationalBilinearForm}(bf::BF) =
   error("not implemented, bilinear form implementation is incomplete")
@@ -70,20 +96,17 @@ side_mon_vs_side_mon{BF <: AbstractVariationalBilinearForm}(fe::FENum,
 # to take advantage of special shortcut evaluations for efficiency that
 # may be possible for the subtype. These default methods rely on the required
 # functions above. The implementations should be valid for any variational
-# bilinear form bf satisfying the following locality assumption:
-# (Locality Assumption)
-#   For every pair of weak functions v and w, if there is no finite element
-#   which includes the supports of both v and w, then bf(v, w) = 0.
-
+# bilinear form bf satisfying the Element Summability requirement.
 
 function int_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElNum, bel_2::BElNum, basis::WeakFunsPolyBasis, bf::BF)
   const fe1 = WGBasis.support_interior_num(bel_1, basis)
   const fe2 = WGBasis.support_interior_num(bel_2, basis)
   if fe1 != fe2
-    zeroR
+    zeroR # by locality property
   else
-    let monn_1 = WGBasis.int_monomial_num(bel_1, basis)
-        monn_2 = WGBasis.int_monomial_num(bel_2, basis)
+    # By common support summability property, we only need the contribution from the single common fe.
+    let monn_1 = WGBasis.interior_mon_num(bel_1, basis)
+        monn_2 = WGBasis.interior_mon_num(bel_2, basis)
       int_mon_vs_int_mon(fe1, monn_1, monn_2, basis, bf)
     end
   end
@@ -95,12 +118,13 @@ function int_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(ibel::BElNum
   const side_incls = WGBasis.fe_inclusions_of_side_support(sbel, basis)
   const side_face = int_num == side_incls.fe1 ? side_incls.face_in_fe1 :
                     int_num == side_incls.fe2 ? side_incls.face_in_fe2 : Mesh.no_face
-  if side_face == Mesh.no_face
-    zeroR
+  if side_face == Mesh.no_face # no fe includes both supports
+    zeroR # by locality property
   else
-    let side_mon_num = WGBasis.side_monomial_num(sbel, basis)
-        int_monn = WGBasis.int_monomial_num(ibel, basis)
-      int_mon_vs_side_mon(int_num, int_monn, side_mon_num, side_face, basis, bf)
+    # By common support summability property, we only need the contribution from the single common fe.
+    let side_monn = WGBasis.side_mon_num(sbel, basis)
+        int_monn = WGBasis.interior_mon_num(ibel, basis)
+      int_mon_vs_side_mon(int_num, int_monn, side_monn, side_face, basis, bf)
     end
   end
 end
@@ -113,11 +137,12 @@ function side_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(sbel::BElNum
   const side_face = int_num == side_incls.fe1 ? side_incls.face_in_fe1 :
                     int_num == side_incls.fe2 ? side_incls.face_in_fe2 : Mesh.no_face
   if side_face == Mesh.no_face
-    zeroR
+    zeroR # by locality property
   else
-    let side_mon_num = WGBasis.side_monomial_num(sbel, basis)
-        int_monn = WGBasis.int_monomial_num(ibel, basis)
-      side_mon_vs_int_mon(int_num, side_mon_num, side_face, int_monn, basis, bf)
+    # By common support summability property, we only need the contribution from the single common fe.
+    let side_monn = WGBasis.side_mon_num(sbel, basis)
+        int_monn = WGBasis.interior_mon_num(ibel, basis)
+      side_mon_vs_int_mon(int_num, side_monn, side_face, int_monn, basis, bf)
     end
   end
 end
@@ -128,11 +153,14 @@ function side_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElN
   if incls_1.fe1 != incls_2.fe1 &&
      incls_1.fe1 != incls_2.fe2 &&
      incls_1.fe2 != incls_2.fe1 &&
-     incls_1.fe2 != incls_2.fe2    # no fe including both supports
-    zeroR
+     incls_1.fe2 != incls_2.fe2    # no fe includes both supports...
+    zeroR # by locality property
   else
-    const monn_1 = WGBasis.side_monomial_num(bel_1, basis)
-    const monn_2 = WGBasis.side_monomial_num(bel_2, basis)
+    const monn_1 = WGBasis.side_mon_num(bel_1, basis)
+    const monn_2 = WGBasis.side_mon_num(bel_2, basis)
+
+    # By the common support summability property, we can sum the contributions from
+    # whichever of the support side including finite elements includes both supports.
 
     # contribution from incls_1.fe1
     if incls_1.fe1 == incls_2.fe1

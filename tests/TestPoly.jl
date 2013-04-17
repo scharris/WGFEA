@@ -11,13 +11,13 @@ y = Monomial(0,1)
 @test x * y^2 == Monomial(1,2)
 @test domain_dim(x) == 2
 
-@test monomial_value(x * y^2, [1., 2.]) == 4.
-@test polynomial_value(2x + 2(x*y), [1.0, 2.0]) == 6.
+@test value_at(x * y^2, [1., 2.]) == 4.
+@test value_at(2x + 2(x*y), [1.0, 2.0]) == 6.
 
 
 function test_poly_vals_eq(p1::Polynomial, p2::Polynomial)
   for x in [0.0, 1.0, 2.0, 3.0, 4.0], y in [10.0, 11.0, 12.0, 13.0]
-    @test polynomial_value(p1, [x, y]) == polynomial_value(p2, [x, y])
+    @test value_at(p1, [x, y]) == value_at(p2, [x, y])
   end
 end
 
@@ -45,19 +45,19 @@ vm2 = VectorMonomial(x^2*y^3, dim(1))
 div_vm2 = divergence(vm2)
 @test div_vm2 == 2.0 * x*y^3
 
-#@test Poly.count_monomials_of_degree_eq(deg(3), dim(2)) == 4 # x^3, x^2 y, x y^2, y^3
-@test count_monomials_of_degree_le(deg(2), dim(2)) == 6
-@test length(monomials_of_degree_le(deg(5), dim(4))) == count_monomials_of_degree_le(deg(5), dim(4))
-@test length(monomials_of_degree_le(deg(6), dim(5))) == count_monomials_of_degree_le(deg(6), dim(5))
+#@test Poly.count_mons_of_deg_eq(deg(3), dim(2)) == 4 # x^3, x^2 y, x y^2, y^3
+@test count_mons_of_deg_le(deg(2), dim(2)) == 6
+@test length(mons_of_deg_le(deg(5), dim(4))) == count_mons_of_deg_le(deg(5), dim(4))
+@test length(mons_of_deg_le(deg(6), dim(5))) == count_mons_of_deg_le(deg(6), dim(5))
 # If we hold one dimension constant (with exponent 0), we should get the same count as reducing the domain dimension by 1.
-@test length(monomials_of_degree_le_with_const_dim(deg(3), dim(1), dim(3))) == count_monomials_of_degree_le(deg(3), dim(2))
+@test length(mons_of_deg_le_with_const_dim(deg(3), dim(1), dim(3))) == count_mons_of_deg_le(deg(3), dim(2))
 
-mons = monomials_of_degree_le(deg(2), dim(2))
+mons = mons_of_deg_le(deg(2), dim(2))
 @test length(mons) == 6
 @test mons[1] == Monomial(0,0)
 @test mons[6] == Monomial(2,0)
 
-vmons = vector_monomials_of_degree_le(deg(2), dim(2))
+vmons = vector_mons_of_deg_le(deg(2), dim(2))
 @test length(vmons) == 12
 @test vmons[1] == VectorMonomial(Monomial(0,0), dim(1))
 @test vmons[2] == VectorMonomial(Monomial(0,0), dim(2))

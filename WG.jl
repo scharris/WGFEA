@@ -50,7 +50,7 @@ PolyOrInt = Union(Polynomial, Int)
 # with the i^th component being (f, (b_i)_0) - vbf(Q_b g, b_i).
 function sys_rhs(f::Function, g::Function, vbf::AbstractVariationalBilinearForm, basis::WeakFunsPolyBasis)
   const rhs = Array(R, basis.total_bels)
-  const g_projs_cache = zeros(PolyOrInt, Mesh.num_fes(basis.mesh), Mesh.num_side_faces_per_fe(basis.mesh))
+  const g_projs_cache = zeros(PolyOrInt, Mesh.num_fes(basis.mesh), Mesh.max_num_side_faces_per_fe(basis.mesh))
   for i=1:basis.total_bels
     const bel_i = bel_num(i)
     rhs[i] = ip_on_interiors(f, bel_i, basis) - vbf_proj_g_on_bsides_vs_bel(vbf, g, bel_i, basis, g_projs_cache)
@@ -61,7 +61,7 @@ end
 function ip_on_interiors(f::Function, bel::BElNum, basis::WeakFunsPolyBasis)
   if WGBasis.is_interior_supported(bel, basis)
     const bel_fe = WGBasis.support_interior_num(bel, basis)
-    const bel_mon = WGBasis.interior_monomial(bel, basis)
+    const bel_mon = WGBasis.interior_mon(bel, basis)
     Mesh.integral_global_x_face_rel_on_fe_face(f, bel_mon, bel_fe, Mesh.interior_face, basis.mesh)
   else
     zeroR
@@ -85,9 +85,9 @@ function vbf_proj_g_on_bsides_vs_bel(vbf::AbstractVariationalBilinearForm,
   if WGBasis.is_interior_supported(bel)
     # Only any outside boundary sides which are included in the bel's support fe can contribute.
     const bel_fe = WGBasis.support_interior_num(bel, basis)
-    const bel_monn = WGBasis.interior_monomial_num(bel, basis)
-    for s=fe_face(1):fe_face(Mesh.num_side_faces_per_fe(mesh))
-      if Mesh.is_boundary_side(fe, s, mesh)
+    const bel_monn = WGBasis.interior_mon_num(bel, basis)
+    for s=fe_face(1):Mesh.num_side_faces_for_fe(bel_fe, mesh)
+      if Mesh.is_boundary_side(bel_fe, s, mesh)
         const proj_g = proj_on_fe_side(g, bel_fe, s, basis, g_projs_cache)
         bside_contrs += vbf_poly_on_fe_bside_vs_int_mon(vbf, bel_fe, proj_g, s, bel_monn, basis)
       end
@@ -95,16 +95,16 @@ function vbf_proj_g_on_bsides_vs_bel(vbf::AbstractVariationalBilinearForm,
   else # side supported bel
     # Only any outside boundary sides which are included in one of the including fe's of the bel support can contribute.
     const supp_incls = WGBasis.fe_inclusions_of_side_support(bel, basis)
-    const bel_monn = WGBasis.side_monomial_num(bel, basis)
+    const bel_monn = WGBasis.side_mon_num(bel, basis)
     # Sum contributions from outside boundary sides of the first including fe.
-    for s=fe_face(1):fe_face(Mesh.num_side_faces_per_fe(mesh))
+    for s=fe_face(1):Mesh.num_side_faces_for_fe(supp_incls.fe1, mesh)
       if Mesh.is_boundary_side(supp_incls.fe1, s, mesh)
         const proj_g = proj_on_fe_side(g, supp_incls.fe1, s, basis, g_projs_cache)
         bside_contrs += vbf_poly_on_fe_bside_vs_side_mon(vbf, supp_incls.fe1, proj_g, s, bel_monn, supp_incls.face_in_fe1, basis)
       end
     end
     # Sum contributions from outside boundary sides of the second including fe.
-    for s=fe_face(1):fe_face(Mesh.num_side_faces_per_fe(mesh))
+    for s=fe_face(1):Mesh.num_side_faces_for_fe(supp_incls.fe2, mesh)
       if Mesh.is_boundary_side(supp_incls.fe2, s, mesh)
         const proj_g = proj_on_fe_side(g, supp_incls.fe2, s, basis, g_projs_cache)
         bside_contrs += vbf_poly_on_fe_bside_vs_side_mon(vbf, supp_incls.fe2, proj_g, s, bel_monn, supp_incls.face_in_fe2, basis)
@@ -119,9 +119,10 @@ function vbf_poly_on_fe_bside_vs_int_mon(vbf::AbstractVariationalBilinearForm,
                                          p::Polynomial, p_bside_face::FERelFace,
                                          int_monn::MonNum,
                                          basis::WeakFunsPolyBasis)
+  const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   p_mon_contrs = zeroR
   for i=1:length(p.mons)
-    const p_monn = WGBasis.mon_num_for_mon_on_side_face(p.mons[i], p_bside_face, basis)
+    const p_monn = WGBasis.mon_num_for_mon_on_shape_side(p.mons[i], fe_oshape, p_bside_face, basis)
     p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_int_mon(fe, p_monn, p_bside_face, int_monn, basis, vbf)
   end
   p_mon_contrs
@@ -132,9 +133,10 @@ function vbf_poly_on_fe_bside_vs_side_mon(vbf::AbstractVariationalBilinearForm,
                                           p::Polynomial, p_bside_face::FERelFace,
                                           side_monn::MonNum, side_mon_face::FERelFace,
                                           basis::WeakFunsPolyBasis)
+  const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   p_mon_contrs = zeroR
   for i=1:length(p.mons)
-    const p_monn = WGBasis.mon_num_for_mon_on_side_face(p.mons[i], p_bside_face, basis)
+    const p_monn = WGBasis.mon_num_for_mon_on_shape_side(p.mons[i], fe_oshape, p_bside_face, basis)
     p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_side_mon(fe, p_monn, p_bside_face, side_monn, side_mon_face, basis, vbf)
   end
   p_mon_contrs

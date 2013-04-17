@@ -3,7 +3,7 @@ export A_s, a_s
 
 using Common
 import Poly.Polynomial
-import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face
+import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.OrientedShape
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
 import Proj
 import VBF.AbstractVariationalBilinearForm
@@ -28,25 +28,27 @@ function int_mon_vs_int_mon(fe::FENum,
                             basis::WeakFunsPolyBasis,
                             bf::A_s)
   const mesh = basis.mesh
+  const fe_oshape = oriented_shape_for_fe(fe, mesh)
 
   # weak gradients term
   const ip_wgrads =
-    let wgrad_1 = WGBasis.wgrad_for_mon_on_interior(monn_1, basis)
-        wgrad_2 = WGBasis.wgrad_for_mon_on_interior(monn_2, basis)
-      Mesh.integral_face_rel_on_face(dot(wgrad_1,wgrad_2), Mesh.interior_face, mesh)
+    let wgrad_1 = WGBasis.wgrad_interior_mon(monn_1, fe_oshape, basis)
+        wgrad_2 = WGBasis.wgrad_interior_mon(monn_2, fe_oshape, basis)
+      Mesh.integral_face_rel_on_face(dot(wgrad_1,wgrad_2), fe_oshape, Mesh.interior_face, mesh)
     end
 
   # stabilization term: The values on the boundary (b_i/j)_b are 0, leaving only
   #   (1/h_T) <Q_b (b_i)_0T, Q_b (b_j)_0T>_bnd(T)
   # = (1/h_T) sum_{s in sides(T)} {<Q_b (b_i)_0T, Q_b (b_j)_0T>_s}
   const stab = begin
-    const mon_1 = WGBasis.int_monomial_by_num(monn_1, basis)
-    const mon_2 = WGBasis.int_monomial_by_num(monn_2, basis)
+    const int_mons = WGBasis.interior_mons(basis)
+    const mon_1 = int_mons[monn_1]
+    const mon_2 = int_mons[monn_2]
     sum_over_sides = zeroR
-    for s=fe_face(1):fe_face(Mesh.num_side_faces_per_fe(mesh))
-      const proj_1 = Proj.project_interior_monomial_onto_side_face(mon_1, s, basis)
-      const proj_2 = Proj.project_interior_monomial_onto_side_face(mon_2, s, basis)
-      sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_face(proj_1, proj_2, s, mesh)
+    for sf=fe_face(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
+      const proj_1 = Proj.project_interior_monomial_onto_side_face(fe, mon_1, sf, basis)
+      const proj_2 = Proj.project_interior_monomial_onto_side_face(fe, mon_2, sf, basis)
+      sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_face(proj_1, proj_2, fe_oshape, sf, mesh)
     end
     Mesh.fe_diameter_inv(fe, mesh) * sum_over_sides
   end
@@ -60,22 +62,24 @@ function side_mon_vs_int_mon(fe::FENum,
                              int_monn::MonNum,
                              basis::WeakFunsPolyBasis,
                              bf::A_s)
+  const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
+
   # weak gradients term
   const ip_wgrads =
-    let side_wgrad = WGBasis.wgrad_for_mon_on_side_face(side_monn, side_face, basis)
-        int_wgrad =  WGBasis.wgrad_for_mon_on_interior(int_monn, basis),
-      Mesh.integral_face_rel_on_face(dot(side_wgrad, int_wgrad), Mesh.interior_face, mesh)
+    let side_wgrad = WGBasis.wgrad_side_mon(side_monn, fe_oshape, side_face, basis)
+        int_wgrad =  WGBasis.wgrad_interior_mon(int_monn, fe_oshape, basis),
+      Mesh.integral_face_rel_on_face(dot(side_wgrad, int_wgrad), fe_oshape, Mesh.interior_face, mesh)
     end
 
   # stabilization term: (1/h_T) <Q_b v_0T - v_b, Q_b w_0T - w_b>_bnd(T)
   # With v being our interior supported basis element and w the side supported element, this becomes
   #    (1/h_T) <Q_b v_0T, -w_b>_bnd(T)
-  #  = (1/h_T) (-<Q_b v_0T, w_b>_s) where s is the support face of w
+  #  = (1/h_T) <Q_b v_0T, -w_b>_s where s is the support face of w
   const stab = begin
-    const side_mon = WGBasis.side_monomial_by_face_and_num(side_face, side_monn, basis)
-    const int_mon = WGBasis.int_monomial_by_num(int_monn, basis)
-    const int_proj = Proj.project_interior_monomial_onto_side_face(int_mon, side_face, basis)
-    const ip = -Mesh.integral_face_rel_x_face_rel_on_face(int_proj, side_mon, side_face, mesh)
+    const side_mon = WGBasis.side_mons_for_fe_side(fe, side_face, basis)[side_monn]
+    const int_mon = WGBasis.interior_mons(basis)[int_monn]
+    const int_proj = Proj.project_interior_monomial_onto_side_face(int_mon, fe_oshape, side_face, basis)
+    const ip = -Mesh.integral_face_rel_x_face_rel_on_face(int_proj, side_mon, fe_oshape, side_face, mesh)
     Mesh.fe_diameter_inv(fe, mesh) * ip
   end
 
@@ -99,27 +103,30 @@ function side_mon_vs_side_mon(fe::FENum,
                               monn_2::MonNum, side_face_2::FERelFace,
                               basis::WeakFunsPolyBasis,
                               bf::A_s)
+  const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
+
   # weak gradients term
   const ip_wgrads =
-    let wgrad_1 = WGBasis.wgrad_for_mon_on_side_face(monn_1, side_face_1, basis)
-        wgrad_2 = WGBasis.wgrad_for_mon_on_side_face(monn_2, side_face_2, basis)
-      Mesh.integral_face_rel_on_face(dot(wgrad_1, wgrad_2), Mesh.interior_face, basis.mesh)
+    let wgrad_1 = WGBasis.wgrad_side_mon(monn_1, fe_oshape, side_face_1, basis)
+        wgrad_2 = WGBasis.wgrad_side_mon(monn_2, fe_oshape, side_face_2, basis)
+      Mesh.integral_face_rel_on_face(dot(wgrad_1, wgrad_2), fe_oshape, Mesh.interior_face, basis.mesh)
     end
 
   # stabilization term: (1/h_T) <Q_b v_0T - v_b, Q_b w_0T - w_b>_bnd(T)
   # With v and w being our side supported elements, this becomes
   #    (1/h_T) <-v_b, -w_b>_bnd(T)
   #  = (1/h_T) sum_{s in sides(T)} <v_b, w_b>_s
-  #  = | (1/h_T) <v_b, w_b>_s',  if v and w have a common support side face s'
+  #  = | (1/h_T) <v_b, w_b>_s,  if v and w have a common support side face s
   #    | 0, otherwise
   const stab =
     if side_face_1 != side_face_2
       zeroR
     else
       const common_supp_side = side_face_1
-      const mon_1 = WGBasis.side_monomial_by_face_and_num(side_face_1, monn_1, basis)
-      const mon_2 = WGBasis.side_monomial_by_face_and_num(side_face_2, monn_2, basis)
-      const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_1, mon_2, common_supp_side, mesh)
+      const side_mons = WGBasis.side_mons_for_fe_side(fe, common_supp_side, basis)
+      const mon_1 = side_mons[monn_1]
+      const mon_2 = side_mons[monn_2]
+      const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_1, mon_2, fe_oshape, common_supp_side, mesh)
       Mesh.fe_diameter_inv(fe, mesh) * ip
     end
 
