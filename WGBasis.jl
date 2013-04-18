@@ -19,7 +19,8 @@ export WeakFunsPolyBasis,
        wgrad_interior_mon,
        wgrad_side_mon,
        ips_interior_mons,
-       ips_side_mons
+       ips_fe_side_mons,
+       ips_shape_side_mons
 
 using Common
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OrientedShape, Mesh.FERelFace, Mesh.fe_face
@@ -352,10 +353,17 @@ function ips_interior_mons(fe::FENum, basis::WeakFunsPolyBasis)
   basis.ips_interior_mons[fe_oshape]
 end
 
-function ips_side_mons(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis)
+function ips_fe_side_mons(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis)
   if side_face == Mesh.interior_face error("Side face is required here, got interior.")
   else
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
+    basis.ips_side_mons[fe_oshape][side_face]
+  end
+end
+
+function ips_shape_side_mons(fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
+  if side_face == Mesh.interior_face error("Side face is required here, got interior.")
+  else
     basis.ips_side_mons[fe_oshape][side_face]
   end
 end

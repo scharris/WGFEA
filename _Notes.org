@@ -4,9 +4,6 @@ Commit Notes
 
 TODO
 ----
-Support multiple oriented shapes for fes.
-
-Review VBF_a_s, WG
 
 Concatenate two rectangular meshes left/right or upper/lower?
   Only fes on the joined boundary will need to have new computations.

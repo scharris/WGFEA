@@ -236,7 +236,7 @@ int_ips = ips_interior_mons(fe_num(1), basis)
 @test int_ips[2,6] == Mesh.integral_face_rel_x_face_rel_on_face(y, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/6
 
 # side supported element inner products
-top_face_ips = ips_side_mons(fe_num(1), top_face, basis)
+top_face_ips = ips_fe_side_mons(fe_num(1), top_face, basis)
 
 @test top_face_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, rshape, top_face, basis.mesh) == 1
 @test top_face_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, rshape, top_face, basis.mesh) == 1/2
