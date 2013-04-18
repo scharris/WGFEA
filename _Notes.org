@@ -1,12 +1,19 @@
 Commit Notes
 ------------
-
+VBF: Add cache argument to *_vs_* computation functions, add missing basis argument to side vs side calls.
 
 TODO
 ----
+Implement cacheing of projections in VBF_a_s.  Just lookup the cache by dictionary with mesh as key.
+
 
 Concatenate two rectangular meshes left/right or upper/lower?
   Only fes on the joined boundary will need to have new computations.
+ _____ ____
+|     |____|
+|     |____|
+|_____|____|
+
 
 Q: Look into caching projections where they may be multiply computed.
 

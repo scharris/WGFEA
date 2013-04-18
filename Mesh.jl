@@ -17,7 +17,7 @@ export FENum, fe_num, no_fe,
        num_side_faces_for_fe,
        num_side_faces_for_shape,
        dependent_dim_for_nb_side,
-       dependent_dim_for_shape_side,
+       dependent_dim_for_oshape_side,
        fe_inclusions_of_nb_side,
        fe_inclusions_of_nb_side!,
        is_boundary_side,
@@ -110,7 +110,7 @@ num_side_faces_for_shape{M <: AbstractMesh}(oshape::OrientedShape, mesh::M) =
 dependent_dim_for_nb_side{M <: AbstractMesh}(i::NBSideNum, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-dependent_dim_for_shape_side{M <: AbstractMesh}(fe_oshape::OrientedShape, side_face::FERelFace, mesh::M) =
+dependent_dim_for_oshape_side{M <: AbstractMesh}(fe_oshape::OrientedShape, side_face::FERelFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
 

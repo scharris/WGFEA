@@ -80,32 +80,32 @@ f = x::Vector{R} -> 2(x[1] - mesh_mins[1])^2 - 3(x[3] - mesh_mins[3])^3 + 12 +
 )
 
 @test Poly.coefs_closer_than(10e-7,
-  project_interior_monomial_onto_side_face(x * y^2 * z, rect_oshape, right_face, basis),
+  project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, right_face, basis),
   1y^2 * z
 )
 
 @test Poly.coefs_closer_than(10e-7,
-  project_interior_monomial_onto_side_face(x * y^2 * z, rect_oshape, left_face, basis),
+  project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, left_face, basis),
   0*x
 )
 
 @test Poly.coefs_closer_than(10e-7,
-  project_interior_monomial_onto_side_face(y^2 * z, rect_oshape, left_face, basis),
+  project_interior_mon_onto_oshape_side(y^2 * z, rect_oshape, left_face, basis),
   1y^2 * z
 )
 
 @test Poly.coefs_closer_than(10e-7,
-  project_interior_monomial_onto_side_face(x * y^2 * z, rect_oshape, top_face, basis),
+  project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, top_face, basis),
   1(x * z)
 )
 
 @test Poly.coefs_closer_than(10e-7,
-  project_interior_monomial_onto_side_face(x * y^2 * z, rect_oshape, bottom_face, basis),
+  project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, bottom_face, basis),
   0*x
 )
 
 @test Poly.coefs_closer_than(10e-7,
-  project_interior_monomial_onto_side_face(x * z, rect_oshape, bottom_face, basis),
+  project_interior_mon_onto_oshape_side(x * z, rect_oshape, bottom_face, basis),
   1x*z
 )
 

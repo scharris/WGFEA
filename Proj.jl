@@ -1,6 +1,6 @@
 module Proj
 export project_onto_fe_face,
-       project_interior_monomial_onto_side_face
+       project_interior_mon_onto_oshape_side
 
 using Common
 import Poly, Poly.Polynomial, Poly.Monomial
@@ -34,9 +34,9 @@ function project_onto_fe_face(g::Function, fe::FENum, face::FERelFace, basis::We
   Poly.canonical_form(proj_poly)
 end
 
-function project_interior_monomial_onto_side_face(int_mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
-  const side_mons = WGBasis.side_mons_for_shape_side(fe_oshape, side_face, basis)
-  const ips_side_bels = WGBasis.ips_shape_side_mons(fe_oshape, side_face, basis)
+function project_interior_mon_onto_oshape_side(int_mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
+  const side_mons = WGBasis.side_mons_for_oshape_side(fe_oshape, side_face, basis)
+  const ips_side_bels = WGBasis.ips_oshape_side_mons(fe_oshape, side_face, basis)
   const ips_int_mon_vs_bels = [Mesh.integral_fe_rel_x_side_rel_on_side(int_mon, side_bel_mon, fe_oshape, side_face, basis.mesh)::R
                                for side_bel_mon in side_mons]
   const coefs = ips_side_bels \ ips_int_mon_vs_bels

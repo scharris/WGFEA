@@ -119,7 +119,7 @@ function vbf_poly_on_fe_bside_vs_int_mon(vbf::AbstractVariationalBilinearForm,
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   p_mon_contrs = zeroR
   for i=1:length(p.mons)
-    const p_monn = WGBasis.mon_num_for_mon_on_shape_side(p.mons[i], fe_oshape, bside_face, basis)
+    const p_monn = WGBasis.mon_num_for_mon_on_oshape_side(p.mons[i], fe_oshape, bside_face, basis)
     p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_int_mon(fe, p_monn, bside_face, int_monn, basis, vbf)
   end
   p_mon_contrs
@@ -134,7 +134,7 @@ function vbf_poly_on_fe_bside_vs_side_mon(vbf::AbstractVariationalBilinearForm,
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   p_mon_contrs = zeroR
   for i=1:length(p.mons)
-    const p_monn = WGBasis.mon_num_for_mon_on_shape_side(p.mons[i], fe_oshape, p_bside_face, basis)
+    const p_monn = WGBasis.mon_num_for_mon_on_oshape_side(p.mons[i], fe_oshape, p_bside_face, basis)
     p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_side_mon(fe, p_monn, p_bside_face, side_monn, side_mon_face, basis, vbf)
   end
   p_mon_contrs

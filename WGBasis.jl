@@ -12,15 +12,15 @@ export WeakFunsPolyBasis,
        interior_mon,
        interior_mon_num,
        side_mons_for_fe_side,
-       side_mons_for_shape_side,
+       side_mons_for_oshape_side,
        side_mon_num,
        side_mon,
-       mon_num_for_mon_on_shape_side,
+       mon_num_for_mon_on_oshape_side,
        wgrad_interior_mon,
        wgrad_side_mon,
        ips_interior_mons,
        ips_fe_side_mons,
-       ips_shape_side_mons
+       ips_oshape_side_mons
 
 using Common
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OrientedShape, Mesh.FERelFace, Mesh.fe_face
@@ -146,6 +146,22 @@ type WeakFunsPolyBasis
   end
 end # ends type WeakFunsPolyBasis
 
+# equality and hashing
+
+import Base.isequal
+function isequal(basis1::WeakFunsPolyBasis, basis2::WeakFunsPolyBasis)
+  if basis1 === basis2
+    true
+  else
+    basis1.interior_polys_max_deg == basis2.interior_polys_max_deg &&
+    basis1.side_polys_max_deg == basis2.side_polys_max_deg &&
+    isequal(basis1.mesh, basis2.mesh)
+  end
+end
+
+import Base.hash
+hash(basis::WeakFunsPolyBasis) = basis.interior_polys_max_deg + 3 * basis.side_polys_max_deg + 5 * hash(basis.mesh)
+
 # construction helper functions
 
 function make_interior_mons(interior_polys_max_deg::Deg, dom_dim::Dim)
@@ -206,7 +222,7 @@ function make_side_mon_wgrads(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, 
     const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
     const wgrads_by_side = Array(Array{PolynomialVector,1}, sides_per_fe)
     for sf=fe_face(1):sides_per_fe
-      const side_dep_dim = Mesh.dependent_dim_for_shape_side(os, sf, mesh)
+      const side_dep_dim = Mesh.dependent_dim_for_oshape_side(os, sf, mesh)
       const side_mons = side_mons_by_dep_dim[side_dep_dim]
       const wgrads = Array(PolynomialVector, mons_per_side)
       for m=1:mons_per_side
@@ -250,7 +266,7 @@ function make_side_mon_ips(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, mes
     const ips_by_side = Array(Matrix{R}, num_side_faces)
     for sf=fe_face(1):num_side_faces
       const m = Array(R, num_mons, num_mons)
-      const dep_dim = Mesh.dependent_dim_for_shape_side(os, sf, mesh)
+      const dep_dim = Mesh.dependent_dim_for_oshape_side(os, sf, mesh)
       const ref_mons = side_mons_by_dep_dim[dep_dim]
       for i=1:num_mons
         const mon_i = ref_mons[i]
@@ -311,12 +327,12 @@ end
 
 function side_mons_for_fe_side(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis)
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
-  const side_dep_dim = Mesh.dependent_dim_for_shape_side(fe_oshape, side_face, basis.mesh)
+  const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
   basis.side_mons_by_dep_dim[side_dep_dim]
 end
 
-function side_mons_for_shape_side(fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
-  const side_dep_dim = Mesh.dependent_dim_for_shape_side(fe_oshape, side_face, basis.mesh)
+function side_mons_for_oshape_side(fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
+  const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
   basis.side_mons_by_dep_dim[side_dep_dim]
 end
 
@@ -332,8 +348,8 @@ function side_mon(i::BElNum, basis::WeakFunsPolyBasis)
   basis.side_mons_by_dep_dim[side_dep_dim][mon_num]
 end
 
-function mon_num_for_mon_on_shape_side(mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
-  const side_dep_dim = Mesh.dependent_dim_for_shape_side(fe_oshape, side_face, basis.mesh)
+function mon_num_for_mon_on_oshape_side(mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
+  const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
   basis.mon_to_mon_num_map_by_dep_dim[side_dep_dim][mon]
 end
 
@@ -361,7 +377,7 @@ function ips_fe_side_mons(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBa
   end
 end
 
-function ips_shape_side_mons(fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
+function ips_oshape_side_mons(fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
   if side_face == Mesh.interior_face error("Side face is required here, got interior.")
   else
     basis.ips_side_mons[fe_oshape][side_face]
@@ -409,12 +425,5 @@ function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
 end
 
 
-# equality, hashing etc
-
-function isequal(basis1::WeakFunsPolyBasis, basis2::WeakFunsPolyBasis)
-  basis1.interior_polys_max_deg == basis2.interior_polys_max_deg &&
-  basis1.side_polys_max_deg == basis2.side_polys_max_deg &&
-  isequal(basis1.mesh, basis2.mesh)
-end
 
 end # end of module

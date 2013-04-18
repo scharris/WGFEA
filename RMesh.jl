@@ -110,6 +110,20 @@ RectMesh(min_bounds::Array{R,1},
          mesh_ldims::Array{MeshCoord,1}) =
   RectMesh(min_bounds, max_bounds, mesh_ldims, default_integration_rel_err, default_integration_abs_err)
 
+import Base.isequal
+function isequal(mesh1::RectMesh, mesh2::RectMesh)
+  if mesh1 === mesh2
+    true
+  else
+    mesh1.min_bounds == mesh2.min_bounds &&
+    mesh1.max_bounds == mesh2.max_bounds &&
+    mesh1.mesh_ldims == mesh2.mesh_ldims
+  end
+end
+
+import Base.hash
+hash(mesh::RectMesh) = hash(mesh.min_bounds) + 3 * hash(mesh.max_bounds) + 5 * hash(mesh.mesh_ldims)
+
 # Auxiliary construction functions
 
 function make_fe_dims(min_bounds::Array{R,1}, max_bounds::Array{R,1}, mesh_ldims::Array{MeshCoord,1})
@@ -184,8 +198,8 @@ num_side_faces_for_shape(oshape::OrientedShape, mesh::RectMesh) = mesh.num_side_
 import Mesh.dependent_dim_for_nb_side
 dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh) = perp_axis_for_nb_side(i, mesh)
 
-import Mesh.dependent_dim_for_shape_side
-dependent_dim_for_shape_side(fe_oshape::OrientedShape, side_face::FERelFace, mesh::RectMesh) = side_face_perp_axis(side_face)
+import Mesh.dependent_dim_for_oshape_side
+dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::FERelFace, mesh::RectMesh) = side_face_perp_axis(side_face)
 
 import Mesh.fe_inclusions_of_nb_side!
 function fe_inclusions_of_nb_side!(n::NBSideNum, mesh::RectMesh, incls::NBSideInclusions)

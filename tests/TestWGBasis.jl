@@ -27,6 +27,22 @@ import WGrad, WGrad.WGradSolver
 
 basis = WeakFunsPolyBasis(deg(2), deg(1), RMesh.RectMesh([0.,0.], [3.,2.], [mesh_coord(3),mesh_coord(2)]))
 
+# test equality and hashing
+@test basis == basis
+@test hash(basis) == hash(basis)
+basis2 = WeakFunsPolyBasis(deg(2), deg(1), RMesh.RectMesh([0.,0.], [3.,2.], [mesh_coord(3),mesh_coord(2)]))
+@test basis == basis2
+@test hash(basis) == hash(basis2)
+basis2 = WeakFunsPolyBasis(deg(3), deg(1), RMesh.RectMesh([0.,0.], [3.,2.], [mesh_coord(3),mesh_coord(2)]))
+@test basis != basis2
+basis2 = WeakFunsPolyBasis(deg(2), deg(2), RMesh.RectMesh([0.,0.], [3.,2.], [mesh_coord(3),mesh_coord(2)]))
+@test basis != basis2
+basis2 = WeakFunsPolyBasis(deg(2), deg(1), RMesh.RectMesh([1.,0.], [3.,2.], [mesh_coord(3),mesh_coord(2)]))
+@test basis != basis2
+basis2 = WeakFunsPolyBasis(deg(2), deg(1), RMesh.RectMesh([0.,0.], [3.,2.], [mesh_coord(4),mesh_coord(2)]))
+@test basis != basis2
+
+
 x = Monomial(1,0)
 y = Monomial(0,1)
 one = Monomial(0,0)
@@ -121,14 +137,14 @@ incls = fe_inclusions_of_side_support(bel_num(45), basis)
 rshape = Mesh.oshape(1)
 
 # Test retrieving side monomial number for given monomial and face.
-@test mon_num_for_mon_on_shape_side(one, rshape, right_face, basis) == 1
-@test mon_num_for_mon_on_shape_side(one, rshape, left_face, basis)  == 1
-@test mon_num_for_mon_on_shape_side(y,   rshape, right_face, basis) == 2
-@test mon_num_for_mon_on_shape_side(y,   rshape, left_face, basis)  == 2
-@test mon_num_for_mon_on_shape_side(one, rshape, top_face, basis)    == 1
-@test mon_num_for_mon_on_shape_side(one, rshape, bottom_face, basis) == 1
-@test mon_num_for_mon_on_shape_side(x,   rshape, top_face, basis)    == 2
-@test mon_num_for_mon_on_shape_side(x,   rshape, bottom_face, basis) == 2
+@test mon_num_for_mon_on_oshape_side(one, rshape, right_face, basis) == 1
+@test mon_num_for_mon_on_oshape_side(one, rshape, left_face, basis)  == 1
+@test mon_num_for_mon_on_oshape_side(y,   rshape, right_face, basis) == 2
+@test mon_num_for_mon_on_oshape_side(y,   rshape, left_face, basis)  == 2
+@test mon_num_for_mon_on_oshape_side(one, rshape, top_face, basis)    == 1
+@test mon_num_for_mon_on_oshape_side(one, rshape, bottom_face, basis) == 1
+@test mon_num_for_mon_on_oshape_side(x,   rshape, top_face, basis)    == 2
+@test mon_num_for_mon_on_oshape_side(x,   rshape, bottom_face, basis) == 2
 
 # Test support face monomial retrieval
 
@@ -169,10 +185,10 @@ rshape = Mesh.oshape(1)
 @test side_mon_num(bel_num(37), basis) == 1
 @test side_mon_num(bel_num(38), basis) == 2
 
-@test side_mons_for_shape_side(rshape, right_face, basis)[1] == side_mons_for_shape_side(rshape, left_face, basis)[1] == one
-@test side_mons_for_shape_side(rshape, right_face, basis)[2]  == side_mons_for_shape_side(rshape, left_face, basis)[2] == y
+@test side_mons_for_oshape_side(rshape, right_face, basis)[1] == side_mons_for_oshape_side(rshape, left_face, basis)[1] == one
+@test side_mons_for_oshape_side(rshape, right_face, basis)[2]  == side_mons_for_oshape_side(rshape, left_face, basis)[2] == y
 @test side_mons_for_fe_side(fe_num(1), right_face, basis) == side_mons_for_fe_side(fe_num(1), left_face, basis) == [one, y]
-@test_fails side_mons_for_shape_side(rshape, right_face, basis)[3]
+@test_fails side_mons_for_oshape_side(rshape, right_face, basis)[3]
 
 # monomials on vertical side between finite elements 2 and 3
 @test side_mon(bel_num(39), basis) == one
@@ -186,10 +202,10 @@ rshape = Mesh.oshape(1)
 @test side_mon(bel_num(45), basis) == one
 @test side_mon(bel_num(46), basis) == x
 
-@test side_mons_for_shape_side(rshape, top_face, basis)[1] == side_mons_for_shape_side(rshape, bottom_face, basis)[1] == one
-@test side_mons_for_shape_side(rshape, top_face, basis)[2] == side_mons_for_shape_side(rshape, bottom_face, basis)[2] == x
+@test side_mons_for_oshape_side(rshape, top_face, basis)[1] == side_mons_for_oshape_side(rshape, bottom_face, basis)[1] == one
+@test side_mons_for_oshape_side(rshape, top_face, basis)[2] == side_mons_for_oshape_side(rshape, bottom_face, basis)[2] == x
 @test side_mons_for_fe_side(fe_num(1), top_face, basis) == side_mons_for_fe_side(fe_num(1), bottom_face, basis) == [one, x]
-@test_fails side_mons_for_shape_side(rshape, bottom_face, basis)[3]
+@test_fails side_mons_for_oshape_side(rshape, bottom_face, basis)[3]
 
 # monomials on horizontal side between finite elements 2 and 5
 @test side_mon(bel_num(47), basis) == one
