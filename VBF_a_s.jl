@@ -2,7 +2,7 @@ module VBF_a_s
 export A_s, a_s
 
 using Common
-import Poly.Polynomial
+import Poly.Polynomial, Poly.Monomial
 import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.OrientedShape
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
 import Proj
@@ -26,7 +26,7 @@ function int_mon_vs_int_mon(fe::FENum,
                             monn_1::MonNum,
                             monn_2::MonNum,
                             basis::WeakFunsPolyBasis,
-                            cache::Dict,
+                            cache::Dict{Any,Any},
                             bf::A_s)
   const mesh = basis.mesh
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
@@ -62,14 +62,15 @@ function side_mon_vs_int_mon(fe::FENum,
                              side_monn::MonNum, side_face::FERelFace,
                              int_monn::MonNum,
                              basis::WeakFunsPolyBasis,
-                             cache::Dict,
+                             cache::Dict{Any,Any},
                              bf::A_s)
-  const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
+  const mesh = basis.mesh
+  const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
 
   # weak gradients term
   const ip_wgrads =
-    let side_wgrad = WGBasis.wgrad_side_mon(side_monn, fe_oshape, side_face, basis)
-        int_wgrad =  WGBasis.wgrad_interior_mon(int_monn, fe_oshape, basis),
+    let side_wgrad = WGBasis.wgrad_side_mon(side_monn, fe_oshape, side_face, basis),
+        int_wgrad =  WGBasis.wgrad_interior_mon(int_monn, fe_oshape, basis)
       Mesh.integral_face_rel_on_face(dot(side_wgrad, int_wgrad), fe_oshape, Mesh.interior_face, mesh)
     end
 
@@ -93,7 +94,7 @@ function int_mon_vs_side_mon(fe::FENum,
                              int_monn::MonNum,
                              side_monn::MonNum, side_face::FERelFace,
                              basis::WeakFunsPolyBasis,
-                             cache::Dict,
+                             cache::Dict{Any,Any},
                              bf::A_s)
   assert(is_symmetric(bf), "int_mon_vs_side_mon needs independent implementation, bilinear form is not symmetric")
   side_mon_vs_int_mon(fe, side_monn, side_face, int_monn, basis, cache, bf)
@@ -105,15 +106,16 @@ function side_mon_vs_side_mon(fe::FENum,
                               monn_1::MonNum, side_face_1::FERelFace,
                               monn_2::MonNum, side_face_2::FERelFace,
                               basis::WeakFunsPolyBasis,
-                              cache::Dict,
+                              cache::Dict{Any,Any},
                               bf::A_s)
-  const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
+  const mesh = basis.mesh
+  const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
 
   # weak gradients term
   const ip_wgrads =
     let wgrad_1 = WGBasis.wgrad_side_mon(monn_1, fe_oshape, side_face_1, basis)
         wgrad_2 = WGBasis.wgrad_side_mon(monn_2, fe_oshape, side_face_2, basis)
-      Mesh.integral_face_rel_on_face(dot(wgrad_1, wgrad_2), fe_oshape, Mesh.interior_face, basis.mesh)
+      Mesh.integral_face_rel_on_face(dot(wgrad_1, wgrad_2), fe_oshape, Mesh.interior_face, mesh)
     end
 
   # stabilization term: (1/h_T) <Q_b v_0T - v_b, Q_b w_0T - w_b>_bnd(T)
@@ -138,13 +140,13 @@ function side_mon_vs_side_mon(fe::FENum,
 end
 
 
-function project_interior_mon_onto_oshape_side(monn::MonNum, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis, cache::Dict)
-  const cache_key = (monn, fe_oshape, side_face, basis)
+function project_interior_mon_onto_oshape_side(mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis, cache::Dict{Any,Any})
+  const cache_key = (mon, fe_oshape, side_face, basis)
   const cached_proj = get(cache, cache_key, 0)
   if cached_proj != 0
     cached_proj
   else
-    const proj = Proj.project_interior_mon_onto_oshape_side(monn, fe_oshape, side_face, basis)
+    const proj = Proj.project_interior_mon_onto_oshape_side(mon, fe_oshape, side_face, basis)
     cache[cache_key] = proj
     proj
   end

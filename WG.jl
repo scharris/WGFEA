@@ -2,10 +2,11 @@ module WG
 export WGSolver, solve
 
 using Common
-import Mesh, Mesh.FENum, Mesh.FERelFace
+import Poly.Polynomial
+import Mesh, Mesh.FENum, Mesh.fe_num, Mesh.FERelFace, Mesh.fe_face
+import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.bel_num, WGBasis.MonNum
-import Poly.Polynomial
 
 # METHOD
 # Let {b_i}_i be a basis for V_h^0(Omega), and vbf the bilinear form for
@@ -38,9 +39,16 @@ type WGSolver
   end
 end
 
-function solve(f::Function, g::Function, basis::WeakFunsPolyBasis, wg_solver::WGSolver)
-  wg_solver.vbf_bel_vs_bel_transpose \ sys_rhs(f, g, wg_solver.vbf)
+# Solve the system, returning all interior and side basis element coefficients, interior coefficients first.
+function solve(f::Function, g::Function, wg_solver::WGSolver)
+  wg_solver.vbf_bel_vs_bel_transpose \ sys_rhs(f, g, wg_solver.vbf, wg_solver.basis)
 end
+
+# Solve the system, returning only interior basis element coefficients.
+#function solve(f::Function, g::Function, wg_solver::WGSolver)
+#  const all_coefs = solve_full(f, g, wg_solver)
+#  all_coefs[1:wg_solver.basis.num_interior_bels]
+#end
 
 # This type is used to cache projection polynomials in a matrix.
 PolyOrInt = Union(Polynomial, Int)
@@ -58,7 +66,7 @@ function sys_rhs(f::Function, g::Function, vbf::AbstractVariationalBilinearForm,
 end
 
 function ip_on_interiors(f::Function, bel::BElNum, basis::WeakFunsPolyBasis)
-  if WGBasis.is_side_supported(bel, basis)
+  if !WGBasis.is_interior_supported(bel, basis)
     zeroR
   else
     const bel_fe = WGBasis.support_interior_num(bel, basis)
@@ -76,9 +84,10 @@ function vbf_proj_g_on_bsides_vs_bel(vbf::AbstractVariationalBilinearForm,
                                      g::Function,
                                      bel::BElNum,
                                      basis::WeakFunsPolyBasis,
-                                     g_projs_cache::Matrix{PolyOrInt})
+                                     g_projs_cache::Array{Array{PolyOrInt,1}})
+  const mesh = basis.mesh
   bside_contrs = zeroR
-  if WGBasis.is_interior_supported(bel)
+  if WGBasis.is_interior_supported(bel, basis)
     # Only any outside boundary sides which are included in the bel's support fe can contribute.
     const bel_fe = WGBasis.support_interior_num(bel, basis)
     const bel_monn = WGBasis.interior_mon_num(bel, basis)
@@ -118,9 +127,10 @@ function vbf_poly_on_fe_bside_vs_int_mon(vbf::AbstractVariationalBilinearForm,
                                          basis::WeakFunsPolyBasis)
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   p_mon_contrs = zeroR
+  const cache = Dict{Any,Any}()
   for i=1:length(p.mons)
     const p_monn = WGBasis.mon_num_for_mon_on_oshape_side(p.mons[i], fe_oshape, bside_face, basis)
-    p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_int_mon(fe, p_monn, bside_face, int_monn, basis, vbf)
+    p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_int_mon(fe, p_monn, bside_face, int_monn, basis, cache, vbf)
   end
   p_mon_contrs
 end
@@ -133,16 +143,17 @@ function vbf_poly_on_fe_bside_vs_side_mon(vbf::AbstractVariationalBilinearForm,
                                           basis::WeakFunsPolyBasis)
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   p_mon_contrs = zeroR
+  const cache = Dict{Any,Any}()
   for i=1:length(p.mons)
     const p_monn = WGBasis.mon_num_for_mon_on_oshape_side(p.mons[i], fe_oshape, p_bside_face, basis)
-    p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_side_mon(fe, p_monn, p_bside_face, side_monn, side_mon_face, basis, vbf)
+    p_mon_contrs += p.coefs[i] * VBF.side_mon_vs_side_mon(fe, p_monn, p_bside_face, side_monn, side_mon_face, basis, cache, vbf)
   end
   p_mon_contrs
 end
 
 
 # Retrieve the indicated projection from cache or compute it, writing to the cache if it was not already cached.
-function proj_on_fe_side(g::Function, fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis, g_projs_cache::Matrix{PolyOrInt})
+function proj_on_fe_side(g::Function, fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis, g_projs_cache::Array{Array{PolyOrInt,1}})
   const cached_proj = g_projs_cache[fe][side_face]
   if cached_proj != 0
     cached_proj
@@ -157,7 +168,7 @@ function make_projs_cache(basis::WeakFunsPolyBasis)
   const num_fes = Mesh.num_fes(basis.mesh)
   const projs_by_fe = Array(Array{PolyOrInt,1}, num_fes)
   for fe=fe_num(1):num_fes
-    const num_sides = Mesh.num_side_faces_for_fe(fe, mesh)
+    const num_sides = Mesh.num_side_faces_for_fe(fe, basis.mesh)
     projs_by_fe[fe] = zeros(PolyOrInt, num_sides)
   end
   projs_by_fe

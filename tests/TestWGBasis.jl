@@ -158,6 +158,8 @@ rshape = Mesh.oshape(1)
 
 @test interior_mons(basis) == [one, y, y^2, x, x*y, x^2]
 
+@test WGBasis.first_bel_supported_on_fe_interior(fe_num(1), basis) == 1
+
 @test interior_mon_num(bel_num(3), basis) == mon_num(3)
 @test interior_mon_num(bel_num(6), basis) == mon_num(6)
 
@@ -165,13 +167,18 @@ rshape = Mesh.oshape(1)
 @test interior_mons(basis)[6] == x^2
 
 # interior monomials, finite element 2
+@test WGBasis.first_bel_supported_on_fe_interior(fe_num(2), basis) == 7
+
 @test interior_mon(bel_num(7), basis) == one
 @test interior_mon(bel_num(12), basis) == x^2
 
 @test interior_mon_num(bel_num(7), basis) == 1
 @test interior_mon_num(bel_num(12), basis) == 6
 
+
 # interior monomials, finite element 6
+@test WGBasis.first_bel_supported_on_fe_interior(fe_num(6), basis) == 31
+
 @test interior_mon(bel_num(31), basis) == one
 @test interior_mon(bel_num(36), basis) == x^2
 
@@ -179,6 +186,9 @@ rshape = Mesh.oshape(1)
 @test interior_mon_num(bel_num(36), basis) == 6
 
 # monomials on vertical side between finite elements 1 and 2
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(1), right_face, basis) == 37
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(2), left_face, basis) == 37
+
 @test side_mon(bel_num(37), basis) == one
 @test side_mon(bel_num(38), basis) == y
 
@@ -191,14 +201,21 @@ rshape = Mesh.oshape(1)
 @test_fails side_mons_for_oshape_side(rshape, right_face, basis)[3]
 
 # monomials on vertical side between finite elements 2 and 3
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(2), right_face, basis) == 39
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(3), left_face, basis) == 39
+
 @test side_mon(bel_num(39), basis) == one
 @test side_mon(bel_num(40), basis) == y
 
 # monomials on vertical side between finite elements 5 and 6
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(5), right_face, basis) == 43
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(6), left_face, basis) == 43
 @test side_mon(bel_num(43), basis) == one
 @test side_mon(bel_num(44), basis) == y
 
 # monomials on horizontal side between finite elements 1 and 4
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(1), top_face, basis) == 45
+@test WGBasis.first_bel_supported_on_fe_side(fe_num(4), bottom_face, basis) == 45
 @test side_mon(bel_num(45), basis) == one
 @test side_mon(bel_num(46), basis) == x
 
@@ -232,6 +249,14 @@ wgrad_solver = WGradSolver(deg(1), basis.mesh)
 @test wgrad_side_mon(mon_num(2), rshape, right_face, basis) == WGrad.wgrad(y, rshape, right_face, wgrad_solver)
 @test_fails wgrad_side_mon(mon_num(3), rshape, right_face, basis)
 
+# TODO
+# solution_wgrad_for_fe(sol_coefs::Vector{R}, fe::FENum, basis::WeakFunsPolyBasis)
+#  wgrad(x^2*y + 2.3, rect_oshape, Mesh.interior_face, wgrad_solver) +
+#    wgrad(x^2 + 2.3, rect_oshape, top_face, wgrad_solver) +
+#    wgrad(y + 2.3, rect_oshape, right_face, wgrad_solver) +
+#    wgrad(zero + 2.3, rect_oshape, bottom_face, wgrad_solver) +
+#    wgrad(zero + 2.3, rect_oshape, left_face, wgrad_solver),
+#  PolynomialVector([2x*y,1x^2])
 
 # test L2 inner products of basis elements
 

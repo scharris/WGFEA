@@ -112,7 +112,7 @@ RectMesh(min_bounds::Array{R,1},
 
 import Base.isequal
 function isequal(mesh1::RectMesh, mesh2::RectMesh)
-  if mesh1 === mesh2
+  if is(mesh1, mesh2)
     true
   else
     mesh1.min_bounds == mesh2.min_bounds &&
@@ -214,6 +214,23 @@ function fe_inclusions_of_nb_side!(n::NBSideNum, mesh::RectMesh, incls::NBSideIn
   incls.nb_side_num = n
 end
 
+import Mesh.nb_side_num_for_fe_side
+function nb_side_num_for_fe_side(fe::FENum, side_face::FERelFace, mesh::RectMesh) 
+  const a = side_face_perp_axis(side_face)
+  const side_mesh_coords = 
+    if side_face_is_lesser_on_perp_axis(side_face)
+      # Side is the lesser along perp axis, ie. fe is the greater one including the side: perp axis dim differs.
+      let coords = fe_mesh_coords(fe, mesh)
+        coords[a] -= 1
+        coords
+      end
+    else
+      fe_mesh_coords(fe, mesh)
+    end
+  nb_side_with_mesh_coords(side_mesh_coords, a, mesh)
+end
+
+
 import Mesh.is_boundary_side
 function is_boundary_side(fe::FENum, side_face::FERelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
@@ -225,6 +242,15 @@ end
 import Mesh.fe_diameter_inv
 fe_diameter_inv(fe::FENum, mesh::RectMesh) =
   mesh.fe_diameter_inv
+
+
+import Mesh.fe_coords
+function fe_coords(fe::FENum, mesh::RectMesh)
+  const d = mesh.space_dim
+  const coords = Array(R, d)
+  fe_coords!(fe, mesh, coords)
+  coords
+end
 
 
 # integration functions
@@ -323,12 +349,12 @@ function fe_mesh_coord(r::Dim, fe::FENum, mesh::RectMesh)
   # See Rectangular_Meshes.pdf document for the derivation.
   assert(r <= mesh.space_dim, "coordinate number out of range")
   assert(fe <= mesh.num_fes, "finite element number out of range")
-  div(mod(fe-1, mesh.cumprods_mesh_ldims[r]), r==1 ? 1 : mesh.cumprods_mesh_ldims[r-1]) + 1
+  mesh_coord(div(mod(fe-1, mesh.cumprods_mesh_ldims[r]), r==1 ? 1 : mesh.cumprods_mesh_ldims[r-1]) + 1)
 end
 
 function fe_mesh_coords(fe::FENum, mesh::RectMesh)
   const d = mesh.space_dim
-  const coords = Array(R, d)
+  const coords = Array(MeshCoord, d)
   for r=dim(1):dim(d)
     coords[r] = fe_mesh_coord(r, fe, mesh)
   end
@@ -338,7 +364,7 @@ end
 # Converts finite element/interior coords in the main mesh to a finite element/interior number.
 function fe_with_mesh_coords(coords::Array{MeshCoord,1}, mesh::RectMesh)
   # The finite element (or interior) number for given mesh coordinates (c_1,...,c_d) is
-  #   i_#(c_1,...,c_d) = sum_{i=1..d} { (c_i - 1) prod_{l=1..i-1} k_l } + 1
+  #   i_#(c_1,...,c_d) = 1 + sum_{i=1..d} { (c_i - 1) prod_{l=1..i-1} k_l }
   #                    = c_1 + sum_{i=2..d} { (c_i - 1) prod_{l=1..i-1} k_l }
   # where k_l is the l^th component of the mesh dimensions.
   sum = coords[1]
@@ -357,13 +383,6 @@ function fe_coords!(fe::FENum, mesh::RectMesh, coords::Vector{R})
   coords
 end
 
-# Functional variant of the above.
-function fe_coords(fe::FENum, mesh::RectMesh)
-  const d = mesh.space_dim
-  const coords = Array(R, d)
-  fe_coords!(fe, mesh, coords)
-  coords
-end
 
 
 # side-related functions
@@ -415,5 +434,25 @@ function nb_side_geom(n::NBSideNum, mesh::RectMesh)
   end
   NBSideGeom(a, coords)
 end
+
+# Converts a side with a given perpendicular axis and orientation-specific side mesh coordinates
+# to a non-boundary side number.
+function nb_side_with_mesh_coords(coords::Array{MeshCoord,1}, perp_axis::Dim, mesh::RectMesh)
+  # The enumeration number for a non-boundary side perpendicular to a given axis a, with mesh
+  # coordinates (c_1,...,c_d) in its orientation-specific non-boundary side mesh, is 
+  #   s_{a,#}(c_1,...,c_d) = s_a + sum_{i=1..d} { (c_i - 1) prod_{l=1..i-1} k_{a,l} }
+  #                        = s_a + (c_1-1) + sum_{i=2..d} { (c_i - 1) prod_{l=1..i-1} k_{a,l} }
+  # where s_a is the enumeration number of the first axis-a perpendicular non-boundary side,
+  # and   k_{a,l} is the l^th component of the dimensions of the mesh of axis-a perpendicular
+  # non-boundary sides.
+  const s_a = mesh.first_nb_side_nums_by_perp_axis[perp_axis]
+  const cumprods_side_mesh_ldims = mesh.cumprods_nb_side_mesh_ldims_by_perp_axis[perp_axis]
+  sum = s_a + coords[1] - 1
+  for i=2:mesh.space_dim
+    sum += (coords[i]-1) * cumprods_side_mesh_ldims[i-1]
+  end
+  sum
+end
+
 
 end # end of module

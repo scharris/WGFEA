@@ -1,10 +1,19 @@
 Commit Notes
 ------------
-VBF: Add cache argument to *_vs_* computation functions, add missing basis argument to side vs side calls.
+
 
 TODO
 ----
-Implement cacheing of projections in VBF_a_s.  Just lookup the cache by dictionary with mesh as key.
+Add proper total errors, for L2 and triple bar norm (add latter to general VBF interface).
+
+Specialize constant projection for efficiency.
+Try using a sparse matrix for vbf basis vs basis matrix.
+  https://groups.google.com/forum/?hl=en&fromgroups=#!topic/julia-users/3tTljDSQ6cs
+  "In julia, you are using \ to solve the system. This currently defaults to using LU factorization.
+   However, if your system is SPD, there are gains from using a cholesky solver. Matlab does this
+   automatically, and Julia does this automatically in the dense case, but not yet in the sparse case."
+
+Implement classical WG, which is just A_s without the stabilization term.
 
 
 Concatenate two rectangular meshes left/right or upper/lower?

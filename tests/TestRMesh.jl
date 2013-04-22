@@ -188,61 +188,94 @@ sgeom = RMesh.nb_side_geom(nb_side_num(1), rmesh3x4x5)
                        fe_num(1), right_face,
                        fe_num(2), left_face)
 
+@test Mesh.nb_side_num_for_fe_side(fe_num(1), right_face, rmesh3x4x5) == 1
+@test Mesh.nb_side_num_for_fe_side(fe_num(2), left_face, rmesh3x4x5) == 1
+
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(1), mesh_coord(1)], dim(1), rmesh3x4x5) == 1
+
 sgeom = RMesh.nb_side_geom(nb_side_num(2), rmesh3x4x5)
 @test sgeom.perp_axis == 1
 @test sgeom.mesh_coords == [mesh_coord(2), mesh_coord(1), mesh_coord(1)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(2), mesh_coord(1), mesh_coord(1)], dim(1), rmesh3x4x5) == 2
 
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(2), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(2),
                        fe_num(2), right_face,
                        fe_num(3), left_face)
 
+@test Mesh.nb_side_num_for_fe_side(fe_num(2), right_face, rmesh3x4x5) == 2
+@test Mesh.nb_side_num_for_fe_side(fe_num(3), left_face, rmesh3x4x5) == 2
+
 # second row (axis 1)
 sgeom = RMesh.nb_side_geom(nb_side_num(3), rmesh3x4x5)
 @test sgeom.perp_axis == 1
 @test sgeom.mesh_coords == [mesh_coord(1), mesh_coord(2), mesh_coord(1)]
+
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(2), mesh_coord(1)], dim(1), rmesh3x4x5) == 3
 
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(3), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(3),
                        fe_num(4), right_face,
                        fe_num(5), left_face)
 
-# last side of first stack (axis 1)
+@test Mesh.nb_side_num_for_fe_side(fe_num(4), right_face, rmesh3x4x5) == 3
+@test Mesh.nb_side_num_for_fe_side(fe_num(5), left_face, rmesh3x4x5) == 3
+
+
+# last axis-1 perpendicular side in first stack
 sgeom = RMesh.nb_side_geom(nb_side_num(8), rmesh3x4x5)
 @test sgeom.perp_axis == 1
 @test sgeom.mesh_coords == [mesh_coord(2), mesh_coord(4), mesh_coord(1)]
 
-# last axis-1 perpendicular side in first stack
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(2), mesh_coord(4), mesh_coord(1)], dim(1), rmesh3x4x5) == 8
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(8), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(8),
                        fe_num(11), right_face,
                        fe_num(12), left_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(11), right_face, rmesh3x4x5) == 8
+@test Mesh.nb_side_num_for_fe_side(fe_num(12), left_face, rmesh3x4x5) == 8
+
 
 # first side of second stack (axis 1)
 sgeom = RMesh.nb_side_geom(nb_side_num(9), rmesh3x4x5)
 @test sgeom.perp_axis == 1
 @test sgeom.mesh_coords == [mesh_coord(1), mesh_coord(1), mesh_coord(2)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(1), mesh_coord(2)], dim(1), rmesh3x4x5) == 9
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(9), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(9),
                        fe_num(13), right_face,
                        fe_num(14), left_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(13), right_face, rmesh3x4x5) == 9
+@test Mesh.nb_side_num_for_fe_side(fe_num(14), left_face, rmesh3x4x5) == 9
+
 
 # first side of last stack (axis 1)
 sgeom = RMesh.nb_side_geom(nb_side_num(1+2*4*4), rmesh3x4x5)
 @test sgeom.perp_axis == 1
 @test sgeom.mesh_coords == [mesh_coord(1), mesh_coord(1), mesh_coord(5)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(1), mesh_coord(5)], dim(1), rmesh3x4x5) == 1+2*4*4
+
 # last side of last stack (axis 1)
 sgeom = RMesh.nb_side_geom(nb_side_num(2*4*5), rmesh3x4x5)
 @test sgeom.perp_axis == 1
 @test sgeom.mesh_coords == [mesh_coord(2), mesh_coord(4), mesh_coord(5)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(2), mesh_coord(4), mesh_coord(5)], dim(1), rmesh3x4x5) == 2*4*5
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(2*4*5), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(2*4*5),
                        fe_num(3*4*5-1), right_face,
                        fe_num(3*4*5), left_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(3*4*5-1), right_face, rmesh3x4x5) == 2*4*5
+@test Mesh.nb_side_num_for_fe_side(fe_num(3*4*5),   left_face, rmesh3x4x5) == 2*4*5
 
 
 # Test the non-boundary sides perpendicular to axis 2, which form a 3 x 3 x 5 mesh.
@@ -254,29 +287,45 @@ sgeom = RMesh.nb_side_geom(nb_side_num(1 + last_axis1), rmesh3x4x5)
 @test sgeom.perp_axis == 2
 @test sgeom.mesh_coords == [mesh_coord(1), mesh_coord(1), mesh_coord(1)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(1), mesh_coord(1)], dim(2), rmesh3x4x5) == 1 + last_axis1
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(1 + last_axis1), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(1 + last_axis1),
                        fe_num(1), top_face,
                        fe_num(4), bottom_face)
 
+@test Mesh.nb_side_num_for_fe_side(fe_num(1), top_face, rmesh3x4x5) == 1 + last_axis1
+@test Mesh.nb_side_num_for_fe_side(fe_num(4), bottom_face, rmesh3x4x5) == 1 + last_axis1
+
+# end of first row of first stack (axis 2)
 sgeom = RMesh.nb_side_geom(nb_side_num(3 + last_axis1), rmesh3x4x5)
 @test sgeom.perp_axis == 2
 @test sgeom.mesh_coords == [mesh_coord(3), mesh_coord(1), mesh_coord(1)]
+
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(3), mesh_coord(1), mesh_coord(1)], dim(2), rmesh3x4x5) == 3 + last_axis1
 
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(3 + last_axis1), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(3 + last_axis1),
                        fe_num(3), top_face,
                        fe_num(6), bottom_face)
 
+@test Mesh.nb_side_num_for_fe_side(fe_num(3), top_face, rmesh3x4x5) == 3 + last_axis1
+@test Mesh.nb_side_num_for_fe_side(fe_num(6), bottom_face, rmesh3x4x5) == 3 + last_axis1
+
 # second row (axis 2)
 sgeom = RMesh.nb_side_geom(nb_side_num(4 + last_axis1), rmesh3x4x5)
 @test sgeom.perp_axis == 2
 @test sgeom.mesh_coords == [mesh_coord(1), mesh_coord(2), mesh_coord(1)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(2), mesh_coord(1)], dim(2), rmesh3x4x5) == 4 + last_axis1
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(4 + last_axis1), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(4 + last_axis1),
                        fe_num(4), top_face,
                        fe_num(7), bottom_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(4), top_face, rmesh3x4x5) == 4 + last_axis1
+@test Mesh.nb_side_num_for_fe_side(fe_num(7), bottom_face, rmesh3x4x5) == 4 + last_axis1
 
 
 # last side of first stack (axis 2)
@@ -284,35 +333,53 @@ sgeom = RMesh.nb_side_geom(nb_side_num(9 + last_axis1), rmesh3x4x5)
 @test sgeom.perp_axis == 2
 @test sgeom.mesh_coords == [mesh_coord(3), mesh_coord(3), mesh_coord(1)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(3), mesh_coord(3), mesh_coord(1)], dim(2), rmesh3x4x5) == 9 + last_axis1
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(9 + last_axis1), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(9 + last_axis1),
                        fe_num(9), top_face,
                        fe_num(12), bottom_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(9), top_face, rmesh3x4x5) == 9 + last_axis1
+@test Mesh.nb_side_num_for_fe_side(fe_num(12), bottom_face, rmesh3x4x5) == 9 + last_axis1
+
 
 # first side of second stack (axis 2)
 sgeom = RMesh.nb_side_geom(nb_side_num(10 + last_axis1), rmesh3x4x5)
 @test sgeom.perp_axis == 2
 @test sgeom.mesh_coords == [mesh_coord(1), mesh_coord(1), mesh_coord(2)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(1), mesh_coord(2)], dim(2), rmesh3x4x5) == 10 + last_axis1
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(10 + last_axis1), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(10 + last_axis1),
                        fe_num(13), top_face,
                        fe_num(16), bottom_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(13), top_face, rmesh3x4x5) == 10 + last_axis1
+@test Mesh.nb_side_num_for_fe_side(fe_num(16), bottom_face, rmesh3x4x5) == 10 + last_axis1
 
 # first side of last stack (axis 2)
 sgeom = RMesh.nb_side_geom(nb_side_num(1+3*3*4 + last_axis1), rmesh3x4x5)
 @test sgeom.perp_axis == 2
 @test sgeom.mesh_coords == [mesh_coord(1), mesh_coord(1), mesh_coord(5)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(1), mesh_coord(1), mesh_coord(5)], dim(2), rmesh3x4x5) == 1+3*3*4 + last_axis1
+
 # last side of last stack (axis 2)
 sgeom = RMesh.nb_side_geom(nb_side_num(3*3*5 + last_axis1), rmesh3x4x5)
 @test sgeom.perp_axis == 2
 @test sgeom.mesh_coords == [mesh_coord(3), mesh_coord(3), mesh_coord(5)]
 
+@test RMesh.nb_side_with_mesh_coords([mesh_coord(3), mesh_coord(3), mesh_coord(5)], dim(2), rmesh3x4x5) == 3*3*5 + last_axis1
+
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(3*3*5 + last_axis1), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(3*3*5 + last_axis1),
                        fe_num(3*4*5-3), top_face,
                        fe_num(3*4*5), bottom_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(3*4*5-3), top_face, rmesh3x4x5) == 3*3*5 + last_axis1
+@test Mesh.nb_side_num_for_fe_side(fe_num(3*4*5), bottom_face, rmesh3x4x5) == 3*3*5 + last_axis1
 
 
 # Test the non-boundary sides perpendicular to axis 3, which form a 3 x 4 x 4 mesh.
@@ -329,6 +396,9 @@ sgeom = RMesh.nb_side_geom(nb_side_num(1 + last_axis2), rmesh3x4x5)
                        fe_num(1), front_face,
                        fe_num(1+12), back_face)
 
+@test Mesh.nb_side_num_for_fe_side(fe_num(1),    front_face, rmesh3x4x5) == 1 + last_axis2
+@test Mesh.nb_side_num_for_fe_side(fe_num(1+12), back_face,  rmesh3x4x5) == 1 + last_axis2
+
 sgeom = RMesh.nb_side_geom(nb_side_num(3 + last_axis2), rmesh3x4x5)
 @test sgeom.perp_axis == 3
 @test sgeom.mesh_coords == [mesh_coord(3), mesh_coord(1), mesh_coord(1)]
@@ -336,6 +406,10 @@ sgeom = RMesh.nb_side_geom(nb_side_num(3 + last_axis2), rmesh3x4x5)
 @test Mesh.fe_inclusions_of_nb_side(nb_side_num(3 + last_axis2), rmesh3x4x5) ==
       NBSideInclusions(nb_side_num(3 + last_axis2),fe_num(3), front_face,
                        fe_num(3+12), back_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(3),    front_face, rmesh3x4x5) == 3 + last_axis2
+@test Mesh.nb_side_num_for_fe_side(fe_num(3+12), back_face,  rmesh3x4x5) == 3 + last_axis2
+
 
 # second row (axis 3)
 sgeom = RMesh.nb_side_geom(nb_side_num(4 + last_axis2), rmesh3x4x5)
@@ -347,6 +421,10 @@ sgeom = RMesh.nb_side_geom(nb_side_num(4 + last_axis2), rmesh3x4x5)
                        fe_num(4), front_face,
                        fe_num(4+12), back_face)
 
+@test Mesh.nb_side_num_for_fe_side(fe_num(4),    front_face, rmesh3x4x5) == 4 + last_axis2
+@test Mesh.nb_side_num_for_fe_side(fe_num(4+12), back_face,  rmesh3x4x5) == 4 + last_axis2
+
+
 # first side of second stack (axis 3)
 sgeom = RMesh.nb_side_geom(nb_side_num(1 + 3*4 + last_axis2), rmesh3x4x5)
 @test sgeom.perp_axis == 3
@@ -356,6 +434,9 @@ sgeom = RMesh.nb_side_geom(nb_side_num(1 + 3*4 + last_axis2), rmesh3x4x5)
       NBSideInclusions(nb_side_num(1 + 3*4 + last_axis2),
                        fe_num(1 + 3*4), front_face,
                        fe_num(1 + 3*4 + 12), back_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(1 + 3*4),      front_face, rmesh3x4x5) == 1 + 3*4 + last_axis2
+@test Mesh.nb_side_num_for_fe_side(fe_num(1 + 3*4 + 12), back_face,  rmesh3x4x5) == 1 + 3*4 + last_axis2
 
 # first side of last stack (axis 3)
 sgeom = RMesh.nb_side_geom(nb_side_num(1 + 3*(3*4) + last_axis2), rmesh3x4x5)
@@ -367,6 +448,9 @@ sgeom = RMesh.nb_side_geom(nb_side_num(1 + 3*(3*4) + last_axis2), rmesh3x4x5)
                        fe_num(1 + 3*(3*4)), front_face,
                        fe_num(1 + 3*(3*4) + 12), back_face)
 
+@test Mesh.nb_side_num_for_fe_side(fe_num(1 + 3*(3*4)),      front_face, rmesh3x4x5) == 1 + 3*(3*4) + last_axis2
+@test Mesh.nb_side_num_for_fe_side(fe_num(1 + 3*(3*4) + 12), back_face,  rmesh3x4x5) == 1 + 3*(3*4) + last_axis2
+
 
 # last side of last stack (axis 3)
 sgeom = RMesh.nb_side_geom(nb_side_num(3*4*4 + last_axis2), rmesh3x4x5)
@@ -377,6 +461,10 @@ sgeom = RMesh.nb_side_geom(nb_side_num(3*4*4 + last_axis2), rmesh3x4x5)
       NBSideInclusions(nb_side_num(3*4*4 + last_axis2),
                        fe_num(3*4*5-12), front_face,
                        fe_num(3*4*5), back_face)
+
+@test Mesh.nb_side_num_for_fe_side(fe_num(3*4*5-12), front_face, rmesh3x4x5) == 3*4*4 + last_axis2
+@test Mesh.nb_side_num_for_fe_side(fe_num(3*4*5),    back_face,  rmesh3x4x5) == 3*4*4 + last_axis2
+
 
 # side number out of range
 @test_fails RMesh.nb_side_geom(nb_side_num(1 + 3*4*4 + last_axis2), rmesh3x4x5)

@@ -9,6 +9,7 @@ export FENum, fe_num, no_fe,
        space_dim,
        one_mon,
        num_fes,
+       fe_coords,
        fe_diameter_inv,
        num_nb_sides,
        num_oriented_element_shapes,
@@ -20,6 +21,7 @@ export FENum, fe_num, no_fe,
        dependent_dim_for_oshape_side,
        fe_inclusions_of_nb_side,
        fe_inclusions_of_nb_side!,
+       nb_side_num_for_fe_side,
        is_boundary_side,
        integral_face_rel_on_face,
        integral_global_x_face_rel_on_fe_face,
@@ -117,12 +119,19 @@ dependent_dim_for_oshape_side{M <: AbstractMesh}(fe_oshape::OrientedShape, side_
 fe_inclusions_of_nb_side!{M <: AbstractMesh}(i::NBSideNum, mesh::M, nb_side_incls::NBSideInclusions) =
   error("not implemented, mesh implementation is incomplete")
 
+# Return non-boundary side number of the indicated fe relative side, or 0 if the side is a boundary side.
+nb_side_num_for_fe_side{M <: AbstractMesh}(fe::FENum, side_face::FERelFace, mesh::M) =
+  error("not implemented, mesh implementation is incomplete")
+
+
 is_boundary_side{M <: AbstractMesh}(fe::FENum, face::FERelFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
 fe_diameter_inv{M <: AbstractMesh}(fe::FENum, mesh::M) =
   error("not implemented, mesh implementation is incomplete)")
 
+fe_coords{M <: AbstractMesh}(fe::FENum, mesh::M) =
+  error("not implemented, mesh implementation is incomplete)")
 
 # Integration Functions
 

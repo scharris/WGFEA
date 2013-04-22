@@ -11,8 +11,9 @@ export AbstractVariationalBilinearForm,
        side_bel_vs_side_bel,
        bel_vs_bel_transpose
 
-import WGBasis.BElNum, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum
-import Mesh.FENum, Mesh.FERelFace
+using Common
+import WGBasis, WGBasis.BElNum, WGBasis.bel_num, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum
+import Mesh, Mesh.FENum, Mesh.FERelFace
 
 abstract AbstractVariationalBilinearForm
 
@@ -62,7 +63,7 @@ int_mon_vs_int_mon{BF <: AbstractVariationalBilinearForm}(fe::FENum,
                                                           monn_1::MonNum,
                                                           monn_2::MonNum,
                                                           basis::WeakFunsPolyBasis,
-                                                          cache::Dict,
+                                                          cache::Dict{Any,Any},
                                                           bf::BF) =
   error("not implemented, bilinear form implementation is incomplete")
 
@@ -70,7 +71,7 @@ side_mon_vs_int_mon{BF <: AbstractVariationalBilinearForm}(fe::FENum,
                                                            side_monn::MonNum, side_face::FERelFace,
                                                            int_monn::MonNum,
                                                            basis::WeakFunsPolyBasis,
-                                                           cache::Dict,
+                                                           cache::Dict{Any,Any},
                                                            bf::BF) =
   error("not implemented, bilinear form implementation is incomplete")
 
@@ -78,7 +79,7 @@ int_mon_vs_side_mon{BF <: AbstractVariationalBilinearForm}(fe::FENum,
                                                            int_monn::MonNum,
                                                            side_monn::MonNum, side_face::FERelFace,
                                                            basis::WeakFunsPolyBasis,
-                                                           cache::Dict,
+                                                           cache::Dict{Any,Any},
                                                            bf::BF) =
   error("not implemented, bilinear form implementation is incomplete")
 
@@ -86,7 +87,7 @@ side_mon_vs_side_mon{BF <: AbstractVariationalBilinearForm}(fe::FENum,
                                                             monn_1::MonNum, side_face_1::FERelFace,
                                                             monn_2::MonNum, side_face_2::FERelFace,
                                                             basis::WeakFunsPolyBasis,
-                                                            cache::Dict,
+                                                            cache::Dict{Any,Any},
                                                             bf::BF) =
   error("not implemented, bilinear form implementation is incomplete")
 
@@ -102,7 +103,7 @@ side_mon_vs_side_mon{BF <: AbstractVariationalBilinearForm}(fe::FENum,
 # functions above. The implementations should be valid for any variational
 # bilinear form bf satisfying the Element Summability requirement.
 
-function int_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElNum, bel_2::BElNum, basis::WeakFunsPolyBasis, cache::Dict, bf::BF)
+function int_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElNum, bel_2::BElNum, basis::WeakFunsPolyBasis, cache::Dict{Any,Any}, bf::BF)
   const fe1 = WGBasis.support_interior_num(bel_1, basis)
   const fe2 = WGBasis.support_interior_num(bel_2, basis)
   if fe1 != fe2
@@ -116,7 +117,7 @@ function int_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElNum
   end
 end
 
-function int_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(ibel::BElNum, sbel::BElNum, basis::WeakFunsPolyBasis, cache::Dict, bf::BF)
+function int_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(ibel::BElNum, sbel::BElNum, basis::WeakFunsPolyBasis, cache::Dict{Any,Any}, bf::BF)
   # Determine if the side is one of the faces of the interior's finite element, and which one if so.
   const int_num = WGBasis.support_interior_num(ibel, basis)
   const side_incls = WGBasis.fe_inclusions_of_side_support(sbel, basis)
@@ -134,7 +135,7 @@ function int_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(ibel::BElNum
 end
 
 
-function side_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(sbel::BElNum, ibel::BElNum, basis::WeakFunsPolyBasis, cache::Dict, bf::BF)
+function side_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(sbel::BElNum, ibel::BElNum, basis::WeakFunsPolyBasis, cache::Dict{Any,Any}, bf::BF)
   # Determine if the side is one of the faces of the interior's finite element, and which one if so.
   const side_incls = WGBasis.fe_inclusions_of_side_support(sbel, basis)
   const int_num = WGBasis.support_interior_num(ibel, basis)
@@ -151,7 +152,7 @@ function side_bel_vs_int_bel{BF <: AbstractVariationalBilinearForm}(sbel::BElNum
   end
 end
 
-function side_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElNum, bel_2::BElNum, basis::WeakFunsPolyBasis, cache::Dict, bf::BF)
+function side_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElNum, bel_2::BElNum, basis::WeakFunsPolyBasis, cache::Dict{Any,Any}, bf::BF)
   const incls_1 = WGBasis.fe_inclusions_of_side_support(bel_1, basis)
   const incls_2 = WGBasis.fe_inclusions_of_side_support(bel_2, basis)
   if incls_1.fe1 != incls_2.fe1 &&
@@ -188,24 +189,24 @@ end
 
 
 function bel_vs_bel_transpose{BF <: AbstractVariationalBilinearForm}(basis::WeakFunsPolyBasis, bf::BF)
-  const num_int_bels = basis.num_int_bels
-  const first_side_bel = basis.first_side_bel
+  const num_int_bels = basis.num_interior_bels
+  const first_nb_side_bel = basis.first_nb_side_bel
   const m = Array(R, basis.total_bels, basis.total_bels)
 
-  const cache = Dict
+  const cache = Dict{Any,Any}()
 
   if !is_symmetric(bf)
     for i=1:num_int_bels, j=1:num_int_bels
       const ip = int_bel_vs_int_bel(bel_num(i), bel_num(j), basis, cache, bf)
       m[j,i] = ip
     end
-    for i=first_side_bel:basis.total_bels, j=1:num_int_bels
+    for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
       const bel_num_i = bel_num(i)
       const bel_num_j = bel_num(j)
       m[j,i] = side_bel_vs_int_bel(bel_num_i, bel_num_j, basis, cache, bf)
       m[i,j] = int_bel_vs_side_bel(bel_num_j, bel_num_i, basis, cache, bf)
     end
-    for i=first_side_bel:basis.total_bels, j=first_side_bel:basis.total_bels
+    for i=first_nb_side_bel:basis.total_bels, j=first_nb_side_bel:basis.total_bels
       m[j,i] = side_bel_vs_side_bel(bel_num(i), bel_num(j), basis, cache, bf)
     end
   else # bf is symmetric
@@ -218,14 +219,14 @@ function bel_vs_bel_transpose{BF <: AbstractVariationalBilinearForm}(basis::Weak
       end
       m[i,i] = int_bel_vs_int_bel(bel_num_i, bel_num_i, basis, cache, bf)
     end
-    for i=first_side_bel:basis.total_bels, j=1:num_int_bels
+    for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
       const ip = side_bel_vs_int_bel(bel_num(i), bel_num(j), basis, cache, bf)
       m[j,i] = ip
       m[i,j] = ip
     end
-    for i=first_side_bel:basis.total_bels
+    for i=first_nb_side_bel:basis.total_bels
       const bel_num_i = bel_num(i)
-      for j=first_side_bel:i-1
+      for j=first_nb_side_bel:i-1
         const ip = side_bel_vs_side_bel(bel_num_i, bel_num(j), basis, cache, bf)
         m[j,i] = ip
         m[i,j] = ip

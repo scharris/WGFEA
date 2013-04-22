@@ -12,6 +12,7 @@ export Monomial,
        linear_comb,
        as_poly,
        zero_poly,
+       zero_poly_vec,
        domain_dim,
        count_mons_of_deg_le,
        mons_of_deg_le,
@@ -343,6 +344,15 @@ function value_at(p::Polynomial, x::R)
   sum
 end
 
+function value_at(pv::PolynomialVector, x::Vector{R})
+  const num_comps = length(pv.polys)
+  const v = zeros(R, num_comps)
+  for i in 1:num_comps
+    v[i] = value_at(pv.polys[i], x)
+  end
+  v
+end
+
 without_dim{T}(i::Integer, a::Array{T,1}) = vcat(a[1:i-1],a[i+1:])
 
 function reduce_dim_by_fixing(dim::Dim, val::R, p::Polynomial)
@@ -561,6 +571,7 @@ end
 
 one_mon(dom_dim::Dim) = Monomial(zeros(Deg, dom_dim))
 zero_poly(dom_dim::Dim) = Polynomial([one_mon(dom_dim)],[zeroR])
+zero_poly_vec(dom_dim::Dim) = let zerop = zero_poly(dom_dim); PolynomialVector([zerop for i=1:dom_dim]) end
 
 flatten(arrays) = vcat(arrays...)
 
