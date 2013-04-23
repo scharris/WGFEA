@@ -49,6 +49,7 @@ top_face = RMesh.greater_side_face_perp_to_axis(dim(2))
 back_face = RMesh.lesser_side_face_perp_to_axis(dim(3))
 front_face = RMesh.greater_side_face_perp_to_axis(dim(3))
 
+@test Mesh.num_boundary_sides(rmesh3x4x5) == 2*20 + 2*15 + 2*12
 
 # Test mesh coordinates and boundary side determination.
 
@@ -764,7 +765,7 @@ f1(x::Vector{R}) = (x[1] - mesh_min_coords[1])^2 * (x[2] - mesh_min_coords[2])^3
   (1/3)^4/4 * (1/4)^5/5
 )
 
-fe17_coords = RMesh.fe_coords(fe_num(17), rmesh3x4x5)
+fe17_coords = RMesh.fe_interior_origin(fe_num(17), rmesh3x4x5)
 f2(x::Vector{R}) = (x[1] - fe17_coords[1])^2 * (x[2] - fe17_coords[2])^3
 @test nearly_eq(
   Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y*z, fe_num(17), Mesh.interior_face, rmesh3x4x5),
@@ -793,6 +794,12 @@ f2(x::Vector{R}) = (x[1] - fe17_coords[1])^2 * (x[2] - fe17_coords[2])^3
 @test nearly_eq(
   Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y, fe_num(17), front_face, rmesh3x4x5),
   (1/3)^4/4 * (1/4)^5/5
+)
+
+# global vs polynomial
+@test nearly_eq(
+  Mesh.integral_global_x_face_rel_on_fe_face(f2, 2x*y*z + 4.5x*y*z, fe_num(17), Mesh.interior_face, rmesh3x4x5),
+  (2 + 4.5)*(1/3)^4/4 * (1/4)^5/5 * (1/5)^2/2
 )
 
 
@@ -863,16 +870,18 @@ f2(x::Vector{R}) = (x[1] - fe17_coords[1])^2 * (x[2] - fe17_coords[2])^3
 
 rmesh20x10 = RectMesh([0.,0.], [20.,10.], [mesh_coord(20), mesh_coord(10)])
 
-@test RMesh.fe_coords(fe_num(1), rmesh20x10) == [0., 0.]
-@test RMesh.fe_coords(fe_num(2), rmesh20x10) == [1., 0.]
-@test RMesh.fe_coords(fe_num(20), rmesh20x10) == [19., 0.]
-@test RMesh.fe_coords(fe_num(21), rmesh20x10) == [0., 1.]
-@test RMesh.fe_coords(fe_num(200), rmesh20x10) == [19., 9.]
+@test RMesh.fe_interior_origin(fe_num(1), rmesh20x10) == [0., 0.]
+@test RMesh.fe_interior_origin(fe_num(2), rmesh20x10) == [1., 0.]
+@test RMesh.fe_interior_origin(fe_num(20), rmesh20x10) == [19., 0.]
+@test RMesh.fe_interior_origin(fe_num(21), rmesh20x10) == [0., 1.]
+@test RMesh.fe_interior_origin(fe_num(200), rmesh20x10) == [19., 9.]
 
 @test Mesh.num_fes(rmesh20x10) == 200
 @test Mesh.num_nb_sides(rmesh20x10) == 370
 
 # test boundary sides
+
+@test Mesh.num_boundary_sides(rmesh20x10) == 2*10 + 2*20
 
 @test !Mesh.is_boundary_side(fe_num(1), top_face, rmesh20x10)
 @test !Mesh.is_boundary_side(fe_num(1), right_face, rmesh20x10)
@@ -906,6 +915,8 @@ rmesh20x10 = RectMesh([0.,0.], [20.,10.], [mesh_coord(20), mesh_coord(10)])
 
 
 rmesh3x2 = RectMesh([0.,0.], [3.,2.], [mesh_coord(3), mesh_coord(2)])
+
+@test Mesh.num_boundary_sides(rmesh3x2) == 2*3 + 2*2
 
 @test RMesh.perp_axis_for_nb_side(nb_side_num(1), rmesh3x2) == dim(1)
 @test RMesh.perp_axis_for_nb_side(nb_side_num(4), rmesh3x2) == dim(1)
@@ -1020,7 +1031,7 @@ f3(x::Vector{R}) = x[1]^2 * x[2]^3
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f3, x*y, fe_num(1), top_face, rmesh3x2), 0)
 
 # Integrating the product below on fe 5 should be equivalent to integrating the monomial x^3 y^4 z on the reference element interior.
-fe5_coords = RMesh.fe_coords(fe_num(5), rmesh3x2)
+fe5_coords = RMesh.fe_interior_origin(fe_num(5), rmesh3x2)
 f4(x::Vector{R}) = (x[1] - fe5_coords[1])^2 * (x[2] - fe5_coords[2])^3
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x*y, fe_num(5), Mesh.interior_face, rmesh3x2), 1/20)
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, y, fe_num(5), left_face, rmesh3x2), 0)

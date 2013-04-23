@@ -239,16 +239,30 @@ function is_boundary_side(fe::FENum, side_face::FERelFace, mesh::RectMesh)
   coord_a == 1 && is_lesser_side || coord_a == mesh.mesh_ldims[a] && !is_lesser_side
 end
 
+import Mesh.num_boundary_sides
+function num_boundary_sides(mesh::RectMesh)
+  const d = mesh.space_dim
+  bsides = zeroR
+  for side_perp_axis=1:d
+    prod = oneR
+    for r=1:d
+      prod *= (r == side_perp_axis ? 2 : mesh.mesh_ldims[r])
+    end
+    bsides += prod
+  end
+  bsides
+end
+
 import Mesh.fe_diameter_inv
 fe_diameter_inv(fe::FENum, mesh::RectMesh) =
   mesh.fe_diameter_inv
 
 
-import Mesh.fe_coords
-function fe_coords(fe::FENum, mesh::RectMesh)
+import Mesh.fe_interior_origin
+function fe_interior_origin(fe::FENum, mesh::RectMesh)
   const d = mesh.space_dim
   const coords = Array(R, d)
-  fe_coords!(fe, mesh, coords)
+  fe_interior_origin!(fe, mesh, coords)
   coords
 end
 
@@ -261,11 +275,13 @@ end
 # evaluate face-local functions. In this implementation, for each face F we choose
 # the coordinate minimums vertex for the face, whose r^th coordinate is
 #   o_r(F) = min {x_r | x in F}
-# One consequence of this for our implementation, which employs coordinate-aligned
-# sides, is useful in the integral methods below.  Which is, that for any function
-# defined locally on a side S perpendicular to axis r, the r^th component of every
-# input from S to the local function will be 0, and all other components will be
-# the same as for the finite element relative origin.
+# One consequence of this is that a side's local origin is the same as the interior
+# origin except for the case of the greater side along a given perpendicular axis r,
+# where component r of the local origin will have the constant value of that component
+# for the side.
+# Another consequence is that because the sides are coordinate aligned, on a side S
+# perpendicular to axis r, only 0 values will be supplied in component r to functions
+# which are locally defined on the side.
 
 
 import Mesh.integral_face_rel_on_face
@@ -282,30 +298,35 @@ end
 import Mesh.integral_global_x_face_rel_on_fe_face
 function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FERelFace, mesh::RectMesh)
   const d = mesh.space_dim
-  const fe_local_origin = fe_coords(fe, mesh)
+  const fe_int_origin = fe_interior_origin(fe, mesh)
   const fe_x = mesh.intgd_args_work_array
+
   if face == Mesh.interior_face
     function ref_intgd(x::Vector{R})
       for i=1:d
-        fe_x[i] = fe_local_origin[i] + x[i]
+        fe_x[i] = fe_int_origin[i] + x[i]
       end
       f(fe_x) * Poly.value_at(mon, x)
     end
+
     hcubature(ref_intgd, mesh.ref_fe_min_bounds, mesh.fe_dims, mesh.integration_rel_err, mesh.integration_abs_err)[1]
+
   else # side face
     const a = side_face_perp_axis(face)
-    const a_coord_of_fe_side = fe_local_origin[a] + (side_face_is_lesser_on_perp_axis(face) ? zeroR : mesh.fe_dims[a])
+    const a_coord_of_fe_side = fe_int_origin[a] + (side_face_is_lesser_on_perp_axis(face) ? zeroR : mesh.fe_dims[a])
     const mon_dim_reduced_poly = Poly.reduce_dim_by_fixing(a, zeroR, mon)
+
     function ref_intgd(x::Vector{R}) # x has d-1 components
       for i=1:a-1
-        fe_x[i] = fe_local_origin[i] + x[i]
+        fe_x[i] = fe_int_origin[i] + x[i]
       end
       fe_x[a] = a_coord_of_fe_side
       for i=a+1:d
-        fe_x[i] = fe_local_origin[i] + x[i-1]
+        fe_x[i] = fe_int_origin[i] + x[i-1]
       end
       f(fe_x) * Poly.value_at(mon_dim_reduced_poly, x)
     end
+
     hcubature(ref_intgd, mesh.ref_fe_min_bounds_short, mesh.fe_dims_wo_dim[a], mesh.integration_rel_err, mesh.integration_abs_err)[1]
   end
 end
@@ -375,7 +396,7 @@ function fe_with_mesh_coords(coords::Array{MeshCoord,1}, mesh::RectMesh)
 end
 
 # Fill the passed array with the coordinates of the finite element corner with range-minimum coordinates.
-function fe_coords!(fe::FENum, mesh::RectMesh, coords::Vector{R})
+function fe_interior_origin!(fe::FENum, mesh::RectMesh, coords::Vector{R})
   const d = mesh.space_dim
   for r=1:d
     coords[r] = mesh.min_bounds[r] + (fe_mesh_coord(dim(r), fe, mesh) - 1) * mesh.fe_dims[r]

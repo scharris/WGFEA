@@ -4,17 +4,24 @@ export A_s, a_s
 using Common
 import Poly.Polynomial, Poly.Monomial
 import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.OrientedShape
-import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
 import Proj
-import VBF.AbstractVariationalBilinearForm
+import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
+import VBF, VBF.AbstractVariationalBilinearForm
 
 # a_s(v, w) = sum_T{ (a wgrad_T v, wgrad_T w)_T } + sum_T{ (1/h_T) <Q_b v_0T - v_b, Q_b w_0T - w_b>_bnd(T) }
 # For now we will let the post-multiplying matrix a in the first term be the identity matrix.
 
 type A_s <: AbstractVariationalBilinearForm
+  # projections of interior basis monomials onto fe side faces
+  int_mon_side_projs::Array{Array{Array{Polynomial,1},1},1} # by interior monomial number, fe shape, side face
+
+  function A_s(basis::WeakFunsPolyBasis)
+    new(VBF.make_interior_mon_side_projs(basis))
+  end
 end
 
-const a_s = A_s()
+a_s(basis::WeakFunsPolyBasis) = A_s(basis)
+
 
 # Change to false if a non-identity post-multiplying matrix "a" is introduced for the left wgrad in the inner product
 import VBF.is_symmetric
@@ -26,7 +33,6 @@ function int_mon_vs_int_mon(fe::FENum,
                             monn_1::MonNum,
                             monn_2::MonNum,
                             basis::WeakFunsPolyBasis,
-                            cache::Dict{Any,Any},
                             bf::A_s)
   const mesh = basis.mesh
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
@@ -42,13 +48,10 @@ function int_mon_vs_int_mon(fe::FENum,
   #   (1/h_T) <Q_b (b_i)_0T, Q_b (b_j)_0T>_bnd(T)
   # = (1/h_T) sum_{s in sides(T)} {<Q_b (b_i)_0T, Q_b (b_j)_0T>_s}
   const stab = begin
-    const int_mons = WGBasis.interior_mons(basis)
-    const mon_1 = int_mons[monn_1]
-    const mon_2 = int_mons[monn_2]
     sum_over_sides = zeroR
     for sf=fe_face(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
-      const proj_1 = project_interior_mon_onto_oshape_side(mon_1, fe_oshape, sf, basis, cache)
-      const proj_2 = project_interior_mon_onto_oshape_side(mon_2, fe_oshape, sf, basis, cache)
+      const proj_1 = bf.int_mon_side_projs[monn_1][fe_oshape][sf]
+      const proj_2 = bf.int_mon_side_projs[monn_2][fe_oshape][sf]
       sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_face(proj_1, proj_2, fe_oshape, sf, mesh)
     end
     Mesh.fe_diameter_inv(fe, mesh) * sum_over_sides
@@ -62,7 +65,6 @@ function side_mon_vs_int_mon(fe::FENum,
                              side_monn::MonNum, side_face::FERelFace,
                              int_monn::MonNum,
                              basis::WeakFunsPolyBasis,
-                             cache::Dict{Any,Any},
                              bf::A_s)
   const mesh = basis.mesh
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
@@ -80,8 +82,7 @@ function side_mon_vs_int_mon(fe::FENum,
   #  = (1/h_T) <Q_b v_0T, -w_b>_s where s is the support face of w
   const stab = begin
     const side_mon = WGBasis.side_mons_for_fe_side(fe, side_face, basis)[side_monn]
-    const int_mon = WGBasis.interior_mons(basis)[int_monn]
-    const int_proj = project_interior_mon_onto_oshape_side(int_mon, fe_oshape, side_face, basis, cache)
+    const int_proj = bf.int_mon_side_projs[int_monn][fe_oshape][side_face]
     const ip = -Mesh.integral_face_rel_x_face_rel_on_face(int_proj, side_mon, fe_oshape, side_face, mesh)
     Mesh.fe_diameter_inv(fe, mesh) * ip
   end
@@ -94,10 +95,9 @@ function int_mon_vs_side_mon(fe::FENum,
                              int_monn::MonNum,
                              side_monn::MonNum, side_face::FERelFace,
                              basis::WeakFunsPolyBasis,
-                             cache::Dict{Any,Any},
                              bf::A_s)
   assert(is_symmetric(bf), "int_mon_vs_side_mon needs independent implementation, bilinear form is not symmetric")
-  side_mon_vs_int_mon(fe, side_monn, side_face, int_monn, basis, cache, bf)
+  side_mon_vs_int_mon(fe, side_monn, side_face, int_monn, basis, bf)
 end
 
 
@@ -106,7 +106,6 @@ function side_mon_vs_side_mon(fe::FENum,
                               monn_1::MonNum, side_face_1::FERelFace,
                               monn_2::MonNum, side_face_2::FERelFace,
                               basis::WeakFunsPolyBasis,
-                              cache::Dict{Any,Any},
                               bf::A_s)
   const mesh = basis.mesh
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
@@ -139,17 +138,5 @@ function side_mon_vs_side_mon(fe::FENum,
   ip_wgrads + stab
 end
 
-
-function project_interior_mon_onto_oshape_side(mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis, cache::Dict{Any,Any})
-  const cache_key = (mon, fe_oshape, side_face, basis)
-  const cached_proj = get(cache, cache_key, 0)
-  if cached_proj != 0
-    cached_proj
-  else
-    const proj = Proj.project_interior_mon_onto_oshape_side(mon, fe_oshape, side_face, basis)
-    cache[cache_key] = proj
-    proj
-  end
-end
 
 end # end of module

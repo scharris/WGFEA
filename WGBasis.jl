@@ -4,21 +4,19 @@ export WeakFunsPolyBasis,
        BElNum, bel_num,
        MonNum, mon_num,
        is_interior_supported,
+       first_bel_supported_on_fe_interior,
+       first_bel_supported_on_fe_side,
        support_interior_num,
        support_nb_side_num,
        fe_inclusions_of_side_support,
        interior_mons,
        interior_mon,
        interior_mon_num,
+       mons_per_fe_side,
        side_mons_for_fe_side,
        side_mons_for_oshape_side,
        side_mon_num,
        side_mon,
-       mon_num_for_mon_on_oshape_side,
-       solution_value_at_fe_interior_rel,
-       solution_interior_rel_poly_for_fe,
-       solution_wgrad_value_at_fe_interior_rel,
-       solution_wgrad_on_fe_interior,
        wgrad_interior_mon,
        wgrad_side_mon,
        ips_interior_mons,
@@ -100,9 +98,6 @@ type WeakFunsPolyBasis
   interior_mons::Array{Monomial,1}
   side_mons_by_dep_dim::Array{Array{Monomial,1},1} # indexed by side dependent dimension
 
-  # maps to lookup monomial numbers for monomials on sides
-  mon_to_mon_num_map_by_dep_dim::Array{Dict{Monomial, MonNum},1}
-
   mons_per_fe_interior::MonNum
   mons_per_fe_side::MonNum
 
@@ -139,7 +134,6 @@ type WeakFunsPolyBasis
         dom_dim,
         interior_mons,
         side_mons_by_dep_dim,
-        make_side_mon_to_mon_num_maps(side_mons_by_dep_dim),
         mons_per_fe_interior,
         mons_per_fe_side,
         num_interior_bels,
@@ -187,22 +181,7 @@ function make_side_mons(side_polys_max_deg::Deg, dom_dim::Dim)
   mons_by_dep_dim
 end
 
-# Return an array of monomial -> monomial # maps, as an array indexed by side dependent dimension.
-function make_side_mon_to_mon_num_maps(side_mons_by_dep_dim::Array{Array{Monomial,1},1})
-  const d = length(side_mons_by_dep_dim)
-  const maps = Array(Dict{Monomial, MonNum}, d)
-  for dep_dim=1:d
-    const side_mons = side_mons_by_dep_dim[dep_dim]
-    const num_mons = length(side_mons)
-    const mon_nums_by_mon = Dict{Monomial, MonNum}()
-    sizehint(mon_nums_by_mon, num_mons)
-    for m=1:num_mons
-      mon_nums_by_mon[side_mons[m]] = m
-    end
-    maps[dep_dim] = mon_nums_by_mon
-  end
-  maps
-end
+
 
 # Compute weak gradients of interior supported basis element monomials, indexed by fe oriented shape, then monomial number.
 function make_interior_mon_wgrads(int_mons::Array{Monomial,1}, wgrad_solver::WGradSolver)
@@ -337,6 +316,8 @@ function interior_mon_num(i::BElNum, basis::WeakFunsPolyBasis)
   convert(MonNum, mod(interiors_rel_bel_ix, basis.mons_per_fe_interior) + 1)
 end
 
+mons_per_fe_side(basis::WeakFunsPolyBasis) = basis.mons_per_fe_side
+
 function side_mons_for_fe_side(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis)
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
@@ -360,66 +341,6 @@ function side_mon(i::BElNum, basis::WeakFunsPolyBasis)
   basis.side_mons_by_dep_dim[side_dep_dim][mon_num]
 end
 
-function mon_num_for_mon_on_oshape_side(mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
-  const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
-  basis.mon_to_mon_num_map_by_dep_dim[side_dep_dim][mon]
-end
-
-# For the passed array of solution basis coefficients, which should include coefficients for at least
-# all interior basis elements, evaluate the solution at the indicated finite element relative point.
-function solution_value_at_fe_interior_rel(sol_coefs::Vector{R}, fe::FENum, x::Vector{R}, basis::WeakFunsPolyBasis)
-  const int_mons = basis.interior_mons
-  const num_int_mons = basis.mons_per_fe_interior
-  const first_bel_ix = (fe-1) * num_int_mons
-  sum = zeroR
-  for i=1:num_int_mons
-    sum += sol_coefs[first_bel_ix + i] * Poly.value_at(int_mons[i], x)
-  end
-  sum
-end
-
-# Return an interior-relative polynomial which represents on the indicated finite element interior
-# the solution having the passed sequence of basis element coefficients. The basis coefficients
-# should include those for at least all interior basis elements.
-function solution_interior_rel_poly_for_fe(sol_coefs::Vector{R}, fe::FENum, basis::WeakFunsPolyBasis)
-  const int_mons = basis.interior_mons
-  const num_int_mons = basis.mons_per_fe_interior
-  const first_bel_ix = (fe-1) * num_int_mons
-  const coefs = sol_coefs[first_bel_ix + 1 : first_bel_ix + num_int_mons]
-  Polynomial(int_mons, coefs)
-end
-
-# TODO: test
-# Return an interior-relative polynomial which represents on the indicated finite element interior
-# the weak gradient of the solution having the passed sequence of basis element coefficients. The
-# basis coefficients should include those for at least all interior basis elements.
-function solution_wgrad_for_fe(sol_coefs::Vector{R}, fe::FENum, basis::WeakFunsPolyBasis)
-  const wgrad_solver = basis.wgrad_solver
-  const mesh = basis.mesh
-  const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
-
-  # The weak gradient of the solution is the sum of the weak gradients of the functions which equal
-  # the solution on one face of our finite element and are zero elsewhere.
-  total_wgrad = Poly.zero_poly_vec(Mesh.space_dim(mesh))
-
-  # Add contributions for the terms of the solution's interior polynomial.
-  const first_bel_on_fe_int = first_bel_supported_on_fe_interior(fe, basis)
-  for monn=mon_num(1):basis.mons_per_fe_interior
-    const beln = first_bel_on_fe_int + monn - 1
-    total_wgrad += sol_coefs[beln] * wgrad_interior_mon(monn, fe_oshape, basis)
-  end
-
-  # Add contributions for the solution's side polynomials.
-  for sf=fe_face(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
-    const first_bel_on_fe_side = first_bel_supported_on_fe_side(fe, sf, basis)
-    for monn=mon_num(1):basis.mons_per_fe_side
-      const beln = first_bel_on_fe_side + monn - 1
-      total_wgrad += sol_coefs[beln] * wgrad_side_mon(monn, fe_oshape, sf, basis)
-    end
-  end
-
-  total_wgrad
-end
 
 # weak gradient accessors
 

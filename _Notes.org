@@ -2,11 +2,17 @@ Commit Notes
 ------------
 
 
+
 TODO
 ----
+Finish impl (fix) of WGBasis.solution_wgrad_for_fe.
+  Retest weak hradient calculations around the boundaries.
+
 Add proper total errors, for L2 and triple bar norm (add latter to general VBF interface).
+  Pass precomputed boundary projections from the solution structure.
 
 Specialize constant projection for efficiency.
+
 Try using a sparse matrix for vbf basis vs basis matrix.
   https://groups.google.com/forum/?hl=en&fromgroups=#!topic/julia-users/3tTljDSQ6cs
   "In julia, you are using \ to solve the system. This currently defaults to using LU factorization.

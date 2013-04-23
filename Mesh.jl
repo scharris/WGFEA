@@ -9,7 +9,7 @@ export FENum, fe_num, no_fe,
        space_dim,
        one_mon,
        num_fes,
-       fe_coords,
+       fe_interior_origin,
        fe_diameter_inv,
        num_nb_sides,
        num_oriented_element_shapes,
@@ -23,6 +23,7 @@ export FENum, fe_num, no_fe,
        fe_inclusions_of_nb_side!,
        nb_side_num_for_fe_side,
        is_boundary_side,
+       num_boundary_sides,
        integral_face_rel_on_face,
        integral_global_x_face_rel_on_fe_face,
        integral_face_rel_x_face_rel_on_face,
@@ -127,10 +128,13 @@ nb_side_num_for_fe_side{M <: AbstractMesh}(fe::FENum, side_face::FERelFace, mesh
 is_boundary_side{M <: AbstractMesh}(fe::FENum, face::FERelFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
+num_boundary_sides{M <: AbstractMesh}(mesh::M) =
+  error("not implemented, mesh implementation is incomplete")
+
 fe_diameter_inv{M <: AbstractMesh}(fe::FENum, mesh::M) =
   error("not implemented, mesh implementation is incomplete)")
 
-fe_coords{M <: AbstractMesh}(fe::FENum, mesh::M) =
+fe_interior_origin{M <: AbstractMesh}(fe::FENum, mesh::M) =
   error("not implemented, mesh implementation is incomplete)")
 
 # Integration Functions
@@ -188,6 +192,13 @@ function integral_face_rel_on_face{M <: AbstractMesh}(p::Polynomial, fe_oshape::
   sum
 end
 
+function integral_global_x_face_rel_on_fe_face{M <: AbstractMesh}(f::Function, p::Polynomial, fe::FENum, face::FERelFace, mesh::M)
+  sum = zeroR
+  for i=1:length(p.coefs)
+    sum += p.coefs[i] * integral_global_x_face_rel_on_fe_face(f, p.mons[i], fe, face, mesh)
+  end
+  sum
+end
 
 # Implementations could specialize this to avoid creating the product monomial.
 integral_face_rel_x_face_rel_on_face{M <: AbstractMesh}(mon1::Monomial, mon2::Monomial, fe_oshape::OrientedShape, face::FERelFace, mesh::M) =

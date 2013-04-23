@@ -136,15 +136,6 @@ incls = fe_inclusions_of_side_support(bel_num(45), basis)
 
 rshape = Mesh.oshape(1)
 
-# Test retrieving side monomial number for given monomial and face.
-@test mon_num_for_mon_on_oshape_side(one, rshape, right_face, basis) == 1
-@test mon_num_for_mon_on_oshape_side(one, rshape, left_face, basis)  == 1
-@test mon_num_for_mon_on_oshape_side(y,   rshape, right_face, basis) == 2
-@test mon_num_for_mon_on_oshape_side(y,   rshape, left_face, basis)  == 2
-@test mon_num_for_mon_on_oshape_side(one, rshape, top_face, basis)    == 1
-@test mon_num_for_mon_on_oshape_side(one, rshape, bottom_face, basis) == 1
-@test mon_num_for_mon_on_oshape_side(x,   rshape, top_face, basis)    == 2
-@test mon_num_for_mon_on_oshape_side(x,   rshape, bottom_face, basis) == 2
 
 # Test support face monomial retrieval
 
@@ -249,14 +240,6 @@ wgrad_solver = WGradSolver(deg(1), basis.mesh)
 @test wgrad_side_mon(mon_num(2), rshape, right_face, basis) == WGrad.wgrad(y, rshape, right_face, wgrad_solver)
 @test_fails wgrad_side_mon(mon_num(3), rshape, right_face, basis)
 
-# TODO
-# solution_wgrad_for_fe(sol_coefs::Vector{R}, fe::FENum, basis::WeakFunsPolyBasis)
-#  wgrad(x^2*y + 2.3, rect_oshape, Mesh.interior_face, wgrad_solver) +
-#    wgrad(x^2 + 2.3, rect_oshape, top_face, wgrad_solver) +
-#    wgrad(y + 2.3, rect_oshape, right_face, wgrad_solver) +
-#    wgrad(zero + 2.3, rect_oshape, bottom_face, wgrad_solver) +
-#    wgrad(zero + 2.3, rect_oshape, left_face, wgrad_solver),
-#  PolynomialVector([2x*y,1x^2])
 
 # test L2 inner products of basis elements
 
