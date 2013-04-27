@@ -1,6 +1,4 @@
 using Test
-require("../Common")
-require("../Poly")
 using Common
 using Poly
 

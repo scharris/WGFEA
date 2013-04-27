@@ -1,10 +1,4 @@
 using Test
-
-require("../Common")
-require("../Poly")
-require("../Mesh")
-require("../RMesh")
-
 using RMesh
 using Common
 import Mesh, Mesh.NBSideInclusions, Mesh.fe_num, Mesh.nb_side_num
@@ -39,9 +33,9 @@ rmesh3x4x5 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
 
 @test rmesh3x4x5.num_nb_sides == Mesh.num_nb_sides(rmesh3x4x5) == rmesh3x4x5.first_nb_side_nums_by_perp_axis[3] - 1 + 3 * 4 * 4
 @test rmesh3x4x5.num_fes == Mesh.num_fes(rmesh3x4x5) == 3*4*5
-@test Mesh.max_num_side_faces_per_fe(rmesh3x4x5) == Mesh.num_side_faces_for_fe(fe_num(1), rmesh3x4x5) == 6
 @test Mesh.num_oriented_element_shapes(rmesh3x4x5) == 1
 
+rect_oshape = Mesh.oshape(1)
 left_face = RMesh.lesser_side_face_perp_to_axis(dim(1))
 right_face = RMesh.greater_side_face_perp_to_axis(dim(1))
 bottom_face = RMesh.lesser_side_face_perp_to_axis(dim(2))
@@ -487,7 +481,7 @@ z = Monomial(0,0,1)
 one_mon = RMesh.one_mon(rmesh3x4x5)
 VM = VectorMonomial # alias for brevity
 
-rect_oshape = Mesh.oshape(1)
+
 
 # Integrate constants on faces of reference element.
 @test nearly_eq(

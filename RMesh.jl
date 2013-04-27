@@ -1,6 +1,6 @@
 module RMesh
 export RectMesh,
-       MeshCoord, mesh_coord,
+       MeshCoord, mesh_coord, mesh_dims,
        lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis
 
 using Common
@@ -11,6 +11,7 @@ import Cubature.hcubature
 # type of a single logical mesh coordinates component (column or row or stack, etc)
 typealias MeshCoord Uint64
 mesh_coord(i::Integer) = convert(MeshCoord, i)
+mesh_dims(dims::Integer...) = [convert(MeshCoord,l) for l in dims]
 
 
 type NBSideGeom
@@ -186,8 +187,8 @@ num_oriented_element_shapes(mesh::RectMesh) = rect_oshape
 import Mesh.oriented_shape_for_fe
 oriented_shape_for_fe(fe::FENum, mesh::RectMesh) = rect_oshape
 
-import Mesh.max_num_side_faces_per_fe
-max_num_side_faces_per_fe(mesh::RectMesh) = mesh.num_side_faces_per_fe
+#import Mesh.num_fes_of_oriented_shape
+#num_fes_of_oriented_shape(oshape::OrientedShape, mesh::RectMesh) = oshape == rect_oshape ? mesh.num_fes : 0
 
 import Mesh.num_side_faces_for_fe
 num_side_faces_for_fe(fe::FENum, mesh::RectMesh) = mesh.num_side_faces_per_fe

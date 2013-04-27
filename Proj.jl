@@ -31,6 +31,21 @@ function project_onto_fe_face(g::Function, fe::FENum, face::FERelFace, basis::We
   end
 end
 
+function project_onto_fe_face(c::R, fe::FENum, face::FERelFace, basis::WeakFunsPolyBasis)
+  const mons = face == Mesh.interior_face ? WGBasis.interior_mons(basis) : WGBasis.side_mons_for_fe_side(fe, face, basis)
+  const num_mons = length(mons)
+  const one_mon = Mesh.one_mon(basis.mesh)
+  const proj = zeros(R, num_mons)
+  for i=1:num_mons
+    if mons[i] == one_mon
+      proj[i] = c
+      return proj
+    end
+  end
+  error("Could not find one monomial in basis monomials for fe $fe, face $face")
+end
+
+
 function project_interior_mon_onto_oshape_side(int_mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)
   const side_mons = WGBasis.side_mons_for_oshape_side(fe_oshape, side_face, basis)
   const ips_side_bels = WGBasis.ips_oshape_side_mons(fe_oshape, side_face, basis)

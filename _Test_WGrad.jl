@@ -1,12 +1,4 @@
 using Test
-
-require("../Common")
-require("../Poly")
-require("../Mesh")
-require("../RMesh")
-require("../WGrad")
-
-
 using WGrad
 using Common
 import Poly, Poly.Monomial, Poly.PolynomialVector, Poly.Nomial

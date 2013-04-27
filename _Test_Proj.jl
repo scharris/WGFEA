@@ -1,13 +1,4 @@
 using Test
-
-require("../Common")
-require("../Poly")
-require("../Mesh")
-require("../WGrad")
-require("../WGBasis")
-require("../RMesh")
-require("../Proj")
-
 using Proj
 using Common
 import Poly.Monomial, Poly.Polynomial
@@ -23,6 +14,7 @@ basis = WeakFunsPolyBasis(deg(5), deg(4), rmesh3x4x5)
 x = Monomial(1,0,0)
 y = Monomial(0,1,0)
 z = Monomial(0,0,1)
+
 
 left_face = RMesh.lesser_side_face_perp_to_axis(dim(1))
 right_face = RMesh.greater_side_face_perp_to_axis(dim(1))
@@ -42,7 +34,12 @@ f = (x::Vector{R}) -> 2(x[1] - mesh_mins[1])^2 * (x[2] - mesh_mins[2]) - 3(x[3] 
   Polynomial(basis.interior_mons, project_onto_fe_face(f, fe_num(1), Mesh.interior_face, basis))
 )
 
-# TODO: Finish wrapping project_onto_fe_face calls in Polynomial constructors.
+
+# constant projection
+@test Poly.coefs_closer_than(10e-7,
+  Polynomial(WGBasis.side_mons_for_fe_side(fe_num(1), left_face, basis), project_onto_fe_face(2.3, fe_num(1), left_face, basis)),
+  2.3*Mesh.one_mon(rmesh3x4x5)
+)
 
 # Project a global function onto the left side which should match the local polynomial
 # (x,y,z) -> 2y^3 - 3.2z^2 there, to which it should project.

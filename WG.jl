@@ -6,8 +6,8 @@ import Poly, Poly.Polynomial
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.fe_num, Mesh.FERelFace, Mesh.fe_face
 import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
-import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.bel_num, WGBasis.MonNum, WGBasis.mon_num
-import Sol.Solution
+import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.beln, WGBasis.MonNum, WGBasis.mon_num
+import Sol.WGSolution
 
 # METHOD
 # Let {b_i}_i be a basis for V_h^0(Omega), and vbf the bilinear form for
@@ -32,7 +32,7 @@ type WGSolver
 
   vbf::AbstractVariationalBilinearForm
 
-  vbf_bel_vs_bel_transpose::Matrix{R}
+  vbf_bel_vs_bel_transpose::AbstractMatrix
 
   basis::WeakFunsPolyBasis
 
@@ -43,11 +43,15 @@ end
 
 typealias BoundaryProjections Dict{(FENum,FERelFace), Vector{R}}
 
+typealias FunctionOrConst Union(Function, R)
+
 # Solve the system, returning coefficients for all basis elements.
-function solve(f::Function, g::Function, wg_solver::WGSolver)
+function solve(f::Function, g::FunctionOrConst, wg_solver::WGSolver)
   const g_projs = boundary_projections(g, wg_solver.basis)
+  # TODO: Try alternative methods here
+  #const vbf_bels_cholf = cholfact(wg_solver.vbf_bel_vs_bel_transpose)
   const sol_basis_coefs = wg_solver.vbf_bel_vs_bel_transpose \ sys_rhs(f, g_projs, wg_solver.vbf, wg_solver.basis)
-  Solution(sol_basis_coefs, g_projs)
+  WGSolution(sol_basis_coefs, g_projs)
 end
 
 
@@ -56,7 +60,7 @@ end
 function sys_rhs(f::Function, g_projs::BoundaryProjections, vbf::AbstractVariationalBilinearForm, basis::WeakFunsPolyBasis)
   const rhs = Array(R, basis.total_bels)
   for i=1:basis.total_bels
-    const bel_i = bel_num(i)
+    const bel_i = beln(i)
     rhs[i] = ip_on_interiors(f, bel_i, basis) - vbf_boundary_projs_vs_bel(vbf, g_projs, bel_i, basis)
   end
   rhs
@@ -148,7 +152,7 @@ end
 boundary_proj(fe::FENum, side_face::FERelFace, projs::BoundaryProjections) =
   projs[(fe,side_face)]
 
-function boundary_projections(g::Function, basis::WeakFunsPolyBasis)
+function boundary_projections(g::FunctionOrConst, basis::WeakFunsPolyBasis)
   const mesh = basis.mesh
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
   const projs = Dict{(FENum,FERelFace), Vector{R}}()

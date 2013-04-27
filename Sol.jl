@@ -1,16 +1,19 @@
 module Sol
-export Solution,
-       solution_value_at_interior_rel_point,
-       solution_poly_on_interior,
-       solution_wgrad_on_interior
+export WGSolution,
+       wg_sol_at_interior_rel_point,
+       wg_sol_poly_on_interior,
+       wg_sol_wgrad_on_interior,
+       err_L2_norm,
+       err_wgrad_vs_grad_L2_norm,
+       err_vbf_seminorm    
 
 using Common
 import Poly, Poly.Polynomial
 import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.fe_num
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.mon_num
 import VBF.AbstractVariationalBilinearForm
-
-type Solution
+  
+type WGSolution
   basis_coefs::Vector{R}
   boundary_projs::Dict{(FENum,FERelFace), Vector{R}}
 end
@@ -18,9 +21,10 @@ end
 
 # Solution evaluation functions
 
-# For the passed array of solution basis coefficients, which should include coefficients for at least
-# all interior basis elements, evaluate the solution at the indicated finite element relative point.
-function solution_value_at_interior_rel_point(sol_coefs::Vector{R}, fe::FENum, x::Vector{R}, basis::WeakFunsPolyBasis)
+wg_sol_at_interior_rel_point(wg_sol::WGSolution, fe::FENum, x::Vector{R}, basis::WeakFunsPolyBasis) =
+  wg_sol_at_interior_rel_point(wg_sol.basis_coefs, fe, x, basis)
+
+function wg_sol_at_interior_rel_point(sol_coefs::Vector{R}, fe::FENum, x::Vector{R}, basis::WeakFunsPolyBasis)
   const int_mons = basis.interior_mons
   const num_int_mons = basis.mons_per_fe_interior
   const first_beln = WGBasis.first_bel_supported_on_fe_interior(fe, basis)
@@ -31,13 +35,10 @@ function solution_value_at_interior_rel_point(sol_coefs::Vector{R}, fe::FENum, x
   sum
 end
 
-solution_value_at_interior_rel_point(sol::Solution, fe::FENum, x::Vector{R}, basis::WeakFunsPolyBasis) =
-  solution_value_at_interior_rel_point(sol.basis_coefs, fe, x, basis)
-
 # Return an interior-relative polynomial which represents on the indicated finite element interior
 # the solution having the passed sequence of basis element coefficients. The basis coefficients
 # should include those for at least all interior basis elements.
-function solution_poly_on_interior(sol_coefs::Vector{R}, fe::FENum, basis::WeakFunsPolyBasis)
+function wg_sol_poly_on_interior(sol_coefs::Vector{R}, fe::FENum, basis::WeakFunsPolyBasis)
   const int_mons = basis.interior_mons
   const num_int_mons = basis.mons_per_fe_interior
   const first_beln = WGBasis.first_bel_supported_on_fe_interior(fe, basis)
@@ -45,17 +46,17 @@ function solution_poly_on_interior(sol_coefs::Vector{R}, fe::FENum, basis::WeakF
   Polynomial(int_mons, coefs)
 end
 
-solution_poly_on_interior(sol::Solution, fe::FENum, basis::WeakFunsPolyBasis) =
-  solution_poly_on_interior(sol.basis_coefs, fe, basis)
+wg_sol_poly_on_interior(wg_sol::WGSolution, fe::FENum, basis::WeakFunsPolyBasis) =
+  wg_sol_poly_on_interior(wg_sol.basis_coefs, fe, basis)
 
 # Return an interior-relative polynomial which represents on the indicated finite element interior
 # the weak gradient of the solution having the passed sequence of basis element coefficients. The
 # basis coefficients should include those for at least all interior basis elements.
-function solution_wgrad_on_interior(sol::Solution, fe::FENum, basis::WeakFunsPolyBasis)
+function wg_sol_wgrad_on_interior(wg_sol::WGSolution, fe::FENum, basis::WeakFunsPolyBasis)
   const wgrad_solver = basis.wgrad_solver
   const mesh = basis.mesh
-  const sol_coefs = sol.basis_coefs
-  const boundary_projs = sol.boundary_projs
+  const sol_coefs = wg_sol.basis_coefs
+  const boundary_projs = wg_sol.boundary_projs
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
 
   # The weak gradient of the solution is the sum of the weak gradients of the functions which equal
@@ -91,33 +92,55 @@ end
 
 # Error Estimates
 
-
-function err_est_L2(approx_sol_coefs::Vector{R}, actual_sol::Function, basis::WeakFunsPolyBasis)
+function err_L2_norm(wg_sol_coefs::Vector{R}, exact_sol::Function, basis::WeakFunsPolyBasis)
   const mesh = basis.mesh
   const one = Mesh.one_mon(mesh)
   const d = Mesh.space_dim(mesh)
   const fe_rel_x = Array(R, d)
 
-  sum_sq_diff_norms = zeroR
+  sum_fe_diff_norm_sqs = zeroR
   for fe=fe_num(1):Mesh.num_fes(mesh)
-    const approx_poly = solution_poly_on_interior(approx_sol_coefs, fe, basis)
+    const wg_sol_poly = wg_sol_poly_on_interior(wg_sol_coefs, fe, basis)
     const fe_origin = Mesh.fe_interior_origin(fe, mesh)
     function sq_diff(x::Vector{R})
       for i=1:d
         fe_rel_x[i] = x[i] - fe_origin[i]
       end
-      const diff = actual_sol(x) - Poly.value_at(approx_poly, fe_rel_x)
+      const diff = exact_sol(x) - Poly.value_at(wg_sol_poly, fe_rel_x)
       diff * diff
     end
-    sum_sq_diff_norms += Mesh.integral_global_x_face_rel_on_fe_face(sq_diff, one, fe, Mesh.interior_face, mesh)
+    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(sq_diff, one, fe, Mesh.interior_face, mesh)
   end
-  sqrt(sum_sq_diff_norms)
+  sqrt(sum_fe_diff_norm_sqs)
 end
 
-err_est_L2(approx_sol::Solution, actual_sol::Function, basis::WeakFunsPolyBasis) =
-  err_est_L2(approx_sol.basis_coefs, actual_sol, basis)
+err_L2_norm(wg_sol::WGSolution, exact_sol::Function, basis::WeakFunsPolyBasis) =
+  err_L2_norm(wg_sol.basis_coefs, exact_sol, basis)
 
-function err_est_vbf(approx_sol::Vector{R}, actual_sol::Function, vbf::AbstractVariationalBilinearForm, basis::WeakFunsPolyBasis)
+# TODO
+function err_wgrad_vs_grad_L2_norm(wg_sol::WGSolution, exact_sol_grad::Function, basis::WeakFunsPolyBasis)
+  const mesh = basis.mesh
+  const one = Mesh.one_mon(mesh)
+  const d = Mesh.space_dim(mesh)
+  const fe_rel_x = Array(R, d)
+
+  sum_fe_diff_norm_sqs = zeroR
+  for fe=fe_num(1):Mesh.num_fes(mesh)
+    const wgrad = wg_sol_wgrad_on_interior(wg_sol, fe, basis)
+    const fe_origin = Mesh.fe_interior_origin(fe, mesh)
+    function diff_norm_sq(x::Vector{R})
+      for i=1:d
+        fe_rel_x[i] = x[i] - fe_origin[i]
+      end
+      const diff = exact_sol_grad(x) - Poly.value_at(wgrad, fe_rel_x)
+      dot(diff, diff)
+    end
+    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(diff_norm_sq, one, fe, Mesh.interior_face, mesh)
+  end
+  sqrt(sum_fe_diff_norm_sqs)
+end
+
+function err_vbf_seminorm(wg_sol::Vector{R}, exact_sol::Function, vbf::AbstractVariationalBilinearForm, basis::WeakFunsPolyBasis)
 # TODO
 end
 

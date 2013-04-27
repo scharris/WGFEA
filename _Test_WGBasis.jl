@@ -1,11 +1,4 @@
 using Test
-require("../Common")
-require("../Poly")
-require("../Mesh")
-require("../WGrad")
-require("../WGBasis")
-require("../RMesh")
-
 using WGBasis
 using Common
 import Mesh, Mesh.fe_num
@@ -63,14 +56,14 @@ one = Monomial(0,0)
 
 @test length(interior_mons(basis)) == basis.mons_per_fe_interior
 
-@test is_interior_supported(bel_num(1), basis)
-@test is_interior_supported(bel_num(36), basis)
-@test RMesh.perp_axis_for_nb_side(support_nb_side_num(bel_num(37), basis), basis.mesh) == dim(1)
-@test RMesh.perp_axis_for_nb_side(support_nb_side_num(bel_num(44), basis), basis.mesh) == dim(1)
-@test RMesh.perp_axis_for_nb_side(support_nb_side_num(bel_num(45), basis), basis.mesh) == dim(2)
-@test RMesh.perp_axis_for_nb_side(support_nb_side_num(bel_num(49), basis), basis.mesh) == dim(2)
-@test RMesh.perp_axis_for_nb_side(support_nb_side_num(bel_num(50), basis), basis.mesh) == dim(2)
-@test_fails RMesh.perp_axis_for_nb_side(support_nb_side_num(bel_num(51), basis), basis.mesh)
+@test is_interior_supported(beln(1), basis)
+@test is_interior_supported(beln(36), basis)
+@test RMesh.perp_axis_for_nb_side(support_nb_side_num(beln(37), basis), basis.mesh) == dim(1)
+@test RMesh.perp_axis_for_nb_side(support_nb_side_num(beln(44), basis), basis.mesh) == dim(1)
+@test RMesh.perp_axis_for_nb_side(support_nb_side_num(beln(45), basis), basis.mesh) == dim(2)
+@test RMesh.perp_axis_for_nb_side(support_nb_side_num(beln(49), basis), basis.mesh) == dim(2)
+@test RMesh.perp_axis_for_nb_side(support_nb_side_num(beln(50), basis), basis.mesh) == dim(2)
+@test_fails RMesh.perp_axis_for_nb_side(support_nb_side_num(beln(51), basis), basis.mesh)
 
 function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
   if is_interior_supported(i, basis)
@@ -82,32 +75,32 @@ function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
 end
 
 # The first section of basis elements are monomials which are assigned to interiors in blocks of 6.
-@test support_fes(bel_num(1), basis) == [1]
-@test support_fes(bel_num(6), basis) == [1]
-@test support_fes(bel_num(7), basis) == [2]
-@test support_fes(bel_num(12), basis) == [2]
-@test support_fes(bel_num(13), basis) == [3]
-@test support_fes(bel_num(30), basis) == [5]
-@test support_fes(bel_num(31), basis) == [6]
-@test support_fes(bel_num(36), basis) == [6]
+@test support_fes(beln(1), basis) == [1]
+@test support_fes(beln(6), basis) == [1]
+@test support_fes(beln(7), basis) == [2]
+@test support_fes(beln(12), basis) == [2]
+@test support_fes(beln(13), basis) == [3]
+@test support_fes(beln(30), basis) == [5]
+@test support_fes(beln(31), basis) == [6]
+@test support_fes(beln(36), basis) == [6]
 
 # The next section of basis elements represent monomials on vertical sides, in blocks of 2.
-@test support_fes(bel_num(37), basis) == [1,2]
-@test support_fes(bel_num(38), basis) == [1,2]
-@test support_fes(bel_num(39), basis) == [2,3]
-@test support_fes(bel_num(40), basis) == [2,3]
-@test support_fes(bel_num(41), basis) == [4,5]
-@test support_fes(bel_num(42), basis) == [4,5]
-@test support_fes(bel_num(43), basis) == [5,6]
-@test support_fes(bel_num(44), basis) == [5,6]
+@test support_fes(beln(37), basis) == [1,2]
+@test support_fes(beln(38), basis) == [1,2]
+@test support_fes(beln(39), basis) == [2,3]
+@test support_fes(beln(40), basis) == [2,3]
+@test support_fes(beln(41), basis) == [4,5]
+@test support_fes(beln(42), basis) == [4,5]
+@test support_fes(beln(43), basis) == [5,6]
+@test support_fes(beln(44), basis) == [5,6]
 
 # The final section of basis elements are the horizontal side monomials, assigned to sides in blocks of 3.
-@test support_fes(bel_num(45), basis) == [1,4]
-@test support_fes(bel_num(46), basis) == [1,4]
-@test support_fes(bel_num(47), basis) == [2,5]
-@test support_fes(bel_num(48), basis) == [2,5]
-@test support_fes(bel_num(49), basis) == [3,6]
-@test support_fes(bel_num(50), basis) == [3,6]
+@test support_fes(beln(45), basis) == [1,4]
+@test support_fes(beln(46), basis) == [1,4]
+@test support_fes(beln(47), basis) == [2,5]
+@test support_fes(beln(48), basis) == [2,5]
+@test support_fes(beln(49), basis) == [3,6]
+@test support_fes(beln(50), basis) == [3,6]
 
 left_face = RMesh.lesser_side_face_perp_to_axis(dim(1))
 right_face = RMesh.greater_side_face_perp_to_axis(dim(1))
@@ -115,20 +108,20 @@ bottom_face = RMesh.lesser_side_face_perp_to_axis(dim(2))
 top_face = RMesh.greater_side_face_perp_to_axis(dim(2))
 
 # fe vertical side supported basis element
-incls = Mesh.fe_inclusions_of_nb_side(support_nb_side_num(bel_num(37), basis), basis.mesh)
+incls = Mesh.fe_inclusions_of_nb_side(support_nb_side_num(beln(37), basis), basis.mesh)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == right_face
 @test incls.fe2 == fe_num(2)
 @test incls.face_in_fe2 == left_face
 
-incls = fe_inclusions_of_side_support(bel_num(37), basis)
+incls = fe_inclusions_of_side_support(beln(37), basis)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == right_face
 @test incls.fe2 == fe_num(2)
 @test incls.face_in_fe2 == left_face
 
 # fe horizontal side supported basis element
-incls = fe_inclusions_of_side_support(bel_num(45), basis)
+incls = fe_inclusions_of_side_support(beln(45), basis)
 @test incls.fe1 == fe_num(1)
 @test incls.face_in_fe1 == top_face
 @test incls.fe2 == fe_num(4)
@@ -140,19 +133,19 @@ rshape = Mesh.oshape(1)
 # Test support face monomial retrieval
 
 # all interior monomials in finite element 1
-@test interior_mon(bel_num(1), basis) == one
-@test interior_mon(bel_num(2), basis) == y
-@test interior_mon(bel_num(3), basis) == y^2
-@test interior_mon(bel_num(4), basis) == x
-@test interior_mon(bel_num(5), basis) == x*y
-@test interior_mon(bel_num(6), basis) == x^2
+@test interior_mon(beln(1), basis) == one
+@test interior_mon(beln(2), basis) == y
+@test interior_mon(beln(3), basis) == y^2
+@test interior_mon(beln(4), basis) == x
+@test interior_mon(beln(5), basis) == x*y
+@test interior_mon(beln(6), basis) == x^2
 
 @test interior_mons(basis) == [one, y, y^2, x, x*y, x^2]
 
 @test WGBasis.first_bel_supported_on_fe_interior(fe_num(1), basis) == 1
 
-@test interior_mon_num(bel_num(3), basis) == mon_num(3)
-@test interior_mon_num(bel_num(6), basis) == mon_num(6)
+@test interior_mon_num(beln(3), basis) == mon_num(3)
+@test interior_mon_num(beln(6), basis) == mon_num(6)
 
 @test interior_mons(basis)[3] == y^2
 @test interior_mons(basis)[6] == x^2
@@ -160,31 +153,31 @@ rshape = Mesh.oshape(1)
 # interior monomials, finite element 2
 @test WGBasis.first_bel_supported_on_fe_interior(fe_num(2), basis) == 7
 
-@test interior_mon(bel_num(7), basis) == one
-@test interior_mon(bel_num(12), basis) == x^2
+@test interior_mon(beln(7), basis) == one
+@test interior_mon(beln(12), basis) == x^2
 
-@test interior_mon_num(bel_num(7), basis) == 1
-@test interior_mon_num(bel_num(12), basis) == 6
+@test interior_mon_num(beln(7), basis) == 1
+@test interior_mon_num(beln(12), basis) == 6
 
 
 # interior monomials, finite element 6
 @test WGBasis.first_bel_supported_on_fe_interior(fe_num(6), basis) == 31
 
-@test interior_mon(bel_num(31), basis) == one
-@test interior_mon(bel_num(36), basis) == x^2
+@test interior_mon(beln(31), basis) == one
+@test interior_mon(beln(36), basis) == x^2
 
-@test interior_mon_num(bel_num(31), basis) == 1
-@test interior_mon_num(bel_num(36), basis) == 6
+@test interior_mon_num(beln(31), basis) == 1
+@test interior_mon_num(beln(36), basis) == 6
 
 # monomials on vertical side between finite elements 1 and 2
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(1), right_face, basis) == 37
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(2), left_face, basis) == 37
 
-@test side_mon(bel_num(37), basis) == one
-@test side_mon(bel_num(38), basis) == y
+@test side_mon(beln(37), basis) == one
+@test side_mon(beln(38), basis) == y
 
-@test side_mon_num(bel_num(37), basis) == 1
-@test side_mon_num(bel_num(38), basis) == 2
+@test side_mon_num(beln(37), basis) == 1
+@test side_mon_num(beln(38), basis) == 2
 
 @test side_mons_for_oshape_side(rshape, right_face, basis)[1] == side_mons_for_oshape_side(rshape, left_face, basis)[1] == one
 @test side_mons_for_oshape_side(rshape, right_face, basis)[2]  == side_mons_for_oshape_side(rshape, left_face, basis)[2] == y
@@ -195,20 +188,20 @@ rshape = Mesh.oshape(1)
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(2), right_face, basis) == 39
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(3), left_face, basis) == 39
 
-@test side_mon(bel_num(39), basis) == one
-@test side_mon(bel_num(40), basis) == y
+@test side_mon(beln(39), basis) == one
+@test side_mon(beln(40), basis) == y
 
 # monomials on vertical side between finite elements 5 and 6
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(5), right_face, basis) == 43
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(6), left_face, basis) == 43
-@test side_mon(bel_num(43), basis) == one
-@test side_mon(bel_num(44), basis) == y
+@test side_mon(beln(43), basis) == one
+@test side_mon(beln(44), basis) == y
 
 # monomials on horizontal side between finite elements 1 and 4
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(1), top_face, basis) == 45
 @test WGBasis.first_bel_supported_on_fe_side(fe_num(4), bottom_face, basis) == 45
-@test side_mon(bel_num(45), basis) == one
-@test side_mon(bel_num(46), basis) == x
+@test side_mon(beln(45), basis) == one
+@test side_mon(beln(46), basis) == x
 
 @test side_mons_for_oshape_side(rshape, top_face, basis)[1] == side_mons_for_oshape_side(rshape, bottom_face, basis)[1] == one
 @test side_mons_for_oshape_side(rshape, top_face, basis)[2] == side_mons_for_oshape_side(rshape, bottom_face, basis)[2] == x
@@ -216,12 +209,12 @@ rshape = Mesh.oshape(1)
 @test_fails side_mons_for_oshape_side(rshape, bottom_face, basis)[3]
 
 # monomials on horizontal side between finite elements 2 and 5
-@test side_mon(bel_num(47), basis) == one
-@test side_mon(bel_num(48), basis) == x
+@test side_mon(beln(47), basis) == one
+@test side_mon(beln(48), basis) == x
 
 # monomials on horizontal side between finite elements 3 and 6
-@test side_mon(bel_num(49), basis) == one
-@test side_mon(bel_num(50), basis) == x
+@test side_mon(beln(49), basis) == one
+@test side_mon(beln(50), basis) == x
 
 
 # test weak gradients of basis elements

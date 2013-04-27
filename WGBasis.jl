@@ -1,11 +1,12 @@
 module WGBasis
 
 export WeakFunsPolyBasis,
-       BElNum, bel_num,
+       BElNum, beln,
        MonNum, mon_num,
        is_interior_supported,
        first_bel_supported_on_fe_interior,
        first_bel_supported_on_fe_side,
+       upper_bound_est_bel_pairs_supported_on_common_fe,
        support_interior_num,
        support_nb_side_num,
        fe_inclusions_of_side_support,
@@ -24,7 +25,7 @@ export WeakFunsPolyBasis,
        ips_oshape_side_mons
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OrientedShape, Mesh.FERelFace, Mesh.fe_face
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OrientedShape, Mesh.FERelFace, Mesh.fe_face, Mesh.oshape, Mesh.fe_num
 import Poly, Poly.Monomial, Poly.Polynomial, Poly.PolynomialVector
 import WGrad, WGrad.WGradSolver
 
@@ -76,7 +77,7 @@ import WGrad, WGrad.WGradSolver
 
 # basis element number type
 typealias BElNum Uint64
-bel_num(i::Integer) = if i > 0 convert(Uint64, i) else error("basis number out of range") end
+beln(i::Integer) = if i > 0 convert(Uint64, i) else error("basis number out of range") end
 const no_bel = uint64(0)
 
 typealias MonNum Uint16
@@ -188,7 +189,7 @@ function make_interior_mon_wgrads(int_mons::Array{Monomial,1}, wgrad_solver::WGr
   const num_oshapes = Mesh.num_oriented_element_shapes(wgrad_solver.mesh)
   const wgrads_by_oshape = Array(Array{PolynomialVector,1}, num_oshapes)
   const num_mons = length(int_mons)
-  for os=Mesh.oshape(1):num_oshapes
+  for os=oshape(1):num_oshapes
     const wgrads = Array(PolynomialVector, num_mons)
     for m=1:num_mons
       wgrads[m] = WGrad.wgrad(int_mons[m], os, Mesh.interior_face, wgrad_solver)
@@ -204,7 +205,7 @@ function make_side_mon_wgrads(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, 
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const wgrads_by_oshape = Array(Array{Array{PolynomialVector,1},1}, num_oshapes)
   const mons_per_side = length(side_mons_by_dep_dim[1])
-  for os=Mesh.oshape(1):num_oshapes
+  for os=oshape(1):num_oshapes
     const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
     const wgrads_by_side = Array(Array{PolynomialVector,1}, sides_per_fe)
     for sf=fe_face(1):sides_per_fe
@@ -226,7 +227,7 @@ function make_interior_mon_ips(mons::Array{Monomial,1}, mesh::AbstractMesh)
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Matrix{R}, num_oshapes)
   const num_mons = length(mons)
-  for os=Mesh.oshape(1):num_oshapes
+  for os=oshape(1):num_oshapes
     const m = Array(R, num_mons,num_mons)
     for i=1:num_mons
       const mon_i = mons[i]
@@ -247,7 +248,7 @@ function make_side_mon_ips(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, mes
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Array{Matrix{R}}, num_oshapes)
   const num_mons = length(side_mons_by_dep_dim[1])
-  for os=Mesh.oshape(1):num_oshapes
+  for os=oshape(1):num_oshapes
     const num_side_faces = Mesh.num_side_faces_for_shape(os, mesh)
     const ips_by_side = Array(Matrix{R}, num_side_faces)
     for sf=fe_face(1):num_side_faces
@@ -280,6 +281,27 @@ first_bel_supported_on_fe_interior(fe::FENum, basis::WeakFunsPolyBasis) = (fe-1)
 function first_bel_supported_on_fe_side(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis)
   const nb_side_num = Mesh.nb_side_num_for_fe_side(fe, side_face, basis.mesh)
   basis.first_nb_side_bel + (nb_side_num-1) * basis.mons_per_fe_side
+end
+
+# Returns an upper bond on the number of ordered pairs of basis elements for which 
+# some common finite element includes both supports.  Overcounts in the case that
+# a finite element has two or more sides both adjoining another single finite element.
+function upper_bound_est_bel_pairs_supported_on_common_fe(basis::WeakFunsPolyBasis)
+  const mesh = basis.mesh
+  const mons_per_int = basis.mons_per_fe_interior
+  const mons_per_side = basis.mons_per_fe_side
+  const mons_per_side_sq = mons_per_side * mons_per_side
+  const num_fes = Mesh.num_fes(mesh)
+  
+  sum = num_fes * mons_per_int * mons_per_int # interior mons with interior mons
+  for fe=fe_num(1):num_fes
+    const nb_sides = Mesh.num_non_boundary_sides_for_fe(fe, mesh)
+    sum += 2 * mons_per_int * nb_sides * mons_per_side + # interior mons with side mons and side mons with interior mons
+           nb_sides * (nb_sides-1) * mons_per_side_sq  # non-boundary side mons with mons on other non-boundary sides
+  end
+
+  sum += Mesh.num_nb_sides(mesh) * mons_per_side_sq # side mons with mons on same side
+  sum
 end
 
 # retrieval of mesh item numbers
@@ -376,7 +398,7 @@ end
 # testing and debugging aids
 
 type BElSummary
-  bel_num::BElNum
+  beln::BElNum
   support_type::String
   support
   mon::Monomial
@@ -395,7 +417,7 @@ end
 function bel_summaries_supported_on_fe(fe::FENum, basis::WeakFunsPolyBasis)
   bsums = Array(BElSummary,0)
   for i=1:basis.total_bels
-    bsum = bel_summary(bel_num(i), basis)
+    bsum = bel_summary(beln(i), basis)
     if bsum.support.fe1 == fe || bsum.support.fe2 == fe
         push!(bsums, bsum)
     end

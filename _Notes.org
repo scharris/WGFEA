@@ -1,26 +1,21 @@
 Commit Notes
 ------------
 
-
-
 TODO
 ----
-Finish impl (fix) of WGBasis.solution_wgrad_for_fe.
-  Retest weak hradient calculations around the boundaries.
-
-Add proper total errors, for L2 and triple bar norm (add latter to general VBF interface).
-  Pass precomputed boundary projections from the solution structure.
-
-Specialize constant projection for efficiency.
-
-Try using a sparse matrix for vbf basis vs basis matrix.
+Try using a sparse matrix solver in WG.solve, currently can't find/import the SuiteSparse module/package.
   https://groups.google.com/forum/?hl=en&fromgroups=#!topic/julia-users/3tTljDSQ6cs
   "In julia, you are using \ to solve the system. This currently defaults to using LU factorization.
    However, if your system is SPD, there are gains from using a cholesky solver. Matlab does this
    automatically, and Julia does this automatically in the dense case, but not yet in the sparse case."
 
-Implement classical WG, which is just A_s without the stabilization term.
 
+Lookup choice of polynomials necessary for classic WG on rectangles.
+  Need to be able to paramterize basis and WGrad by
+     degree limits for basis polynomials, as pair of limit and type enum
+     weak gradient space
+
+Implement triple bar norm (vbf) error.
 
 Concatenate two rectangular meshes left/right or upper/lower?
   Only fes on the joined boundary will need to have new computations.
@@ -28,13 +23,6 @@ Concatenate two rectangular meshes left/right or upper/lower?
 |     |____|
 |     |____|
 |_____|____|
-
-
-Q: Look into caching projections where they may be multiply computed.
-
-Support multiple reference elements.
-  Every mesh function that takes a face but does not take a finite element number, should take a reference element number.
-  The reference element is a function of the finite element number.
 
 
 Documentation Changes

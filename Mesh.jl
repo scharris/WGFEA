@@ -14,7 +14,6 @@ export FENum, fe_num, no_fe,
        num_nb_sides,
        num_oriented_element_shapes,
        oriented_shape_for_fe,
-       max_num_side_faces_per_fe,
        num_side_faces_for_fe,
        num_side_faces_for_shape,
        dependent_dim_for_nb_side,
@@ -24,6 +23,7 @@ export FENum, fe_num, no_fe,
        nb_side_num_for_fe_side,
        is_boundary_side,
        num_boundary_sides,
+       num_non_boundary_sides_for_fe,
        integral_face_rel_on_face,
        integral_global_x_face_rel_on_fe_face,
        integral_face_rel_x_face_rel_on_face,
@@ -94,8 +94,8 @@ num_oriented_element_shapes{M <: AbstractMesh}(mesh::M) =
 oriented_shape_for_fe{M <: AbstractMesh}(fe::FENum, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-max_num_side_faces_per_fe{M <: AbstractMesh}(mesh::M) =
-  error("not implemented, mesh implementation is incomplete")
+#num_fes_of_oriented_shape{M <: AbstractMesh}(oshape::OrientedShape, mesh::M) =
+#  error("not implemented, mesh implementation is incomplete")
 
 num_side_faces_for_fe{M <: AbstractMesh}(fe::FENum, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
@@ -233,6 +233,14 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p::Polynomial, q::
   sum
 end
 
+# TODO: unit tests
+function num_non_boundary_sides_for_fe{M <: AbstractMesh}(fe::FENum, mesh::M)
+  nb_sides = 0
+  for sf=fe_face(1):Mesh.num_side_faces_for_fe(fe, mesh) 
+    if !Mesh.is_boundary_side(fe, sf, mesh) nb_sides += 1 end
+  end
+  nb_sides
+end
 
 # Functional (but memory allocating) variant of fe_inclusions_of_nb_side!.
 fe_inclusions_of_nb_side{M <: AbstractMesh}(side_num::NBSideNum, mesh::M) =
