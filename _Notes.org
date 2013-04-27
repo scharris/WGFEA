@@ -3,6 +3,7 @@ Commit Notes
 
 TODO
 ----
+
 Try using a sparse matrix solver in WG.solve, currently can't find/import the SuiteSparse module/package.
   https://groups.google.com/forum/?hl=en&fromgroups=#!topic/julia-users/3tTljDSQ6cs
   "In julia, you are using \ to solve the system. This currently defaults to using LU factorization.
