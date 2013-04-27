@@ -29,40 +29,23 @@ import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.Oriented
 import Poly, Poly.Monomial, Poly.Polynomial, Poly.PolynomialVector
 import WGrad, WGrad.WGradSolver
 
-# Abbreviations & terminology
-# - fe: a finite element or its number
-# - finite element number: the number of the interior of the finite element
-#     under the ordering described below (see "interiors ordering" diagram)
-# - fes: finite elements
-# - face: the interior or a single side of a finite element
-# - sface: support face (of a basis element), the face on which the basis element is non-zero
-# - mon: monomial
-# - el(s): element(s)
-# - bel(s): basis element(s)
-# - bel support: here, the minimal set of finite elements containing the support of the basis element.
-# - interior/side/vertical side/horizontal side basis element: a basis element supported
-#     on a face of the type indicated (monomial on some one such face, 0 elsewhere).
-# - llo: having lower left at origin. E.g. llo_rect is a rectangle having its lower left corner at the origin.
-# - ix: a position number with 0 as the first position
-# - rix, cix: row index, column index
-# - ip: inner product, L2 unless specified otherwise.
-# - nb: non-boundary, not significantly intersecting the outside boundary of the mesh
-#
-# Let V_h^0 be the space of weak functions which are polynomials of degree k or less
-# on mesh element interiors and k-1 or less on mesh element sides, and are 0 on the
+
+# Let V_h^0 be the space of weak functions which are polynomials of degree k_i or less
+# on mesh element interiors and k_s or less on mesh element sides, and are 0 on the
 # outside boundary of the mesh.
 #
-# Purpose: For given mesh, polynomial degree, and domain dimension, provide an object
-#          representing a basis for the space V_h^0, and functions to interrogate the
-#          basis to determine the supporting element, face and monomial for any given
-#          basis element by number.
+# Purpose: For given mesh and polynomial degrees for interior and side polynomials,
+#          provide an object representing a basis for the space V_h^0, and functions
+#          to interrogate the basis to determine 1) the supporting finite elements,
+#          relative faces and monomials for basis elements by number, 2) pre-computed
+#          inner products between basis elements, and 3) pre-computed weak gradients
+#          of basis elements.
 #
 # V_h^0 Basis Elements and Numbering
 #
 # A basis element for V_h^0 will be a weak function which is a monomial on one face
 # of a single finite element, excluding sides on the outside boundary of the mesh,
-# and which is 0 on all other faces.  On interiors of the finite elements the
-# maximum monomial degree will be k, and on sides k-1.
+# and which is 0 on all other faces.
 #
 # The basis elements are first arranged into two groups, the first being those
 # which are supported on finite element interiors, followed by those supported
