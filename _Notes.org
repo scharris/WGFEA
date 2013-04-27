@@ -3,6 +3,14 @@ Commit Notes
 
 TODO
 ----
+5x5x5x5 mesh, interior polys deg 3, sides deg 2
+625 finite elements
+35 basis monomials per interior
+10 basis monomials per side
+2000 nb sides
+41875 basis elements
+1753515625 basis element pairs
+
 
 Try using a sparse matrix solver in WG.solve, currently can't find/import the SuiteSparse module/package.
   https://groups.google.com/forum/?hl=en&fromgroups=#!topic/julia-users/3tTljDSQ6cs

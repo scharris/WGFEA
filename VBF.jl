@@ -185,7 +185,7 @@ function side_bel_vs_side_bel{BF <: AbstractVariationalBilinearForm}(bel_1::BElN
   end
 end
 
-function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basis::WeakFunsPolyBasis, bf::BF)
+function bel_vs_bel_transpose{BF <: AbstractVariationalBilinearForm}(basis::WeakFunsPolyBasis, bf::BF)
   const num_int_bels = basis.num_interior_bels
   const first_nb_side_bel = basis.first_nb_side_bel
 
@@ -193,20 +193,26 @@ function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basi
   const interacting_bel_pairs_ub = WGBasis.upper_bound_est_bel_pairs_supported_on_common_fe(basis)
   const row_nums = Array(Int, interacting_bel_pairs_ub)
   const col_nums = Array(Int, interacting_bel_pairs_ub)
-  const nonzeros = Array(R, interacting_bel_pairs_ub) 
+  const nonzeros = Array(R, interacting_bel_pairs_ub)
+
+  println(STDERR, "Mesh has $(int(basis.mesh.num_fes)) finite elements, and $(int(basis.mesh.num_nb_sides)) nb sides.")
+  println(STDERR, "Computing vbf bel vs bel matrix, with $(int64(basis.total_bels)) basis elements, $(int64(basis.total_bels)^2) pairs.")
+  println(STDERR, "Basis has $(int(basis.mons_per_fe_interior)) monomials per interior, $(int(basis.mons_per_fe_side)) monomials per side.")
 
   nnz = 0 # current number of non-zero values stored, the last stored position in the data arrays
   if !is_symmetric(bf)
     for i=1:num_int_bels, j=1:num_int_bels
+      if mod(nnz, 500) == 0 println(STDERR, "ii($i,$j)") end
       const vbf_ij = int_bel_vs_int_bel(beln(i), beln(j), basis, bf)
       if vbf_ij != zeroR
         nnz += 1
-        nonzeros[nnz] = vbf_ij 
+        nonzeros[nnz] = vbf_ij
         row_nums[nnz] = j
         col_nums[nnz] = i
       end
     end
     for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
+      if mod(nnz, 500) == 0 println(STDERR, "si($i,$j)") end
       const bel_i = beln(i)
       const bel_j = beln(j)
       const vbf_ij = side_bel_vs_int_bel(bel_i, bel_j, basis, bf)
@@ -225,6 +231,7 @@ function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basi
       end
     end
     for i=first_nb_side_bel:basis.total_bels, j=first_nb_side_bel:basis.total_bels
+      if mod(nnz, 500) == 0 println(STDERR, "ss($i,$j)") end
       const vbf_ij = side_bel_vs_side_bel(beln(i), beln(j), basis, bf)
       if vbf_ij != zeroR
         nnz += 1
@@ -237,6 +244,7 @@ function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basi
     for i=1:num_int_bels
       const bel_i = beln(i)
       for j=1:i-1
+        if mod(nnz, 500) == 0 println(STDERR, "ii($i,$j)") end
         const vbf_ij = int_bel_vs_int_bel(bel_i, beln(j), basis, bf)
         if vbf_ij != zeroR
           nnz += 1
@@ -258,6 +266,7 @@ function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basi
       end
     end
     for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
+      if mod(nnz, 500) == 0 println(STDERR, "si($i,$j)") end
       const vbf_ij = side_bel_vs_int_bel(beln(i), beln(j), basis, bf)
       if vbf_ij != zeroR
         nnz += 1
@@ -273,6 +282,7 @@ function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basi
     for i=first_nb_side_bel:basis.total_bels
       const bel_i = beln(i)
       for j=first_nb_side_bel:i-1
+        if mod(nnz, 500) == 0 println(STDERR, "ss($i,$j)") end
         const vbf_ij = side_bel_vs_side_bel(bel_i, beln(j), basis, bf)
         if vbf_ij != zeroR
           nnz += 1
@@ -295,6 +305,8 @@ function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basi
     end
   end
 
+  println(STDERR, "Done computing vbf bel vs bel matrix")
+
   sparse(row_nums[1:nnz],
          col_nums[1:nnz],
          nonzeros[1:nnz],
@@ -303,7 +315,7 @@ function bel_vs_bel_transpose_sparse{BF <: AbstractVariationalBilinearForm}(basi
 end
 
 
-function bel_vs_bel_transpose{BF <: AbstractVariationalBilinearForm}(basis::WeakFunsPolyBasis, bf::BF)
+function bel_vs_bel_transpose_dense{BF <: AbstractVariationalBilinearForm}(basis::WeakFunsPolyBasis, bf::BF)
   const num_int_bels = basis.num_interior_bels
   const first_nb_side_bel = basis.first_nb_side_bel
   const m = Array(R, basis.total_bels, basis.total_bels)

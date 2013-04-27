@@ -48,9 +48,8 @@ typealias FunctionOrConst Union(Function, R)
 # Solve the system, returning coefficients for all basis elements.
 function solve(f::Function, g::FunctionOrConst, wg_solver::WGSolver)
   const g_projs = boundary_projections(g, wg_solver.basis)
-  # TODO: Try alternative methods here
-  #const vbf_bels_cholf = cholfact(wg_solver.vbf_bel_vs_bel_transpose)
-  const sol_basis_coefs = wg_solver.vbf_bel_vs_bel_transpose \ sys_rhs(f, g_projs, wg_solver.vbf, wg_solver.basis)
+  const vbf_bels_cholf = cholfact(wg_solver.vbf_bel_vs_bel_transpose)
+  const sol_basis_coefs = vbf_bels_cholf \ sys_rhs(f, g_projs, wg_solver.vbf, wg_solver.basis)
   WGSolution(sol_basis_coefs, g_projs)
 end
 

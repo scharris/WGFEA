@@ -1,4 +1,4 @@
-using Test
+using Base.Test
 using WG
 using Common
 import Mesh, Mesh.fe_num
@@ -12,9 +12,9 @@ import Sol, Sol.WGSolution
 function simple_2d_test()
   u(x::Vector{R}) = x[1]*(1-x[1])*x[2]*(1-x[2])
   grad_u(x::Vector{R}) = [(1-2x[1])*x[2]*(1-x[2]), x[1]*(1-x[1])*(1-2x[2])]
-  f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1]) 
+  f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
   g = 0.0
-    
+
   mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(5,5))
   basis = WeakFunsPolyBasis(deg(2), deg(1), mesh)
   vbf = a_s(basis)
@@ -39,14 +39,14 @@ function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
   # ((grad u)(x))_i = -2 sin(|x|^2) x_i
   grad_u(x::Vector{R}) = -2sin(dot(x,x))*x
   # (D_i (grad u)_i)(x) = -2 ( cos(|x|^2)(2 x_i) x_i + sin(|x|^2) )
-  # So -(div grad u)(x) =  2 sum_{i=1..d}{ 2 (x_i)^2 cos(|x|^2)  + sin(|x|^2) } 
+  # So -(div grad u)(x) =  2 sum_{i=1..d}{ 2 (x_i)^2 cos(|x|^2)  + sin(|x|^2) }
   #                     =  2 ( d sin(|x|^2) + 2 sum_{i=1..d}{ (x_i)^2 cos(|x|^2) } )
   f(x::Vector{R}) = let xx = dot(x,x) 2(d*sin(xx) + 2sum(i -> x[i]*x[i]*cos(xx), 1:d)) end
   g(x::Vector{R}) = u(x)
- 
-  mesh_min_bounds = zeros(R, d) 
+
+  mesh_min_bounds = zeros(R, d)
   mesh_max_bounds = ones(R, d)
-    
+
   mesh = RectMesh(mesh_min_bounds, mesh_max_bounds, mesh_ldims)
   basis = WeakFunsPolyBasis(interior_polys_max_deg, side_polys_max_deg, mesh)
   vbf = a_s(basis)
@@ -82,5 +82,5 @@ end
 
 #simple_2d_test()
 
-trig_Rd_test(mesh_dims(2,2,2,2), deg(3), deg(2))
+trig_Rd_test(mesh_dims(5,5,5,5), deg(3), deg(2))
 # "[Finished in 2809.1s]"
