@@ -1,4 +1,4 @@
-module Sol
+module WGSol
 export WGSolution,
        wg_sol_at_interior_rel_point,
        wg_sol_poly_on_interior,

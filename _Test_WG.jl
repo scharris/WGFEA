@@ -6,7 +6,7 @@ import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_dims
 import WGBasis.WeakFunsPolyBasis
 import VBF_a_s.a_s
 import VBF_a.a
-import Sol, Sol.WGSolution
+import WGSol, WGSol.WGSolution
 
 
 function simple_2d_test()
@@ -28,8 +28,8 @@ function simple_2d_test()
 
   #print_sample_points(sol, u, grad_u, basis)
 
-  println("L2 norm of u - u_h: $(Sol.err_L2_norm(sol, u, basis))")
-  println("L2 norm of grad u - wgrad u_h: $(Sol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
+  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(sol, u, basis))")
+  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
 end
 
@@ -55,8 +55,8 @@ function simple_4d_test()
 
   print_sample_points(sol, u, grad_u, basis)
 
-  println("L2 norm of u - u_h: $(Sol.err_L2_norm(sol, u, basis))")
-  println("L2 norm of grad u - wgrad u_h: $(Sol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
+  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(sol, u, basis))")
+  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
 end
 
@@ -90,8 +90,8 @@ function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
 
   print_sample_points(wg_sol, u, grad_u, basis)
 
-  println(STDERR, "L2 norm of u - u_h: $(Sol.err_L2_norm(wg_sol, u, basis))")
-  println(STDERR, "L2 norm of grad u - wgrad u_h: $(Sol.err_wgrad_vs_grad_L2_norm(wg_sol, grad_u, basis))")
+  println(STDERR, "L2 norm of u - u_h: $(WGSol.err_L2_norm(wg_sol, u, basis))")
+  println(STDERR, "L2 norm of grad u - wgrad u_h: $(WGSol.err_wgrad_vs_grad_L2_norm(wg_sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
 end
 
@@ -99,10 +99,10 @@ end
 function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function, basis::WeakFunsPolyBasis)
   for fe=fe_num(1):Mesh.num_fes(basis.mesh)
     const fe_or = Mesh.fe_interior_origin(fe, basis.mesh)
-    const wg_sol_val = Sol.wg_sol_at_interior_rel_point(wg_sol, fe, [.0,.0], basis)
+    const wg_sol_val = WGSol.wg_sol_at_interior_rel_point(wg_sol, fe, [.0,.0], basis)
     const u_val = u(fe_or)
 
-    const wgrad = Sol.wg_sol_wgrad_on_interior(wg_sol, fe, basis)
+    const wgrad = WGSol.wg_sol_wgrad_on_interior(wg_sol, fe, basis)
     const wgrad_val = Poly.value_at(wgrad, [.0,.0])
     const grad_u_val = grad_u(fe_or)
 
@@ -112,8 +112,8 @@ function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function, 
   flush(OUTPUT_STREAM)
 end
 
-#simple_2d_test()
+simple_2d_test()
 
 #trig_Rd_test(mesh_dims(5,5,5,5), deg(3), deg(2))
 
-simple_4d_test()
+#simple_4d_test()

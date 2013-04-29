@@ -7,7 +7,7 @@ import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.fe_num, Mesh.FERelFace, Mesh.fe
 import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.beln, WGBasis.MonNum, WGBasis.mon_num
-import Sol.WGSolution
+import WGSol.WGSolution
 
 # METHOD
 # Let {b_i}_i be a basis for V_h^0(Omega), and vbf the bilinear form for
