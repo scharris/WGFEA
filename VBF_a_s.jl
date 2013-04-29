@@ -3,7 +3,7 @@ export A_s, a_s
 
 using Common
 import Poly.Polynomial, Poly.Monomial
-import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.OrientedShape
+import Mesh, Mesh.OrientedShape, Mesh.FERelFace, Mesh.fe_face, Mesh.OrientedShape
 import Proj
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
 import VBF, VBF.AbstractVariationalBilinearForm
@@ -29,13 +29,12 @@ is_symmetric(bf::A_s) = true
 
 
 import VBF.int_mon_vs_int_mon
-function int_mon_vs_int_mon(fe::FENum,
+function int_mon_vs_int_mon(fe_oshape::OrientedShape,
                             monn_1::MonNum,
                             monn_2::MonNum,
                             basis::WeakFunsPolyBasis,
                             bf::A_s)
   const mesh = basis.mesh
-  const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
 
   # weak gradients term
   const ip_wgrads =
@@ -54,20 +53,19 @@ function int_mon_vs_int_mon(fe::FENum,
       const proj_2 = bf.int_mon_side_projs[monn_2][fe_oshape][sf]
       sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_face(proj_1, proj_2, fe_oshape, sf, mesh)
     end
-    Mesh.fe_diameter_inv(fe, mesh) * sum_over_sides
+    Mesh.shape_diameter_inv(fe_oshape, mesh) * sum_over_sides
   end
 
   ip_wgrads + stab
 end
 
 import VBF.side_mon_vs_int_mon
-function side_mon_vs_int_mon(fe::FENum,
+function side_mon_vs_int_mon(fe_oshape::OrientedShape,
                              side_monn::MonNum, side_face::FERelFace,
                              int_monn::MonNum,
                              basis::WeakFunsPolyBasis,
                              bf::A_s)
   const mesh = basis.mesh
-  const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
 
   # weak gradients term
   const ip_wgrads =
@@ -81,34 +79,33 @@ function side_mon_vs_int_mon(fe::FENum,
   #    (1/h_T) <Q_b v_0T, -w_b>_bnd(T)
   #  = (1/h_T) <Q_b v_0T, -w_b>_s where s is the support face of w
   const stab = begin
-    const side_mon = WGBasis.side_mons_for_fe_side(fe, side_face, basis)[side_monn]
+    const side_mon = WGBasis.side_mons_for_oshape_side(fe_oshape, side_face, basis)[side_monn]
     const int_proj = bf.int_mon_side_projs[int_monn][fe_oshape][side_face]
     const ip = -Mesh.integral_face_rel_x_face_rel_on_face(int_proj, side_mon, fe_oshape, side_face, mesh)
-    Mesh.fe_diameter_inv(fe, mesh) * ip
+    Mesh.shape_diameter_inv(fe_oshape, mesh) * ip
   end
 
   ip_wgrads + stab
 end
 
 import VBF.int_mon_vs_side_mon
-function int_mon_vs_side_mon(fe::FENum,
+function int_mon_vs_side_mon(fe_oshape::OrientedShape,
                              int_monn::MonNum,
                              side_monn::MonNum, side_face::FERelFace,
                              basis::WeakFunsPolyBasis,
                              bf::A_s)
   assert(is_symmetric(bf), "int_mon_vs_side_mon needs independent implementation, bilinear form is not symmetric")
-  side_mon_vs_int_mon(fe, side_monn, side_face, int_monn, basis, bf)
+  side_mon_vs_int_mon(fe_oshape, side_monn, side_face, int_monn, basis, bf)
 end
 
 
 import VBF.side_mon_vs_side_mon
-function side_mon_vs_side_mon(fe::FENum,
+function side_mon_vs_side_mon(fe_oshape::OrientedShape,
                               monn_1::MonNum, side_face_1::FERelFace,
                               monn_2::MonNum, side_face_2::FERelFace,
                               basis::WeakFunsPolyBasis,
                               bf::A_s)
   const mesh = basis.mesh
-  const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
 
   # weak gradients term
   const ip_wgrads =
@@ -128,11 +125,11 @@ function side_mon_vs_side_mon(fe::FENum,
       zeroR
     else
       const common_supp_side = side_face_1
-      const side_mons = WGBasis.side_mons_for_fe_side(fe, common_supp_side, basis)
+      const side_mons = WGBasis.side_mons_for_oshape_side(fe_oshape, common_supp_side, basis)
       const mon_1 = side_mons[monn_1]
       const mon_2 = side_mons[monn_2]
       const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_1, mon_2, fe_oshape, common_supp_side, mesh)
-      Mesh.fe_diameter_inv(fe, mesh) * ip
+      Mesh.shape_diameter_inv(fe_oshape, mesh) * ip
     end
 
   ip_wgrads + stab

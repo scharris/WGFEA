@@ -3,6 +3,145 @@ Commit Notes
 
 TODO
 ----
+  if !is_symmetric(bf)
+    for i=1:num_int_bels, j=1:num_int_bels
+      if mod(nnz, 500) == 0 println(STDERR, "ii($i,$j)") end
+      const vbf_ij = int_bel_vs_int_bel(beln(i), beln(j), basis, bf)
+      if vbf_ij != zeroR
+        nnz += 1
+        nonzeros[nnz] = vbf_ij
+        row_nums[nnz] = j
+        col_nums[nnz] = i
+      end
+    end
+    for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
+      if mod(nnz, 500) == 0 println(STDERR, "si($i,$j)") end
+      const bel_i = beln(i)
+      const bel_j = beln(j)
+      const vbf_ij = side_bel_vs_int_bel(bel_i, bel_j, basis, bf)
+      if vbf_ij != zeroR
+        nnz += 1
+        nonzeros[nnz] = vbf_ij
+        row_nums[nnz] = j
+        col_nums[nnz] = i
+      end
+      const vbf_ji = int_bel_vs_side_bel(bel_j, bel_i, basis, bf)
+      if vbf_ji != zeroR
+        nnz += 1
+        nonzeros[nnz] = vbf_ji
+        row_nums[nnz] = i
+        col_nums[nnz] = j
+      end
+    end
+    for i=first_nb_side_bel:basis.total_bels, j=first_nb_side_bel:basis.total_bels
+      if mod(nnz, 500) == 0 println(STDERR, "ss($i,$j)") end
+      const vbf_ij = side_bel_vs_side_bel(beln(i), beln(j), basis, bf)
+      if vbf_ij != zeroR
+        nnz += 1
+        nonzeros[nnz] = vbf_ij
+        row_nums[nnz] = j
+        col_nums[nnz] = i
+      end
+    end
+  else # bf is symmetric
+    for i=1:num_int_bels
+      const bel_i = beln(i)
+      for j=1:i-1
+        if mod(nnz, 500) == 0 println(STDERR, "ii($i,$j)") end
+        const vbf_ij = int_bel_vs_int_bel(bel_i, beln(j), basis, bf)
+        if vbf_ij != zeroR
+          nnz += 1
+          nonzeros[nnz] = vbf_ij
+          row_nums[nnz] = j
+          col_nums[nnz] = i
+          nnz += 1
+          nonzeros[nnz] = vbf_ij
+          row_nums[nnz] = i
+          col_nums[nnz] = j
+        end
+      end
+      const vbf_ii = int_bel_vs_int_bel(bel_i, bel_i, basis, bf)
+      if vbf_ii != zeroR
+        nnz += 1
+        nonzeros[nnz] = vbf_ii
+        row_nums[nnz] = i
+        col_nums[nnz] = i
+      end
+    end
+    for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
+      if mod(nnz, 500) == 0 println(STDERR, "si($i,$j)") end
+      const vbf_ij = side_bel_vs_int_bel(beln(i), beln(j), basis, bf)
+      if vbf_ij != zeroR
+        nnz += 1
+        nonzeros[nnz] = vbf_ij
+        row_nums[nnz] = j
+        col_nums[nnz] = i
+        nnz += 1
+        nonzeros[nnz] = vbf_ij
+        row_nums[nnz] = i
+        col_nums[nnz] = j
+      end
+    end
+    for i=first_nb_side_bel:basis.total_bels
+      const bel_i = beln(i)
+      for j=first_nb_side_bel:i-1
+        if mod(nnz, 500) == 0 println(STDERR, "ss($i,$j)") end
+        const vbf_ij = side_bel_vs_side_bel(bel_i, beln(j), basis, bf)
+        if vbf_ij != zeroR
+          nnz += 1
+          nonzeros[nnz] = vbf_ij
+          row_nums[nnz] = j
+          col_nums[nnz] = i
+          nnz += 1
+          nonzeros[nnz] = vbf_ij
+          row_nums[nnz] = i
+          col_nums[nnz] = j
+        end
+      end
+      const vbf_ii = side_bel_vs_side_bel(bel_i, bel_i, basis, bf)
+      if vbf_ii != zeroR
+        nnz += 1
+        nonzeros[nnz] = vbf_ii
+        row_nums[nnz] = i
+        col_nums[nnz] = i
+      end
+    end
+  end
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+In the mesh, make sure nb_side_num_for_fe_side is as fast as possible, store precomputed values if necessary.
+
+
+In VBF bel vs bel function:
+  First precompute all bel vs bel vbf values for each oshape in the mesh
+    oshape, face, mon #, face, mon # -> vbf value
+    Then for each fe,
+      for each pair of non-boundary sides sf1, sf2,
+      compute (with help of the basis) the bel numbers for the first monomials on the sides
+      for each monomial pair between the sides,
+      lookup the vbf value for the pair, store in the matrix, assuming sequential numbering after the first monomials.
+
+
+
 5x5x5x5 mesh, interior polys deg 3, sides deg 2
 625 finite elements
 35 basis monomials per interior

@@ -4,20 +4,21 @@ export WeakFunsPolyBasis,
        BElNum, beln,
        MonNum, mon_num,
        is_interior_supported,
-       first_bel_supported_on_fe_interior,
-       first_bel_supported_on_fe_side,
-       upper_bound_est_bel_pairs_supported_on_common_fe,
+       ub_estimate_num_bel_bel_common_support_fe_triplets,
        support_interior_num,
        support_nb_side_num,
        fe_inclusions_of_side_support,
+       mons_per_fe_interior,
        interior_mons,
        interior_mon,
        interior_mon_num,
+       interior_mon_bel_num,
        mons_per_fe_side,
        side_mons_for_fe_side,
        side_mons_for_oshape_side,
        side_mon_num,
        side_mon,
+       side_mon_bel_num,
        wgrad_interior_mon,
        wgrad_side_mon,
        ips_interior_mons,
@@ -259,31 +260,24 @@ is_interior_supported(i::BElNum, basis::WeakFunsPolyBasis) = i <= basis.num_inte
 
 is_side_supported(i::BElNum, basis::WeakFunsPolyBasis) = basis.num_interior_bels < i <= basis.total_bels
 
-first_bel_supported_on_fe_interior(fe::FENum, basis::WeakFunsPolyBasis) = (fe-1) * basis.mons_per_fe_interior + 1
 
-function first_bel_supported_on_fe_side(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis)
-  const nb_side_num = Mesh.nb_side_num_for_fe_side(fe, side_face, basis.mesh)
-  basis.first_nb_side_bel + (nb_side_num-1) * basis.mons_per_fe_side
-end
-
-# Returns an upper bond on the number of ordered pairs of basis elements for which 
-# some common finite element includes both supports.  Overcounts in the case that
-# a finite element has two or more sides both adjoining another single finite element.
-function upper_bound_est_bel_pairs_supported_on_common_fe(basis::WeakFunsPolyBasis)
+# Returns an estimate and upper bound of the number of ordered triplets (bel1, bel2, fe) which exist
+# where bel1 and bel2 are basis elements which are both supported on finite element fe.
+# This function is intended to help callers allocate storage for data structures involving interacting
+# basis element pairs, such as are used in the construction of sparse matrices.
+function ub_estimate_num_bel_bel_common_support_fe_triplets(basis::WeakFunsPolyBasis)
   const mesh = basis.mesh
   const mons_per_int = basis.mons_per_fe_interior
   const mons_per_side = basis.mons_per_fe_side
-  const mons_per_side_sq = mons_per_side * mons_per_side
   const num_fes = Mesh.num_fes(mesh)
-  
+
   sum = num_fes * mons_per_int * mons_per_int # interior mons with interior mons
   for fe=fe_num(1):num_fes
     const nb_sides = Mesh.num_non_boundary_sides_for_fe(fe, mesh)
+    const side_sidemon_choices = nb_sides * mons_per_side
     sum += 2 * mons_per_int * nb_sides * mons_per_side + # interior mons with side mons and side mons with interior mons
-           nb_sides * (nb_sides-1) * mons_per_side_sq  # non-boundary side mons with mons on other non-boundary sides
+           side_sidemon_choices * side_sidemon_choices  # non-boundary side mons with non-boundary side mons
   end
-
-  sum += Mesh.num_nb_sides(mesh) * mons_per_side_sq # side mons with mons on same side
   sum
 end
 
@@ -321,6 +315,13 @@ function interior_mon_num(i::BElNum, basis::WeakFunsPolyBasis)
   convert(MonNum, mod(interiors_rel_bel_ix, basis.mons_per_fe_interior) + 1)
 end
 
+# TODO: unit tests
+function interior_mon_bel_num(fe::FENum, monn::MonNum, basis::WeakFunsPolyBasis)
+  (fe-1)*basis.mons_per_fe_interior + monn
+end
+
+mons_per_fe_interior(basis::WeakFunsPolyBasis) = basis.mons_per_fe_interior
+
 mons_per_fe_side(basis::WeakFunsPolyBasis) = basis.mons_per_fe_side
 
 function side_mons_for_fe_side(fe::FENum, side_face::FERelFace, basis::WeakFunsPolyBasis)
@@ -344,6 +345,12 @@ function side_mon(i::BElNum, basis::WeakFunsPolyBasis)
   const side_dep_dim = Mesh.dependent_dim_for_nb_side(nb_side_num, basis.mesh)
   const mon_num = side_mon_num(i, basis)
   basis.side_mons_by_dep_dim[side_dep_dim][mon_num]
+end
+
+# TODO: unit tests
+function side_mon_bel_num(fe::FENum, side_face::FERelFace, monn::MonNum, basis::WeakFunsPolyBasis)
+  const nb_side_num = Mesh.nb_side_num_for_fe_side(fe, side_face, basis.mesh)
+  basis.first_nb_side_bel + (nb_side_num-1) * basis.mons_per_fe_side + (monn-1)
 end
 
 

@@ -10,7 +10,7 @@ export FENum, fe_num, no_fe,
        one_mon,
        num_fes,
        fe_interior_origin,
-       fe_diameter_inv,
+       shape_diameter_inv,
        num_nb_sides,
        num_oriented_element_shapes,
        oriented_shape_for_fe,
@@ -131,7 +131,7 @@ is_boundary_side{M <: AbstractMesh}(fe::FENum, face::FERelFace, mesh::M) =
 num_boundary_sides{M <: AbstractMesh}(mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-fe_diameter_inv{M <: AbstractMesh}(fe::FENum, mesh::M) =
+shape_diameter_inv{M <: AbstractMesh}(oshape::OrientedShape, mesh::M) =
   error("not implemented, mesh implementation is incomplete)")
 
 fe_interior_origin{M <: AbstractMesh}(fe::FENum, mesh::M) =
@@ -236,7 +236,7 @@ end
 # TODO: unit tests
 function num_non_boundary_sides_for_fe{M <: AbstractMesh}(fe::FENum, mesh::M)
   nb_sides = 0
-  for sf=fe_face(1):Mesh.num_side_faces_for_fe(fe, mesh) 
+  for sf=fe_face(1):Mesh.num_side_faces_for_fe(fe, mesh)
     if !Mesh.is_boundary_side(fe, sf, mesh) nb_sides += 1 end
   end
   nb_sides

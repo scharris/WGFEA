@@ -50,7 +50,7 @@ function solve(f::Function, g::FunctionOrConst, wg_solver::WGSolver)
   const g_projs = boundary_projections(g, wg_solver.basis)
   const vbf_bels_cholf = cholfact(wg_solver.vbf_bel_vs_bel_transpose)
   const sol_basis_coefs = vbf_bels_cholf \ sys_rhs(f, g_projs, wg_solver.vbf, wg_solver.basis)
-  WGSolution(sol_basis_coefs, g_projs)
+  WGSolution(vec(sol_basis_coefs), g_projs)
 end
 
 
@@ -128,7 +128,7 @@ function vbf_proj_on_fe_bside_vs_int_mon(vbf::AbstractVariationalBilinearForm,
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   proj_mon_contrs = zeroR
   for i=1:length(proj_coefs)
-    proj_mon_contrs += proj_coefs[i] * VBF.side_mon_vs_int_mon(fe, mon_num(i), proj_bside_face, int_monn, basis, vbf)
+    proj_mon_contrs += proj_coefs[i] * VBF.side_mon_vs_int_mon(fe_oshape, mon_num(i), proj_bside_face, int_monn, basis, vbf)
   end
   proj_mon_contrs
 end
@@ -143,7 +143,7 @@ function vbf_proj_on_fe_bside_vs_side_mon(vbf::AbstractVariationalBilinearForm,
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   proj_mon_contrs = zeroR
   for i=1:length(proj_coefs)
-    proj_mon_contrs += proj_coefs[i] * VBF.side_mon_vs_side_mon(fe, mon_num(i), proj_bside_face, side_monn, side_mon_face, basis, vbf)
+    proj_mon_contrs += proj_coefs[i] * VBF.side_mon_vs_side_mon(fe_oshape, mon_num(i), proj_bside_face, side_monn, side_mon_face, basis, vbf)
   end
   proj_mon_contrs
 end

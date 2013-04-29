@@ -48,7 +48,7 @@ type RectMesh <: AbstractMesh
   num_nb_sides::NBSideNum
   num_side_faces_per_fe::FERelFace
 
-  fe_diameter_inv::R
+  rect_diameter_inv::R
 
   one_mon::Monomial
 
@@ -82,7 +82,7 @@ type RectMesh <: AbstractMesh
     const num_nb_sides = sum(nb_side_counts_by_perp_axis)
     const num_side_faces_per_fe = fe_face(2 * space_dim)
 
-    const fe_diameter_inv = 1/sqrt(dot(fe_dims, fe_dims))
+    const rect_diameter_inv = 1./sqrt(dot(fe_dims, fe_dims))
 
     new(dim(space_dim),
         min_bounds,
@@ -96,7 +96,7 @@ type RectMesh <: AbstractMesh
         num_fes,
         num_nb_sides,
         num_side_faces_per_fe,
-        fe_diameter_inv,
+        rect_diameter_inv,
         Monomial(zeros(Deg,space_dim)),
         Array(R, space_dim), # integrand args work array
         zeros(R, space_dim), # ref fe min bounds
@@ -216,9 +216,9 @@ function fe_inclusions_of_nb_side!(n::NBSideNum, mesh::RectMesh, incls::NBSideIn
 end
 
 import Mesh.nb_side_num_for_fe_side
-function nb_side_num_for_fe_side(fe::FENum, side_face::FERelFace, mesh::RectMesh) 
+function nb_side_num_for_fe_side(fe::FENum, side_face::FERelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
-  const side_mesh_coords = 
+  const side_mesh_coords =
     if side_face_is_lesser_on_perp_axis(side_face)
       # Side is the lesser along perp axis, ie. fe is the greater one including the side: perp axis dim differs.
       let coords = fe_mesh_coords(fe, mesh)
@@ -254,9 +254,9 @@ function num_boundary_sides(mesh::RectMesh)
   bsides
 end
 
-import Mesh.fe_diameter_inv
-fe_diameter_inv(fe::FENum, mesh::RectMesh) =
-  mesh.fe_diameter_inv
+import Mesh.shape_diameter_inv
+shape_diameter_inv(shape::OrientedShape, mesh::RectMesh) =
+  mesh.rect_diameter_inv
 
 
 import Mesh.fe_interior_origin
@@ -461,7 +461,7 @@ end
 # to a non-boundary side number.
 function nb_side_with_mesh_coords(coords::Array{MeshCoord,1}, perp_axis::Dim, mesh::RectMesh)
   # The enumeration number for a non-boundary side perpendicular to a given axis a, with mesh
-  # coordinates (c_1,...,c_d) in its orientation-specific non-boundary side mesh, is 
+  # coordinates (c_1,...,c_d) in its orientation-specific non-boundary side mesh, is
   #   s_{a,#}(c_1,...,c_d) = s_a + sum_{i=1..d} { (c_i - 1) prod_{l=1..i-1} k_{a,l} }
   #                        = s_a + (c_1-1) + sum_{i=2..d} { (c_i - 1) prod_{l=1..i-1} k_{a,l} }
   # where s_a is the enumeration number of the first axis-a perpendicular non-boundary side,

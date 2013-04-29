@@ -5,14 +5,14 @@ export WGSolution,
        wg_sol_wgrad_on_interior,
        err_L2_norm,
        err_wgrad_vs_grad_L2_norm,
-       err_vbf_seminorm    
+       err_vbf_seminorm
 
 using Common
 import Poly, Poly.Polynomial
 import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.fe_num
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.mon_num
 import VBF.AbstractVariationalBilinearForm
-  
+
 type WGSolution
   basis_coefs::Vector{R}
   boundary_projs::Dict{(FENum,FERelFace), Vector{R}}
@@ -26,11 +26,10 @@ wg_sol_at_interior_rel_point(wg_sol::WGSolution, fe::FENum, x::Vector{R}, basis:
 
 function wg_sol_at_interior_rel_point(sol_coefs::Vector{R}, fe::FENum, x::Vector{R}, basis::WeakFunsPolyBasis)
   const int_mons = basis.interior_mons
-  const num_int_mons = basis.mons_per_fe_interior
-  const first_beln = WGBasis.first_bel_supported_on_fe_interior(fe, basis)
   sum = zeroR
-  for i=1:num_int_mons
-    sum += sol_coefs[first_beln + i-1] * Poly.value_at(int_mons[i], x)
+  for monn=mon_num(1):basis.mons_per_fe_interior
+    const beln = WGBasis.interior_mon_bel_num(fe, monn, basis)
+    sum += sol_coefs[beln] * Poly.value_at(int_mons[monn], x)
   end
   sum
 end
@@ -41,7 +40,8 @@ end
 function wg_sol_poly_on_interior(sol_coefs::Vector{R}, fe::FENum, basis::WeakFunsPolyBasis)
   const int_mons = basis.interior_mons
   const num_int_mons = basis.mons_per_fe_interior
-  const first_beln = WGBasis.first_bel_supported_on_fe_interior(fe, basis)
+  const first_beln = WGBasis.interior_mon_bel_num(fe, mon_num(1), basis)
+  # TODO: shouldn't assume this layout of basis elements, defer to WGBasis instead
   const coefs = sol_coefs[first_beln : first_beln + num_int_mons - 1]
   Polynomial(int_mons, coefs)
 end
@@ -64,9 +64,8 @@ function wg_sol_wgrad_on_interior(wg_sol::WGSolution, fe::FENum, basis::WeakFuns
   total_wgrad = Poly.zero_poly_vec(Mesh.space_dim(mesh))
 
   # Add contributions for the terms of the solution's interior polynomial.
-  const first_bel_on_fe_int = WGBasis.first_bel_supported_on_fe_interior(fe, basis)
   for monn=mon_num(1):basis.mons_per_fe_interior
-    const beln = first_bel_on_fe_int + monn - 1
+    const beln = WGBasis.interior_mon_bel_num(fe, monn, basis)
     total_wgrad += sol_coefs[beln] * WGBasis.wgrad_interior_mon(monn, fe_oshape, basis)
   end
 
@@ -78,9 +77,8 @@ function wg_sol_wgrad_on_interior(wg_sol::WGSolution, fe::FENum, basis::WeakFuns
         total_wgrad += proj_coefs[monn] * WGBasis.wgrad_side_mon(monn, fe_oshape, sf, basis)
       end
     else
-      const first_bel_on_fe_side = WGBasis.first_bel_supported_on_fe_side(fe, sf, basis)
       for monn=mon_num(1):basis.mons_per_fe_side
-        const beln = first_bel_on_fe_side + monn - 1
+        const beln = WGBasis.side_mon_bel_num(fe, sf, monn, basis)
         total_wgrad += sol_coefs[beln] * WGBasis.wgrad_side_mon(monn, fe_oshape, sf, basis)
       end
     end

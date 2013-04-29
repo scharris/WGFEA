@@ -15,10 +15,14 @@ function simple_2d_test()
   f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
   g = 0.0
 
-  mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(5,5))
+  mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(25,25))
   basis = WeakFunsPolyBasis(deg(2), deg(1), mesh)
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
+
+  #sparsem = wg.vbf_bel_vs_bel_transpose
+  #densem = VBF.bel_vs_bel_transpose_dense(basis, vbf)
+  #println(STDERR, "Dense and sparse matrices max difference: $(max(sparsem - densem)).")
 
   sol = solve(f, g, wg)
 
@@ -28,6 +32,34 @@ function simple_2d_test()
   println("L2 norm of grad u - wgrad u_h: $(Sol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
 end
+
+
+function simple_4d_test()
+  u(x::Vector{R}) = x[1]*(1-x[1]) * x[2]*(1-x[2]) * x[3]*(1-x[3]) * x[4]*(1-x[4])
+  grad_u(x::Vector{R}) = [(1-2x[1]) * x[2]*(1-x[2]) * x[3]*(1-x[3]) * x[4]*(1-x[4]),
+                          x[1]*(1-x[1]) * (1-2x[2]) * x[3]*(1-x[3]) * x[4]*(1-x[4]),
+                          x[1]*(1-x[1]) * x[2]*(1-x[2]) * (1-2x[3]) * x[4]*(1-x[4]),
+                          x[1]*(1-x[1]) * x[2]*(1-x[2]) * x[3]*(1-x[3]) * (1-2x[4])]
+  f(x::Vector{R}) = 2*(x[2]*(1-x[2]) * x[3]*(1-x[3]) * x[4]*(1-x[4]) +
+                       x[1]*(1-x[1]) * x[3]*(1-x[3]) * x[4]*(1-x[4]) +
+                       x[1]*(1-x[1]) * x[2]*(1-x[2]) * x[4]*(1-x[4]) +
+                       x[1]*(1-x[1]) * x[2]*(1-x[2]) * x[3]*(1-x[3]))
+  g = 0.0
+
+  mesh = RectMesh([0.,0.,0.,0.], [1.,1.,1.,1.], mesh_dims(5,5,5,5))
+  basis = WeakFunsPolyBasis(deg(3), deg(2), mesh)
+  vbf = a_s(basis)
+  wg = WGSolver(vbf, basis)
+
+  sol = solve(f, g, wg)
+
+  print_sample_points(sol, u, grad_u, basis)
+
+  println("L2 norm of u - u_h: $(Sol.err_L2_norm(sol, u, basis))")
+  println("L2 norm of grad u - wgrad u_h: $(Sol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
+  flush(OUTPUT_STREAM)
+end
+
 
 # u(x) = cos(|x|^2) in R^d
 function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
@@ -82,5 +114,6 @@ end
 
 #simple_2d_test()
 
-trig_Rd_test(mesh_dims(5,5,5,5), deg(3), deg(2))
-# "[Finished in 2809.1s]"
+#trig_Rd_test(mesh_dims(5,5,5,5), deg(3), deg(2))
+
+simple_4d_test()

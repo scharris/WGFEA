@@ -142,7 +142,7 @@ rshape = Mesh.oshape(1)
 
 @test interior_mons(basis) == [one, y, y^2, x, x*y, x^2]
 
-@test WGBasis.first_bel_supported_on_fe_interior(fe_num(1), basis) == 1
+@test WGBasis.interior_mon_bel_num(fe_num(1), mon_num(1), basis) == 1
 
 @test interior_mon_num(beln(3), basis) == mon_num(3)
 @test interior_mon_num(beln(6), basis) == mon_num(6)
@@ -151,7 +151,7 @@ rshape = Mesh.oshape(1)
 @test interior_mons(basis)[6] == x^2
 
 # interior monomials, finite element 2
-@test WGBasis.first_bel_supported_on_fe_interior(fe_num(2), basis) == 7
+@test WGBasis.interior_mon_bel_num(fe_num(2), mon_num(1), basis) == 7
 
 @test interior_mon(beln(7), basis) == one
 @test interior_mon(beln(12), basis) == x^2
@@ -161,7 +161,7 @@ rshape = Mesh.oshape(1)
 
 
 # interior monomials, finite element 6
-@test WGBasis.first_bel_supported_on_fe_interior(fe_num(6), basis) == 31
+@test WGBasis.interior_mon_bel_num(fe_num(6), mon_num(1), basis) == 31
 
 @test interior_mon(beln(31), basis) == one
 @test interior_mon(beln(36), basis) == x^2
@@ -170,8 +170,8 @@ rshape = Mesh.oshape(1)
 @test interior_mon_num(beln(36), basis) == 6
 
 # monomials on vertical side between finite elements 1 and 2
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(1), right_face, basis) == 37
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(2), left_face, basis) == 37
+@test WGBasis.side_mon_bel_num(fe_num(1), right_face, mon_num(1), basis) == 37
+@test WGBasis.side_mon_bel_num(fe_num(2), left_face, mon_num(1), basis) == 37
 
 @test side_mon(beln(37), basis) == one
 @test side_mon(beln(38), basis) == y
@@ -185,21 +185,21 @@ rshape = Mesh.oshape(1)
 @test_fails side_mons_for_oshape_side(rshape, right_face, basis)[3]
 
 # monomials on vertical side between finite elements 2 and 3
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(2), right_face, basis) == 39
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(3), left_face, basis) == 39
+@test WGBasis.side_mon_bel_num(fe_num(2), right_face, mon_num(1), basis) == 39
+@test WGBasis.side_mon_bel_num(fe_num(3), left_face, mon_num(1), basis) == 39
 
 @test side_mon(beln(39), basis) == one
 @test side_mon(beln(40), basis) == y
 
 # monomials on vertical side between finite elements 5 and 6
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(5), right_face, basis) == 43
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(6), left_face, basis) == 43
+@test WGBasis.side_mon_bel_num(fe_num(5), right_face, bel_num(1), basis) == 43
+@test WGBasis.side_mon_bel_num(fe_num(6), left_face, bel_num(1), basis) == 43
 @test side_mon(beln(43), basis) == one
 @test side_mon(beln(44), basis) == y
 
 # monomials on horizontal side between finite elements 1 and 4
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(1), top_face, basis) == 45
-@test WGBasis.first_bel_supported_on_fe_side(fe_num(4), bottom_face, basis) == 45
+@test WGBasis.side_mon_bel_num(fe_num(1), top_face, mon_num(1), basis) == 45
+@test WGBasis.side_mon_bel_num(fe_num(4), bottom_face, mon_num(1), basis) == 45
 @test side_mon(beln(45), basis) == one
 @test side_mon(beln(46), basis) == x
 
