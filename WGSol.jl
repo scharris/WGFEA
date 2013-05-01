@@ -101,9 +101,7 @@ function err_L2_norm(wg_sol_coefs::Vector{R}, exact_sol::Function, basis::WeakFu
     const wg_sol_poly = wg_sol_poly_on_interior(wg_sol_coefs, fe, basis)
     const fe_origin = Mesh.fe_interior_origin(fe, mesh)
     function sq_diff(x::Vector{R})
-      for i=1:d
-        fe_rel_x[i] = x[i] - fe_origin[i]
-      end
+      for i=1:d  fe_rel_x[i] = x[i] - fe_origin[i] end
       const diff = exact_sol(x) - Poly.value_at(wg_sol_poly, fe_rel_x)
       diff * diff
     end

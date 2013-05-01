@@ -316,6 +316,7 @@ domain_dim(vm::VectorMonomial) = domain_dim(vm.mon)
 mons_in_same_comp_of_vmons(vmon1::VectorMonomial, vmon2::VectorMonomial) = vmon1.mon_pos == vmon2.mon_pos
 
 function value_at(mon::Monomial, x::Vector{R})
+  assert(length(mon.exps) == length(x))
   v = x[1]^mon.exps[1]
   for i=2:length(x)
     v *= x[i]^mon.exps[i]
@@ -329,6 +330,7 @@ function value_at(mon::Monomial, x::R)
 end
 
 function value_at(p::Polynomial, x::Vector{R})
+  assert(length(p.mons[1].exps) == length(x))
   sum = zeroR
   for i in 1:length(p.mons)
     sum += p.coefs[i] * value_at(p.mons[i], x)
@@ -337,6 +339,7 @@ function value_at(p::Polynomial, x::Vector{R})
 end
 
 function value_at(p::Polynomial, x::R)
+  assert(length(p.mons[1].exps) == 1)
   sum = zeroR
   for i in 1:length(p.mons)
     sum += p.coefs[i] * value_at(p.mons[i], x)

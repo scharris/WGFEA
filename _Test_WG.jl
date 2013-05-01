@@ -15,8 +15,8 @@ function simple_2d_test()
   f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
   g = 0.0
 
-  mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(25,25))
-  basis = WeakFunsPolyBasis(deg(2), deg(1), mesh)
+  mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(5,5))
+  basis = WeakFunsPolyBasis(deg(1), deg(0), mesh)
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
 
@@ -26,13 +26,34 @@ function simple_2d_test()
 
   sol = solve(f, g, wg)
 
-  #print_sample_points(sol, u, grad_u, basis)
+  print_sample_points(sol, u, grad_u, basis)
 
   println("L2 norm of u - u_h: $(WGSol.err_L2_norm(sol, u, basis))")
   println("L2 norm of grad u - wgrad u_h: $(WGSol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
 end
 
+function errs_L2_norm_for_side_divs(square_mesh_side_divs::Array{Int,1}, int_deg::Deg)
+  u(x::Vector{R}) = x[1]*(1-x[1])*x[2]*(1-x[2])
+  grad_u(x::Vector{R}) = [(1-2x[1])*x[2]*(1-x[2]), x[1]*(1-x[1])*(1-2x[2])]
+  f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
+  g = 0.0
+
+  const num_runs = length(square_mesh_side_divs)
+  const l2_errs = Array((Int,R), num_runs)
+  for run=1:num_runs
+    const divs = square_mesh_side_divs[run]
+    const mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(divs+1, divs+1))
+    const basis = WeakFunsPolyBasis(int_deg, deg(int_deg-1), mesh)
+    const vbf = a_s(basis)
+    const wg = WGSolver(vbf, basis)
+    const sol = solve(f, g, wg)
+
+    l2_errs[run] = (run, WGSol.err_L2_norm(sol, u, basis))
+    #wgrad_l2_errs[run] = WGSol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis)
+  end
+  l2_errs
+end
 
 function simple_4d_test()
   u(x::Vector{R}) = x[1]*(1-x[1]) * x[2]*(1-x[2]) * x[3]*(1-x[3]) * x[4]*(1-x[4])
@@ -97,23 +118,25 @@ end
 
 
 function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function, basis::WeakFunsPolyBasis)
+  const int_rel_pt = zeros(R, Mesh.space_dim(basis.mesh))
   for fe=fe_num(1):Mesh.num_fes(basis.mesh)
-    const fe_or = Mesh.fe_interior_origin(fe, basis.mesh)
-    const wg_sol_val = WGSol.wg_sol_at_interior_rel_point(wg_sol, fe, [.0,.0], basis)
+    const fe_or = Mesh.fe_interior_origin(fe, basis.mesh) + int_rel_pt
+    const wg_sol_val = WGSol.wg_sol_at_interior_rel_point(wg_sol, fe, int_rel_pt, basis)
     const u_val = u(fe_or)
 
     const wgrad = WGSol.wg_sol_wgrad_on_interior(wg_sol, fe, basis)
-    const wgrad_val = Poly.value_at(wgrad, [.0,.0])
+    const wgrad_val = Poly.value_at(wgrad, int_rel_pt)
     const grad_u_val = grad_u(fe_or)
 
-    println(STDERR, "wg sol: $wg_sol_val, exact sol: $u_val, wgrad: $wgrad_val, grad_u: $grad_u_val")
-    println(STDERR, "  ==> val diff: $(abs(wg_sol_val - u_val)),  grad diff: $(norm(wgrad_val - grad_u_val))")
+    println(STDERR, "Point $fe_or: wg sol: $wg_sol_val, exact sol: $u_val")
+    println(STDERR, "   wgrad: $wgrad_val, grad_u: $grad_u_val")
+    println(STDERR, "   val diff: $(abs(wg_sol_val - u_val)),  grad diff: $(norm(wgrad_val - grad_u_val))")
   end
   flush(OUTPUT_STREAM)
 end
 
-simple_2d_test()
+#simple_2d_test()
 
 #trig_Rd_test(mesh_dims(5,5,5,5), deg(3), deg(2))
 
-#simple_4d_test()
+simple_4d_test()

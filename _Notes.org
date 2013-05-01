@@ -8,13 +8,6 @@ In the mesh, make sure nb_side_num_for_fe_side is reasonably fast, store precomp
 
 Implement triple bar norm (vbf) error.
 
-Concatenate two rectangular meshes left/right or upper/lower?
-  Only fes on the joined boundary will need to have new computations.
- _____ ____
-|     |____|
-|     |____|
-|_____|____|
-
 
 Documentation Changes
 ---------------------
