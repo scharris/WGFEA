@@ -49,6 +49,7 @@ type RectMesh <: AbstractMesh
   num_nb_sides::NBSideNum
   num_side_faces_per_fe::FERelFace
 
+  rect_diameter::R
   rect_diameter_inv::R
 
   one_mon::Monomial
@@ -83,7 +84,8 @@ type RectMesh <: AbstractMesh
     const num_nb_sides = sum(nb_side_counts_by_perp_axis)
     const num_side_faces_per_fe = fe_face(2 * space_dim)
 
-    const rect_diameter_inv = 1./sqrt(dot(fe_dims, fe_dims))
+    const rect_diameter = sqrt(dot(fe_dims, fe_dims))
+    const rect_diameter_inv = 1./rect_diameter
 
     new(dim(space_dim),
         min_bounds,
@@ -97,6 +99,7 @@ type RectMesh <: AbstractMesh
         num_fes,
         num_nb_sides,
         num_side_faces_per_fe,
+        rect_diameter,
         rect_diameter_inv,
         Monomial(zeros(Deg,space_dim)),
         Array(R, space_dim), # integrand args work array
@@ -254,6 +257,10 @@ function num_boundary_sides(mesh::RectMesh)
   end
   bsides
 end
+
+import Mesh.max_fe_diameter
+max_fe_diameter(mesh::RectMesh) =
+  mesh.rect_diameter
 
 import Mesh.shape_diameter_inv
 shape_diameter_inv(shape::OrientedShape, mesh::RectMesh) =
