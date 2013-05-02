@@ -1,9 +1,10 @@
 module Proj
 export project_onto_fe_face,
+       project_onto_fe_face_as_poly,
        project_interior_mon_onto_oshape_side
 
 using Common
-import Poly.Monomial
+import Poly.Monomial, Poly.Polynomial
 import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.OrientedShape
 import WGBasis, WGBasis.WeakFunsPolyBasis
 
@@ -44,6 +45,12 @@ function project_onto_fe_face(c::R, fe::FENum, face::FERelFace, basis::WeakFunsP
   end
   error("Could not find one monomial in basis monomials for fe $fe, face $face")
 end
+
+project_onto_fe_face_as_poly(g::FunctionOrConst, fe::FENum, face::FERelFace, basis::WeakFunsPolyBasis) =
+  let proj_coefs = project_onto_fe_face(g, fe, face, basis),
+      mons = face == Mesh.interior_face ? WGBasis.interior_mons(basis) : WGBasis.side_mons_for_fe_side(fe, face, basis)
+    Polynomial(mons, proj_coefs)
+  end
 
 
 function project_interior_mon_onto_oshape_side(int_mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, basis::WeakFunsPolyBasis)

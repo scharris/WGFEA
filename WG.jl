@@ -43,7 +43,6 @@ end
 
 typealias BoundaryProjections Dict{(FENum,FERelFace), Vector{R}}
 
-typealias FunctionOrConst Union(Function, R)
 
 # Solve the system, returning coefficients for all basis elements.
 function solve(f::Function, g::FunctionOrConst, wg_solver::WGSolver)

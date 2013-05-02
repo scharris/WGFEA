@@ -1,8 +1,11 @@
 using Base.Test
+
+using Winston
+
 using WG
 using Common
 import Mesh, Mesh.fe_num
-import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_dims
+import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_ldims, RMesh.mesh_ldim
 import WGBasis.WeakFunsPolyBasis
 import VBF_a_s.a_s
 import VBF_a.a
@@ -15,7 +18,7 @@ function simple_2d_test()
   f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
   g = 0.0
 
-  mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(5,5))
+  mesh = RectMesh([0.,0.], [1.,1.], mesh_ldims(5,5))
   basis = WeakFunsPolyBasis(deg(1), deg(0), mesh)
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
@@ -28,31 +31,60 @@ function simple_2d_test()
 
   print_sample_points(sol, u, grad_u, basis)
 
+  println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(sol, u, basis))")
   println("L2 norm of u - u_h: $(WGSol.err_L2_norm(sol, u, basis))")
   println("L2 norm of grad u - wgrad u_h: $(WGSol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
 end
 
-function errs_L2_norm_for_side_divs(square_mesh_side_divs::Array{Int,1}, int_deg::Deg)
-  u(x::Vector{R}) = x[1]*(1-x[1])*x[2]*(1-x[2])
-  grad_u(x::Vector{R}) = [(1-2x[1])*x[2]*(1-x[2]), x[1]*(1-x[1])*(1-2x[2])]
-  f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
-  g = 0.0
-
+function errs_for_side_divs(space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
+                            square_mesh_side_divs::Array{Int,1}, int_deg::Deg)
+  const unit_sq_min_corner = zeros(R, space_dim)
+  const unit_sq_max_corner = ones(R, space_dim)
   const num_runs = length(square_mesh_side_divs)
-  const l2_errs = Array((Int,R), num_runs)
+  const l2_errs = Array(R, num_runs)
   for run=1:num_runs
-    const divs = square_mesh_side_divs[run]
-    const mesh = RectMesh([0.,0.], [1.,1.], mesh_dims(divs+1, divs+1))
+    const mesh_ldims = fill(mesh_ldim(square_mesh_side_divs[run]+1), space_dim)
+    const mesh = RectMesh(unit_sq_min_corner, unit_sq_max_corner, mesh_ldims)
     const basis = WeakFunsPolyBasis(int_deg, deg(int_deg-1), mesh)
     const vbf = a_s(basis)
     const wg = WGSolver(vbf, basis)
     const sol = solve(f, g, wg)
-
-    l2_errs[run] = (run, WGSol.err_L2_norm(sol, u, basis))
-    #wgrad_l2_errs[run] = WGSol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis)
+    l2_errs[run] = WGSol.err_vs_proj_L2_norm(sol, u, basis)
   end
   l2_errs
+end
+
+# TODO: plot vs h instead, and maybe divide by expected asymptotic power of h also.
+function plot_errs_vs_side_divs(space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
+                                square_mesh_side_divs::Array{Int,1}, int_deg::Deg)
+  const errs = errs_for_side_divs(space_dim, u, f, g, square_mesh_side_divs, int_deg)
+
+  const side_divs = map(divs -> convert(R, divs), square_mesh_side_divs)
+  const plot = FramedPlot()
+  setattr(plot, "xrange", (side_divs[1], side_divs[end]))
+  setattr(plot, "yrange", (0., max(errs)))
+  setattr(plot, "aspectratio", 3.0)
+  const pts = Points(side_divs, errs, "type", "circle")
+  setattr(pts, "label", "error vs. projection")
+  add(plot, pts)
+  file(plot, "err_vs_side_divs.pdf")
+end
+
+function trig_2d_errs_plot()
+  const d = dim(2)
+  u(x::Vector{R}) = cos(dot(x,x))
+  # ((grad u)(x))_i = -2 sin(|x|^2) x_i
+  # grad_u(x::Vector{R}) = -2sin(dot(x,x))*x
+  # (D_i (grad u)_i)(x) = -2 ( cos(|x|^2)(2 x_i) x_i + sin(|x|^2) )
+  # So -(div grad u)(x) =  2 sum_{i=1..d}{ 2 (x_i)^2 cos(|x|^2)  + sin(|x|^2) }
+  #                     =  2 ( d sin(|x|^2) + 2 sum_{i=1..d}{ (x_i)^2 cos(|x|^2) } )
+  f(x::Vector{R}) = let xx = dot(x,x) 2(d*sin(xx) + 2sum(i -> x[i]*x[i]*cos(xx), 1:d)) end
+  g(x::Vector{R}) = u(x)
+
+  const mesh_side_divs = [5:5:50]
+  const int_polys_deg = deg(2)
+  plot_errs_vs_side_divs(d, u, f, g, mesh_side_divs, int_polys_deg)
 end
 
 function simple_4d_test()
@@ -67,7 +99,7 @@ function simple_4d_test()
                        x[1]*(1-x[1]) * x[2]*(1-x[2]) * x[3]*(1-x[3]))
   g = 0.0
 
-  mesh = RectMesh([0.,0.,0.,0.], [1.,1.,1.,1.], mesh_dims(5,5,5,5))
+  mesh = RectMesh([0.,0.,0.,0.], [1.,1.,1.,1.], mesh_ldims(5,5,5,5))
   basis = WeakFunsPolyBasis(deg(3), deg(2), mesh)
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
@@ -76,13 +108,14 @@ function simple_4d_test()
 
   print_sample_points(sol, u, grad_u, basis)
 
+  println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(sol, u, basis))")
   println("L2 norm of u - u_h: $(WGSol.err_L2_norm(sol, u, basis))")
   println("L2 norm of grad u - wgrad u_h: $(WGSol.err_wgrad_vs_grad_L2_norm(sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
 end
 
 
-# u(x) = cos(|x|^2) in R^d
+# u(x) = cos(|x|^2) in r^d
 function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
                       interior_polys_max_deg::Deg,
                       side_polys_max_deg::Deg)
@@ -111,6 +144,7 @@ function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
 
   print_sample_points(wg_sol, u, grad_u, basis)
 
+  println(STDERR, "L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(wg_sol, u, basis))")
   println(STDERR, "L2 norm of u - u_h: $(WGSol.err_L2_norm(wg_sol, u, basis))")
   println(STDERR, "L2 norm of grad u - wgrad u_h: $(WGSol.err_wgrad_vs_grad_L2_norm(wg_sol, grad_u, basis))")
   flush(OUTPUT_STREAM)
@@ -137,6 +171,9 @@ end
 
 #simple_2d_test()
 
-#trig_Rd_test(mesh_dims(5,5,5,5), deg(3), deg(2))
+#trig_Rd_test(mesh_ldims(5,5,5,5), deg(3), deg(2))
 
-simple_4d_test()
+#simple_4d_test()
+
+trig_2d_errs_plot()
+

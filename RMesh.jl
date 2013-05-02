@@ -1,6 +1,6 @@
 module RMesh
 export RectMesh,
-       MeshCoord, mesh_coord, mesh_dims,
+       MeshCoord, mesh_coord, mesh_ldim, mesh_ldims,
        lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis
 
 using Common
@@ -11,7 +11,8 @@ import Cubature.hcubature
 # type of a single logical mesh coordinates component (column or row or stack, etc)
 typealias MeshCoord Uint64
 mesh_coord(i::Integer) = convert(MeshCoord, i)
-mesh_dims(dims::Integer...) = [convert(MeshCoord,l) for l in dims]
+mesh_ldim(i::Integer) = convert(MeshCoord, i)
+mesh_ldims(dims::Integer...) = [convert(MeshCoord,l) for l in dims]
 
 
 type NBSideGeom

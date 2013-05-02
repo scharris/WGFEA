@@ -4,6 +4,7 @@ export WGSolution,
        wg_sol_poly_on_interior,
        wg_sol_wgrad_on_interior,
        err_L2_norm,
+       err_vs_proj_L2_norm,
        err_wgrad_vs_grad_L2_norm,
        err_vbf_seminorm
 
@@ -11,6 +12,7 @@ using Common
 import Poly, Poly.Polynomial
 import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.fe_num
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.mon_num
+import Proj
 import VBF.AbstractVariationalBilinearForm
 
 type WGSolution
@@ -112,6 +114,26 @@ end
 
 err_L2_norm(wg_sol::WGSolution, exact_sol::Function, basis::WeakFunsPolyBasis) =
   err_L2_norm(wg_sol.basis_coefs, exact_sol, basis)
+
+
+function err_vs_proj_L2_norm(wg_sol_coefs::Vector{R}, exact_sol::Function, basis::WeakFunsPolyBasis)
+  const mesh = basis.mesh
+  const fe_rel_x = Array(R, Mesh.space_dim(mesh))
+
+  sum_fe_diff_norm_sqs = zeroR
+  for fe=fe_num(1):Mesh.num_fes(mesh)
+    const proj_poly = Proj.project_onto_fe_face_as_poly(exact_sol, fe, Mesh.interior_face, basis)
+    const wg_sol_poly = wg_sol_poly_on_interior(wg_sol_coefs, fe, basis)
+    const diff = proj_poly - wg_sol_poly
+    const diff_sq = diff * diff
+    sum_fe_diff_norm_sqs += Mesh.integral_face_rel_on_face(diff_sq, fe, Mesh.interior_face, mesh)
+  end
+  sqrt(sum_fe_diff_norm_sqs)
+end
+
+err_vs_proj_L2_norm(wg_sol::WGSolution, exact_sol::Function, basis::WeakFunsPolyBasis) =
+  err_vs_proj_L2_norm(wg_sol.basis_coefs, exact_sol, basis)
+
 
 # TODO
 function err_wgrad_vs_grad_L2_norm(wg_sol::WGSolution, exact_sol_grad::Function, basis::WeakFunsPolyBasis)

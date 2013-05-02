@@ -1,5 +1,5 @@
 module Common
-export Deg, deg, check_degs, Dim, dim, R, zeroR, oneR
+export Deg, deg, check_degs, Dim, dim, R, zeroR, oneR, FunctionOrConst
 
 typealias Deg Uint8
 deg(k::Integer) = check_degs(k) && convert(Deg,k)
@@ -11,5 +11,7 @@ dim(d::Integer) = if d < 0 || d > 255 error("invalid dimension") else convert(Di
 typealias R Float64
 const zeroR = zero(R)
 const oneR = one(R)
+
+typealias FunctionOrConst Union(Function, R)
 
 end # end of module

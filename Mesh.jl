@@ -32,7 +32,7 @@ export FENum, fe_num, no_fe,
 
 
 using Common
-import Poly.Monomial, Poly.Polynomial, Poly.VectorMonomial, Poly.PolynomialVector
+import Poly.Monomial, Poly.Polynomial, Poly.VectorMonomial, Poly.PolynomialVector, Poly.NomialOrConst
 
 # Number type for enumeration of all finite elements in a mesh.
 typealias FENum Uint64
@@ -191,6 +191,9 @@ function integral_face_rel_on_face{M <: AbstractMesh}(p::Polynomial, fe_oshape::
   end
   sum
 end
+
+integral_face_rel_on_face{M <: AbstractMesh}(pmc::NomialOrConst, fe::FENum, face::FERelFace, mesh::M) =
+  integral_face_rel_on_face(pmc, Mesh.oriented_shape_for_fe(fe, mesh), face, mesh)
 
 function integral_global_x_face_rel_on_fe_face{M <: AbstractMesh}(f::Function, p::Polynomial, fe::FENum, face::FERelFace, mesh::M)
   sum = zeroR
