@@ -20,8 +20,8 @@ type NBSideGeom
   mesh_coords::Array{MeshCoord, 1}
 end
 
-const default_integration_rel_err = 10e-10
-const default_integration_abs_err = 10e-10
+const default_integration_rel_err = 1e-12
+const default_integration_abs_err = 1e-12
 
 type RectMesh <: AbstractMesh
 
@@ -57,8 +57,8 @@ type RectMesh <: AbstractMesh
 
   # integration support members
   intgd_args_work_array::Vector{R}
-  ref_fe_min_bounds::Vector{R}
-  ref_fe_min_bounds_short::Vector{R}
+  space_dim_zeros::Vector{R}
+  space_dim_less_one_zeros::Vector{R}
   integration_rel_err::R
   integration_abs_err::R
 
@@ -103,8 +103,8 @@ type RectMesh <: AbstractMesh
         rect_diameter_inv,
         Monomial(zeros(Deg,space_dim)),
         Array(R, space_dim), # integrand args work array
-        zeros(R, space_dim), # ref fe min bounds
-        zeros(R, space_dim-1), # ref fe min bounds, short
+        zeros(R, space_dim),
+        zeros(R, space_dim-1),
         integration_rel_err,
         integration_abs_err)
   end
@@ -258,14 +258,13 @@ function num_boundary_sides(mesh::RectMesh)
   bsides
 end
 
-import Mesh.max_fe_diameter
-max_fe_diameter(mesh::RectMesh) =
-  mesh.rect_diameter
-
 import Mesh.shape_diameter_inv
 shape_diameter_inv(shape::OrientedShape, mesh::RectMesh) =
   mesh.rect_diameter_inv
 
+import Mesh.max_fe_diameter
+max_fe_diameter(mesh::RectMesh) =
+  mesh.rect_diameter
 
 import Mesh.fe_interior_origin
 function fe_interior_origin(fe::FENum, mesh::RectMesh)
@@ -318,7 +317,7 @@ function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::F
       f(fe_x) * Poly.value_at(mon, x)
     end
 
-    hcubature(ref_intgd, mesh.ref_fe_min_bounds, mesh.fe_dims, mesh.integration_rel_err, mesh.integration_abs_err)[1]
+    hcubature(ref_intgd, mesh.space_dim_zeros, mesh.fe_dims, mesh.integration_rel_err, mesh.integration_abs_err)[1]
 
   else # side face
     const a = side_face_perp_axis(face)
@@ -336,7 +335,7 @@ function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::F
       f(fe_x) * Poly.value_at(mon_dim_reduced_poly, x)
     end
 
-    hcubature(ref_intgd, mesh.ref_fe_min_bounds_short, mesh.fe_dims_wo_dim[a], mesh.integration_rel_err, mesh.integration_abs_err)[1]
+    hcubature(ref_intgd, mesh.space_dim_less_one_zeros, mesh.fe_dims_wo_dim[a], mesh.integration_rel_err, mesh.integration_abs_err)[1]
   end
 end
 

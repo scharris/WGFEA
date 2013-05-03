@@ -8,8 +8,8 @@ import Mesh, Mesh.fe_num
 import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_ldims, RMesh.mesh_ldim
 import WGBasis.WeakFunsPolyBasis
 import VBF_a_s.a_s
-import VBF_a.a
 import WGSol, WGSol.WGSolution
+import Cubature.hcubature
 
 
 function simple_2d_test()
@@ -37,54 +37,140 @@ function simple_2d_test()
   flush(OUTPUT_STREAM)
 end
 
-function errs_for_side_divs(space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
-                            square_mesh_side_divs::Array{Int,1}, int_deg::Deg)
-  const unit_sq_min_corner = zeros(R, space_dim)
-  const unit_sq_max_corner = ones(R, space_dim)
-  const num_runs = length(square_mesh_side_divs)
+function errs_and_diams_for_side_divs(space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
+                                      mesh_bounds::(Vector{R}, Vector{R}), mesh_side_divs::Array{Int,1}, k::Deg)
+  const num_runs = length(mesh_side_divs)
+
   const l2_errs = Array(R, num_runs)
+  const diams = Array(R, num_runs)
   for run=1:num_runs
-    const mesh_ldims = fill(mesh_ldim(square_mesh_side_divs[run]+1), space_dim)
-    const mesh = RectMesh(unit_sq_min_corner, unit_sq_max_corner, mesh_ldims)
-    const basis = WeakFunsPolyBasis(int_deg, deg(int_deg-1), mesh)
+    const mesh_ldims = fill(mesh_ldim(mesh_side_divs[run]+1), space_dim)
+    const mesh = RectMesh(mesh_bounds[1], mesh_bounds[2], mesh_ldims)
+    const basis = WeakFunsPolyBasis(k, deg(k-1), mesh)
     const vbf = a_s(basis)
     const wg = WGSolver(vbf, basis)
     const sol = solve(f, g, wg)
     l2_errs[run] = WGSol.err_vs_proj_L2_norm(sol, u, basis)
+    diams[run] = Mesh.max_fe_diameter(mesh)
   end
-  l2_errs
+  l2_errs, diams
 end
 
-# TODO: plot vs h instead, and maybe divide by expected asymptotic power of h also.
-function plot_errs_vs_side_divs(space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
-                                square_mesh_side_divs::Array{Int,1}, int_deg::Deg)
-  const errs = errs_for_side_divs(space_dim, u, f, g, square_mesh_side_divs, int_deg)
-
-  const side_divs = map(divs -> convert(R, divs), square_mesh_side_divs)
+# TODO
+function plot_errs(space_dim::Dim,
+                   u::Function, sob_kplus1_u::R, f::Function, g::FunctionOrConst,
+                   mesh_bounds::(Vector{R}, Vector{R}), mesh_side_divs::Array{Int,1}, k::Deg,
+                   filename::String)
+  const errs, diams = errs_and_diams_for_side_divs(space_dim, u, f, g, mesh_bounds, mesh_side_divs, k)
+  const num_errs = length(errs)
+  const adj_errs = Array(R, num_errs)
+  for i=1:num_errs
+    adj_errs[i] = errs[i] / (sob_kplus1_u * diams[i]^(k+1))
+  end
+  const side_divs = map(divs -> convert(R, divs), mesh_side_divs)
   const plot = FramedPlot()
   setattr(plot, "xrange", (side_divs[1], side_divs[end]))
-  setattr(plot, "yrange", (0., max(errs)))
+  setattr(plot, "yrange", (0., max(adj_errs)))
   setattr(plot, "aspectratio", 3.0)
-  const pts = Points(side_divs, errs, "type", "circle")
+  const pts = Points(side_divs, adj_errs, "type", "circle")
   setattr(pts, "label", "error vs. projection")
   add(plot, pts)
-  file(plot, "err_vs_side_divs.pdf")
+  file(plot, filename)
 end
 
+
+# Plot errors for approximation of function u where u(x) = cos(x_1) + sin(x_2).
 function trig_2d_errs_plot()
-  const d = dim(2)
-  u(x::Vector{R}) = cos(dot(x,x))
-  # ((grad u)(x))_i = -2 sin(|x|^2) x_i
-  # grad_u(x::Vector{R}) = -2sin(dot(x,x))*x
-  # (D_i (grad u)_i)(x) = -2 ( cos(|x|^2)(2 x_i) x_i + sin(|x|^2) )
-  # So -(div grad u)(x) =  2 sum_{i=1..d}{ 2 (x_i)^2 cos(|x|^2)  + sin(|x|^2) }
-  #                     =  2 ( d sin(|x|^2) + 2 sum_{i=1..d}{ (x_i)^2 cos(|x|^2) } )
-  f(x::Vector{R}) = let xx = dot(x,x) 2(d*sin(xx) + 2sum(i -> x[i]*x[i]*cos(xx), 1:d)) end
+  u(x::Vector{R}) = cos(x[1]) + sin(x[2])
+  # (grad u)(x) = (-sin(x_1), cos(x_2))
+  # (div (grad u))(x) = -cos(x[1]) - sin(x[2])
+  f(x::Vector{R}) = cos(x[1]) + sin(x[2])
   g(x::Vector{R}) = u(x)
 
+  const mesh_bounds = ([0.,0.], [2pi,2pi])
+  const integ_err_rel, integ_err_abs = 1e-14, 1e-14
+
+  # (||u||_2)^2 = int_{mesh_bounds} u(x)^2 + |(grad u)(x)|^2  + (D_1,1 u)(x)^2 + (D_2,2 u)(x)^2 + (D_1,2 u)(x)^2 dx
+  sob2_norm_sq_u = begin
+    function sum_sq_partials(x::Vector{R})
+      const cos_x1, cos_x2, sin_x1, sin_x2 = cos(x[1]), cos(x[2]), sin(x[1]), sin(x[2])
+      const u_sq = let s = cos_x1 + sin_x2  s*s end
+      # (D_1 u)(x) = -sin(x_1),   (D_2 u)(x) = cos(x_2)
+      const grad_u_norm_sq = sin_x1 * sin_x1 + cos_x2 * cos_x2
+      const d11_sq = cos_x1 * cos_x1 # (D_1,1 u)(x) = -cos(x_1)
+      const d22_sq = sin_x2 * sin_x2 # (D_2,2 u)(x) = -sin(x_2)
+      const d12_sq = 0.
+      u_sq + grad_u_norm_sq + (d11_sq + d22_sq + d12_sq)
+    end
+    hcubature(sum_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
+  end
+
+  sob3_norm_sq_u = begin
+    function sum_additional_sq_partials(x::Vector{R})
+      const cos_x2, sin_x1 = cos(x[2]), sin(x[1])
+      const d111_sq = sin_x1 * sin_x1 # (D_1,1,1 u)(x) = sin(x_1)
+      const d222_sq = cos_x2 * cos_x2 # (D_2,2,2 u)(x) = -cos(x_2)
+      d111_sq + d222_sq # Mixed partials are 0.
+    end
+    sob2_norm_sq_u + hcubature(sum_additional_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
+  end
+
+  sob4_norm_sq_u = begin
+    function sum_additional_sq_partials(x::Vector{R})
+      const cos_x1, sin_x2 = cos(x[1]), sin(x[2])
+      const d1111_sq = cos_x1 * cos_x1 # (D_1,1,1,1 u)(x) = cos(x_1)
+      const d2222_sq = sin_x2 * sin_x2 # (D_2,2,2,2 u)(x) = sin(x_2)
+      d1111_sq + d2222_sq # Mixed partials are 0.
+    end
+    sob3_norm_sq_u + hcubature(sum_additional_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
+  end
+
+  sob5_norm_sq_u = begin
+    function sum_additional_sq_partials(x::Vector{R})
+      const sin_x1, cos_x2 = sin(x[1]), cos(x[2])
+      const d11111_sq = sin_x1 * sin_x1 # (D_1,1,1,1,1 u)(x) = -sin(x_1)
+      const d22222_sq = cos_x2 * cos_x2 # (D_2,2,2,2,2 u)(x) = cos(x_2)
+      # All mixed partials are 0 as before.
+      d11111_sq + d22222_sq
+    end
+    sob4_norm_sq_u + hcubature(sum_additional_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
+  end
+
+  const u_sob_norms = [NaN, sqrt(sob2_norm_sq_u), sqrt(sob3_norm_sq_u), sqrt(sob4_norm_sq_u), sqrt(sob5_norm_sq_u)]
+
   const mesh_side_divs = [5:5:50]
-  const int_polys_deg = deg(2)
-  plot_errs_vs_side_divs(d, u, f, g, mesh_side_divs, int_polys_deg)
+
+  const plot = FramedPlot()
+  setattr(plot, "aspectratio", 1.0)
+  setattr(plot, "xlabel", "-log(h)")
+  setattr(plot, "ylabel", "log ||Q_0 u - u_h||")
+
+  const pt_types = ["diamond", "filled circle", "asterisk", "cross", "square", "triangle", "down-triangle", "right-triangle"]
+  const pt_colors = ["black", "blue", "green", "red", "cyan", "yellow", "magenta"]
+
+  const legend_pts_list = {}
+  for k=deg(1):deg(4)
+    const errs, diams = errs_and_diams_for_side_divs(dim(2), u, f, g, mesh_bounds, mesh_side_divs, k)
+    const num_errs = length(errs)
+    const log_errs, minus_log_diams = Array(R, num_errs), Array(R, num_errs)
+    for i=1:num_errs
+      log_errs[i] = log(errs[i])
+      minus_log_diams[i] = -log(diams[i])
+    end
+
+    const slope_str = @sprintf("%2.3f", -(log_errs[end]-log_errs[1])/(minus_log_diams[end]-minus_log_diams[1]))
+    const pts = Points(minus_log_diams, log_errs, "type", pt_types[k])
+    setattr(pts, "label", "k=$(int(k)), O(h^{$slope_str})")
+    setattr(pts, "color", pt_colors[k])
+    const curve = Curve(minus_log_diams, log_errs)
+    add(plot, pts, curve)
+    push!(legend_pts_list, pts)
+  end
+
+  const legend = Legend(.1,.25, legend_pts_list)
+  add(plot, legend)
+
+  file(plot, "errs_plot.pdf")
 end
 
 function simple_4d_test()

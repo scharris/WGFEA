@@ -12,7 +12,7 @@ import WGSol.WGSolution
 # METHOD
 # Let {b_i}_i be a basis for V_h^0(Omega), and vbf the bilinear form for
 # the variational problem.  Then the WG approximate solution u_h satisfies
-#   vbf(u_h, v) = (f,v_0) for all v in V_h^0(Omega)
+#   vbf(u_h, v) = (f, v_0) for all v in V_h^0(Omega)
 # which holds iff
 #   vbf(u_h, b_i) = (f, (b_i)_0) for all basis elements b_i
 #

@@ -135,6 +135,9 @@ num_boundary_sides{M <: AbstractMesh}(mesh::M) =
 shape_diameter_inv{M <: AbstractMesh}(oshape::OrientedShape, mesh::M) =
   error("not implemented, mesh implementation is incomplete)")
 
+max_fe_diameter{M <: AbstractMesh}(mesh::M) =
+  error("not implemented, mesh implementation is incomplete)")
+
 fe_interior_origin{M <: AbstractMesh}(fe::FENum, mesh::M) =
   error("not implemented, mesh implementation is incomplete)")
 
