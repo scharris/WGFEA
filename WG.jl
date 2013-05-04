@@ -13,7 +13,7 @@ import WGSol.WGSolution
 # Let {b_i}_i be a basis for V_h^0(Omega), and vbf the bilinear form for
 # the variational problem.  Then the WG approximate solution u_h satisfies
 #   vbf(u_h, v) = (f, v_0) for all v in V_h^0(Omega)
-# which holds iff
+# Since the {b_i}_i are a basis for V_H^0, this holds iff
 #   vbf(u_h, b_i) = (f, (b_i)_0) for all basis elements b_i
 #
 # With
@@ -28,7 +28,7 @@ import WGSol.WGSolution
 # Note that the matrix for the system m is given by m_{i,j} = vbf(b_j, b_i).
 
 
-type WGSolver
+immutable WGSolver
 
   vbf::AbstractVariationalBilinearForm
 
@@ -47,9 +47,9 @@ typealias BoundaryProjections Dict{(FENum,FERelFace), Vector{R}}
 # Solve the system, returning coefficients for all basis elements.
 function solve(f::Function, g::FunctionOrConst, wg_solver::WGSolver)
   const g_projs = boundary_projections(g, wg_solver.basis)
-  const vbf_bels_cholf = cholfact(wg_solver.vbf_bel_vs_bel_transpose)
-  const sol_basis_coefs = vbf_bels_cholf \ sys_rhs(f, g_projs, wg_solver.vbf, wg_solver.basis)
-  WGSolution(vec(sol_basis_coefs), g_projs)
+  const m = wg_solver.vbf_bel_vs_bel_transpose
+  const sol_basis_coefs = m \ sys_rhs(f, g_projs, wg_solver.vbf, wg_solver.basis)
+  WGSolution(vec(sol_basis_coefs), g_projs, wg_solver.basis)
 end
 
 

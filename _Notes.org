@@ -1,6 +1,7 @@
 Commit Notes
 ------------
 
+
 TODO
 ----
 In the mesh, make sure nb_side_num_for_fe_side is reasonably fast, store precomputed values if necessary.

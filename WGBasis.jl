@@ -67,7 +67,7 @@ const no_bel = uint64(0)
 typealias MonNum Uint16
 mon_num(i::Integer) = if i > 0 convert(Uint16, i) else error("monomial number out of range") end
 
-type WeakFunsPolyBasis
+immutable WeakFunsPolyBasis
 
   interior_polys_max_deg::Deg
   side_polys_max_deg::Deg
@@ -387,7 +387,7 @@ end
 # ============================================
 # testing and debugging aids
 
-type BElSummary
+immutable BElSummary
   beln::BElNum
   support_type::String
   support

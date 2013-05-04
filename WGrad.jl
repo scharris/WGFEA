@@ -27,7 +27,7 @@ import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial, Poly.Nomial
 # will be expressed below as a monomial or polynomial paired with the face of T
 # on which it has the monomial or polynomial value.
 
-type WGradSolver
+immutable WGradSolver
 
   mesh::AbstractMesh
 

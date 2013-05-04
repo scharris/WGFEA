@@ -20,7 +20,6 @@ export FENum, fe_num, no_fe,
        dependent_dim_for_nb_side,
        dependent_dim_for_oshape_side,
        fe_inclusions_of_nb_side,
-       fe_inclusions_of_nb_side!,
        nb_side_num_for_fe_side,
        is_boundary_side,
        num_boundary_sides,
@@ -60,7 +59,7 @@ oshape(i::Integer) = if i > 127 || i <= 0 error("oriented shape number out of ra
 # Given a side not in the outside boundary, this structure represents the two
 # finite elements which include the side, together with the side's face number
 # in each of the finite elements.
-type NBSideInclusions
+immutable NBSideInclusions
   nb_side_num::NBSideNum
   fe1::FENum
   face_in_fe1::FERelFace
@@ -117,8 +116,7 @@ dependent_dim_for_nb_side{M <: AbstractMesh}(i::NBSideNum, mesh::M) =
 dependent_dim_for_oshape_side{M <: AbstractMesh}(fe_oshape::OrientedShape, side_face::FERelFace, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
-
-fe_inclusions_of_nb_side!{M <: AbstractMesh}(i::NBSideNum, mesh::M, nb_side_incls::NBSideInclusions) =
+fe_inclusions_of_nb_side{M <: AbstractMesh}(side_num::NBSideNum, mesh::M) =
   error("not implemented, mesh implementation is incomplete")
 
 # Return non-boundary side number of the indicated fe relative side, or 0 if the side is a boundary side.
@@ -248,13 +246,6 @@ function num_non_boundary_sides_for_fe{M <: AbstractMesh}(fe::FENum, mesh::M)
   end
   nb_sides
 end
-
-# Functional (but memory allocating) variant of fe_inclusions_of_nb_side!.
-fe_inclusions_of_nb_side{M <: AbstractMesh}(side_num::NBSideNum, mesh::M) =
-  let side_incls = NBSideInclusions()
-    fe_inclusions_of_nb_side!(side_num, mesh, side_incls)
-    side_incls
-  end
 
 
 import Base.isequal

@@ -11,7 +11,7 @@ import VBF, VBF.AbstractVariationalBilinearForm
 # a_s(v, w) = sum_T{ (a wgrad_T v, wgrad_T w)_T } + sum_T{ (1/h_T) <Q_b v_0T - v_b, Q_b w_0T - w_b>_bnd(T) }
 # For now we will let the post-multiplying matrix a in the first term be the identity matrix.
 
-type A_s <: AbstractVariationalBilinearForm
+immutable A_s <: AbstractVariationalBilinearForm
   # projections of interior basis monomials onto fe side faces
   int_mon_side_projs::Array{Array{Array{Polynomial,1},1},1} # by interior monomial number, fe shape, side face
 

@@ -31,7 +31,7 @@ using Common
 
 # A representation of a monomial function.  Information about its expression is incorporated as well
 # to be used for more exact and efficient computations where possible.
-type Monomial
+immutable Monomial
   exps::Array{Deg,1} # exponent array, length is always the dimension of the domain
 
   Monomial(exps::Array{Deg,1}) = check_degs(exps...) && new(exps)
@@ -45,7 +45,7 @@ type Monomial
     new([convert(Deg,k1), convert(Deg,k2), convert(Deg,k3), convert(Deg,k4), convert(Deg,k5)])
 end
 
-type Polynomial
+immutable Polynomial
   mons::Array{Monomial,1}
   coefs::Array{R,1}
 
@@ -59,7 +59,7 @@ end
 
 # A VectorMonomial represents a function of the form x->[0,...m(x),...0] for some monomial m,
 # where all output components are zero except at m's.
-type VectorMonomial
+immutable VectorMonomial
   mon::Monomial
   mon_pos::Dim # the position of the non-zero monomial component among the output components
 
@@ -69,7 +69,7 @@ end
 
 # A vector of polynomials having the same domain.  Or alternately it may represent a vector valued function
 # where each component function is a polynomial.
-type PolynomialVector
+immutable PolynomialVector
   polys::Array{Polynomial,1}
 
   function PolynomialVector(ps::Array{Polynomial,1})

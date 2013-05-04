@@ -15,7 +15,7 @@ mesh_ldim(i::Integer) = convert(MeshCoord, i)
 mesh_ldims(dims::Integer...) = [convert(MeshCoord,l) for l in dims]
 
 
-type NBSideGeom
+immutable NBSideGeom
   perp_axis::Dim
   mesh_coords::Array{MeshCoord, 1}
 end
@@ -23,7 +23,7 @@ end
 const default_integration_rel_err = 1e-12
 const default_integration_abs_err = 1e-12
 
-type RectMesh <: AbstractMesh
+immutable RectMesh <: AbstractMesh
 
   space_dim::Dim
 
@@ -206,17 +206,13 @@ dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh) = perp_axis_for_nb_side(
 import Mesh.dependent_dim_for_oshape_side
 dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::FERelFace, mesh::RectMesh) = side_face_perp_axis(side_face)
 
-import Mesh.fe_inclusions_of_nb_side!
-function fe_inclusions_of_nb_side!(n::NBSideNum, mesh::RectMesh, incls::NBSideInclusions)
+import Mesh.fe_inclusions_of_nb_side
+function fe_inclusions_of_nb_side(n::NBSideNum, mesh::RectMesh)
   const sgeom = nb_side_geom(n, mesh)
   const a = sgeom.perp_axis
   const lesser_fe = fe_with_mesh_coords(sgeom.mesh_coords, mesh)
   const greater_fe =  lesser_fe + (a == 1 ? 1 : mesh.cumprods_mesh_ldims[a-1])
-  incls.fe1 = lesser_fe
-  incls.face_in_fe1 = greater_side_face_perp_to_axis(a)
-  incls.fe2 = greater_fe
-  incls.face_in_fe2 = lesser_side_face_perp_to_axis(a)
-  incls.nb_side_num = n
+  NBSideInclusions(n, lesser_fe, greater_side_face_perp_to_axis(a), greater_fe, lesser_side_face_perp_to_axis(a))
 end
 
 import Mesh.nb_side_num_for_fe_side
