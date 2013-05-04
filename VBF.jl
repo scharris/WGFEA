@@ -5,6 +5,7 @@ export AbstractVariationalBilinearForm,
        side_mon_vs_int_mon,
        int_mon_vs_side_mon,
        side_mon_vs_side_mon,
+       poly_on_face_vs_poly_on_face,
        bel_vs_bel_transpose,
        bel_vs_bel_transpose_dense,
        make_interior_mon_side_projs
@@ -94,6 +95,40 @@ side_mon_vs_side_mon{BF <: AbstractVariationalBilinearForm}(fe_oshape::OrientedS
 
 #
 ##########################################################################
+
+
+function poly_on_face_vs_poly_on_face(fe_oshape::OrientedShape,
+                                      poly_1::Polynomial, face_1::FERelFace,
+                                      poly_2::Polynomial, face_2::FERelFace,
+                                      basis::WeakFunsPolyBasis,
+                                      bf::BF)
+  const num_int_mons, num_side_mons = WGBasis.mons_per_fe_interior(basis), WGBasis.mons_per_fe_side(basis)
+  const p1_coefs, p2_coefs = poly_1.coefs, poly_2.coefs
+  term_pairs_sum = zeroR
+  # TODO: Must convert from poly mon # to basis mon # in the below.
+  if face_1 == Mesh.interior_face # interior vs interior or side
+    if face_2 == Mesh.interior_face # interior vs interior
+      for monn_1=mon_num(1):num_int_mons, monn_2=mon_num(1):num_int_mons
+        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * int_mon_vs_int_mon(fe_oshape, monn_1, monn_2, basis, bf)
+      end
+    else # interior vs side
+      for monn_1=mon_num(1):num_int_mons, monn_2=mon_num(1):num_side_mons
+        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * int_mon_vs_side_mon(fe_oshape, monn_1, monn_2, face_2, basis, bf)
+      end
+    end
+  else # side vs interior or side
+    if face_2 == Mesh.interior_face # side vs interior
+      for monn_1=mon_num(1):num_side_mons, monn_2=mon_num(1):num_int_mons
+        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * side_mon_vs_int_mon(fe_oshape, monn_1, face_1, monn_2, basis, bf)
+      end
+    else # side vs side
+      for monn_1=mon_num(1):num_side_mons, monn_2=mon_num(1):num_side_mons
+        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * side_mon_vs_side_mon(fe_oshape, monn_1, face_1, monn_2, face_2, basis, bf)
+      end
+    end
+  end
+  sum_over_term_pairs
+end
 
 
 # TODO: unit tests

@@ -13,6 +13,7 @@ export WeakFunsPolyBasis,
        interior_mon,
        interior_mon_num,
        interior_mon_bel_num,
+       fe_interior_poly_for_weak_fun_coefs,
        mons_per_fe_side,
        side_mons_for_fe_side,
        side_mons_for_oshape_side,
@@ -318,6 +319,14 @@ end
 # TODO: unit tests
 function interior_mon_bel_num(fe::FENum, monn::MonNum, basis::WeakFunsPolyBasis)
   (fe-1)*basis.mons_per_fe_interior + monn
+end
+
+# Return an interior polynomial for a particular finite element given weak function coefficients for all basis elements.
+function fe_interior_poly_for_weak_fun_coefs(fe::FENum, all_basis_coefs::Vector{R}, basis::WeakFunsPolyBasis)
+  const num_int_mons = basis.mons_per_fe_interior
+  const first_beln = interior_mon_bel_num(fe, mon_num(1), basis)
+  const coefs = all_basis_coefs[first_beln : first_beln + num_int_mons - 1]
+  Polynomial(basis.interior_mons, coefs)
 end
 
 mons_per_fe_interior(basis::WeakFunsPolyBasis) = basis.mons_per_fe_interior
