@@ -1,4 +1,4 @@
-using Test
+using Base.Test
 using WGrad
 using Common
 import Poly, Poly.Monomial, Poly.PolynomialVector, Poly.Nomial

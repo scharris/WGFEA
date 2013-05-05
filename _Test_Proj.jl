@@ -1,4 +1,4 @@
-using Test
+using Base.Test
 using Proj
 using Common
 import Poly.Monomial, Poly.Polynomial
@@ -8,7 +8,7 @@ import WGBasis.WeakFunsPolyBasis
 
 
 mesh_mins = [1.0, 2.0, 3.0]
-rmesh3x4x5 = RectMesh(mesh_mins, [4.0, 6.0, 8.0], [mesh_coord(3), mesh_coord(4), mesh_coord(5)])
+rmesh3x4x5 = RectMesh(mesh_mins, [4.0, 6.0, 8.0], [mesh_coord(3), mesh_coord(4), mesh_coord(5)], 1e-9, 1e-9)
 basis = WeakFunsPolyBasis(deg(5), deg(4), rmesh3x4x5)
 
 x = Monomial(1,0,0)

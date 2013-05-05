@@ -26,13 +26,14 @@ function simple_2d_test()
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
 
-  sol = solve(f, g, wg)
+  wg_sol = solve(f, g, wg)
 
-  # print_sample_points(sol, u, grad_u)
+  # print_sample_points(wg_sol, u, grad_u)
 
-  println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, sol))")
-  #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, sol))")
-  #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, sol))")
+  println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, wg_sol))")
+  println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
+  #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
+  #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
   flush(OUTPUT_STREAM)
 end
 
@@ -48,8 +49,8 @@ function errs_and_diams_for_side_divs(space_dim::Dim, u::Function, f::Function, 
     const basis = WeakFunsPolyBasis(k, deg(k-1), mesh)
     const vbf = a_s(basis)
     const wg = WGSolver(vbf, basis)
-    const sol = solve(f, g, wg)
-    l2_errs[run] = WGSol.err_vs_proj_L2_norm(sol, u)
+    const wg_sol = solve(f, g, wg)
+    l2_errs[run] = WGSol.err_vs_proj_L2_norm(u, wg_sol)
     diams[run] = Mesh.max_fe_diameter(mesh)
   end
   l2_errs, diams
@@ -118,13 +119,13 @@ function simple_4d_test()
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
 
-  sol = solve(f, g, wg)
+  wg_sol = solve(f, g, wg)
 
-  print_sample_points(sol, u, grad_u)
+  print_sample_points(wg_sol, u, grad_u)
 
-  println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, sol))")
-  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, sol))")
-  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, sol))")
+  println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, wg_sol))")
+  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
+  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
   flush(OUTPUT_STREAM)
 end
 
@@ -158,15 +159,20 @@ function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
 
   println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, wg_sol))")
   println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
+  println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
   println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
   flush(STDOUT)
 end
 
 
 function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function)
-  const int_rel_pt = zeros(R, Mesh.space_dim(basis.mesh))
+  const d = Mesh.space_dim(basis.mesh)
+  const int_rel_pt = zeros(R, d)
+  const fe_origin = Array(R, d)
+
   for fe=fe_num(1):Mesh.num_fes(basis.mesh)
-    const fe_or = Mesh.fe_interior_origin(fe, basis.mesh) + int_rel_pt
+    Mesh.fe_interior_origin!(fe, fe_origin, basis.mesh)
+    fe_origin += int_rel_pt
     const wg_sol_val = WGSol.wg_sol_at_interior_rel_point(fe, int_rel_pt, wg_sol)
     const u_val = u(fe_or)
 

@@ -262,12 +262,12 @@ import Mesh.max_fe_diameter
 max_fe_diameter(mesh::RectMesh) =
   mesh.rect_diameter
 
-import Mesh.fe_interior_origin
-function fe_interior_origin(fe::FENum, mesh::RectMesh)
+import Mesh.fe_interior_origin!
+function fe_interior_origin!(fe::FENum, coords::Vector{R}, mesh::RectMesh)
   const d = mesh.space_dim
-  const coords = Array(R, d)
-  fe_interior_origin!(fe, mesh, coords)
-  coords
+  for r=dim(1):d
+    coords[r] = mesh.min_bounds[r] + (fe_mesh_coord(r, fe, mesh) - 1) * mesh.fe_dims[r]
+  end
 end
 
 
@@ -302,8 +302,8 @@ end
 import Mesh.integral_global_x_face_rel_on_fe_face
 function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FERelFace, mesh::RectMesh)
   const d = mesh.space_dim
-  const fe_int_origin = fe_interior_origin(fe, mesh)
   const fe_x = mesh.intgd_args_work_array
+  const fe_int_origin = Mesh.fe_interior_origin(fe, mesh)
 
   if face == Mesh.interior_face
     function ref_intgd(x::Vector{R})
@@ -399,14 +399,6 @@ function fe_with_mesh_coords(coords::Array{MeshCoord,1}, mesh::RectMesh)
   sum
 end
 
-# Fill the passed array with the coordinates of the finite element corner with range-minimum coordinates.
-function fe_interior_origin!(fe::FENum, mesh::RectMesh, coords::Vector{R})
-  const d = mesh.space_dim
-  for r=1:d
-    coords[r] = mesh.min_bounds[r] + (fe_mesh_coord(dim(r), fe, mesh) - 1) * mesh.fe_dims[r]
-  end
-  coords
-end
 
 
 

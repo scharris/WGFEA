@@ -1,13 +1,12 @@
 Commit Notes
 ------------
 
-
 TODO
 ----
-VBF:  Implement a general function poly_on_face_vs_poly_on_face, in terms of other functions.
 
-Implement triple bar norm (vbf) error.
-
+Renames:
+  fe_num -> fen
+  fe_face -> ferface
 
 Documentation Changes
 ---------------------

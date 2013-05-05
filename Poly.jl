@@ -113,7 +113,7 @@ function canonical_form(p::Polynomial)
     const mon = p.mons[i]
     new_coefs_by_mon[mon] = get(new_coefs_by_mon, mon, zeroR) + p.coefs[i]
   end
-  mons = sort!(keys(new_coefs_by_mon))
+  mons = sort(collect(keys(new_coefs_by_mon)))
   coefs = [get(new_coefs_by_mon, mon, zeroR) for mon in mons]
   Polynomial(mons, coefs)
 end

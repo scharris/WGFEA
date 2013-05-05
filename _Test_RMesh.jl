@@ -1,4 +1,4 @@
-using Test
+using Base.Test
 using RMesh
 using Common
 import Mesh, Mesh.NBSideInclusions, Mesh.fe_num, Mesh.nb_side_num
@@ -10,6 +10,7 @@ mesh_min_coords = [1.0, 2.0, 3.0]
 mesh_max_coords = [2.0, 3.0, 4.0]
 mesh_ldims = [mesh_coord(3), mesh_coord(4), mesh_coord(5)]
 rmesh3x4x5 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
+rect_oshape = Mesh.oshape(1)
 
 @test rmesh3x4x5.space_dim == 3
 @test rmesh3x4x5.min_bounds == mesh_min_coords
@@ -17,8 +18,7 @@ rmesh3x4x5 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
 @test rmesh3x4x5.mesh_ldims == mesh_ldims
 @test rmesh3x4x5.fe_dims == [1/3, 1/4, 1/5]
 @test Mesh.one_mon(rmesh3x4x5) == Monomial(0,0,0)
-@test nearly_eq(Mesh.fe_diameter_inv(fe_num(1), rmesh3x4x5), 1/sqrt((1/3)^2 + (1/4)^2 + (1/5)^2))
-@test nearly_eq(Mesh.fe_diameter_inv(fe_num(17), rmesh3x4x5), 1/sqrt((1/3)^2 + (1/4)^2 + (1/5)^2))
+@test nearly_eq(Mesh.shape_diameter_inv(rect_oshape, rmesh3x4x5), 1/sqrt((1/3)^2 + (1/4)^2 + (1/5)^2))
 
 @test rmesh3x4x5.cumprods_mesh_ldims == [3, 3*4, 3*4*5]
 
@@ -35,7 +35,6 @@ rmesh3x4x5 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
 @test rmesh3x4x5.num_fes == Mesh.num_fes(rmesh3x4x5) == 3*4*5
 @test Mesh.num_oriented_element_shapes(rmesh3x4x5) == 1
 
-rect_oshape = Mesh.oshape(1)
 left_face = RMesh.lesser_side_face_perp_to_axis(dim(1))
 right_face = RMesh.greater_side_face_perp_to_axis(dim(1))
 bottom_face = RMesh.lesser_side_face_perp_to_axis(dim(2))
@@ -759,7 +758,7 @@ f1(x::Vector{R}) = (x[1] - mesh_min_coords[1])^2 * (x[2] - mesh_min_coords[2])^3
   (1/3)^4/4 * (1/4)^5/5
 )
 
-fe17_coords = RMesh.fe_interior_origin(fe_num(17), rmesh3x4x5)
+fe17_coords = Mesh.fe_interior_origin(fe_num(17), rmesh3x4x5)
 f2(x::Vector{R}) = (x[1] - fe17_coords[1])^2 * (x[2] - fe17_coords[2])^3
 @test nearly_eq(
   Mesh.integral_global_x_face_rel_on_fe_face(f2, x*y*z, fe_num(17), Mesh.interior_face, rmesh3x4x5),
@@ -864,11 +863,11 @@ f2(x::Vector{R}) = (x[1] - fe17_coords[1])^2 * (x[2] - fe17_coords[2])^3
 
 rmesh20x10 = RectMesh([0.,0.], [20.,10.], [mesh_coord(20), mesh_coord(10)])
 
-@test RMesh.fe_interior_origin(fe_num(1), rmesh20x10) == [0., 0.]
-@test RMesh.fe_interior_origin(fe_num(2), rmesh20x10) == [1., 0.]
-@test RMesh.fe_interior_origin(fe_num(20), rmesh20x10) == [19., 0.]
-@test RMesh.fe_interior_origin(fe_num(21), rmesh20x10) == [0., 1.]
-@test RMesh.fe_interior_origin(fe_num(200), rmesh20x10) == [19., 9.]
+@test Mesh.fe_interior_origin(fe_num(1), rmesh20x10) == [0., 0.]
+@test Mesh.fe_interior_origin(fe_num(2), rmesh20x10) == [1., 0.]
+@test Mesh.fe_interior_origin(fe_num(20), rmesh20x10) == [19., 0.]
+@test Mesh.fe_interior_origin(fe_num(21), rmesh20x10) == [0., 1.]
+@test Mesh.fe_interior_origin(fe_num(200), rmesh20x10) == [19., 9.]
 
 @test Mesh.num_fes(rmesh20x10) == 200
 @test Mesh.num_nb_sides(rmesh20x10) == 370
@@ -1025,7 +1024,7 @@ f3(x::Vector{R}) = x[1]^2 * x[2]^3
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f3, x*y, fe_num(1), top_face, rmesh3x2), 0)
 
 # Integrating the product below on fe 5 should be equivalent to integrating the monomial x^3 y^4 z on the reference element interior.
-fe5_coords = RMesh.fe_interior_origin(fe_num(5), rmesh3x2)
+fe5_coords = Mesh.fe_interior_origin(fe_num(5), rmesh3x2)
 f4(x::Vector{R}) = (x[1] - fe5_coords[1])^2 * (x[2] - fe5_coords[2])^3
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x*y, fe_num(5), Mesh.interior_face, rmesh3x2), 1/20)
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, y, fe_num(5), left_face, rmesh3x2), 0)

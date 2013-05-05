@@ -1,4 +1,4 @@
-using Test
+using Base.Test
 using WGBasis
 using Common
 import Mesh, Mesh.fe_num
@@ -192,8 +192,8 @@ rshape = Mesh.oshape(1)
 @test side_mon(beln(40), basis) == y
 
 # monomials on vertical side between finite elements 5 and 6
-@test WGBasis.side_mon_bel_num(fe_num(5), right_face, bel_num(1), basis) == 43
-@test WGBasis.side_mon_bel_num(fe_num(6), left_face, bel_num(1), basis) == 43
+@test WGBasis.side_mon_bel_num(fe_num(5), right_face, mon_num(1), basis) == 43
+@test WGBasis.side_mon_bel_num(fe_num(6), left_face, mon_num(1), basis) == 43
 @test side_mon(beln(43), basis) == one
 @test side_mon(beln(44), basis) == y
 
