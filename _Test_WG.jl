@@ -7,6 +7,7 @@ using Common
 import Mesh, Mesh.fe_num
 import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_ldims, RMesh.mesh_ldim
 import WGBasis.WeakFunsPolyBasis
+import VBF.AbstractVariationalBilinearForm
 import VBF_a_s.a_s
 import WGSol, WGSol.WGSolution
 import Cubature.hcubature
@@ -37,11 +38,11 @@ function simple_2d_test()
   flush(OUTPUT_STREAM)
 end
 
-function errs_and_diams_for_side_divs(space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
+function errs_and_diams_for_side_divs(errf::Function, space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
                                       mesh_bounds::(Vector{R}, Vector{R}), mesh_side_divs::Array{Int,1}, k::Deg)
   const num_runs = length(mesh_side_divs)
 
-  const l2_errs = Array(R, num_runs)
+  const errs = Array(R, num_runs)
   const diams = Array(R, num_runs)
   for run=1:num_runs
     const mesh_ldims = fill(mesh_ldim(mesh_side_divs[run]+1), space_dim)
@@ -50,28 +51,29 @@ function errs_and_diams_for_side_divs(space_dim::Dim, u::Function, f::Function, 
     const vbf = a_s(basis)
     const wg = WGSolver(vbf, basis)
     const wg_sol = solve(f, g, wg)
-    l2_errs[run] = WGSol.err_vs_proj_L2_norm(u, wg_sol)
+    errs[run] = errf(u, wg_sol, vbf)
     diams[run] = Mesh.max_fe_diameter(mesh)
   end
-  l2_errs, diams
+  errs, diams
 end
 
 
-# Plot errors for approximation of function u where u(x) = cos(x_1) + sin(x_2).
-function trig_2d_errs_plot()
+# Plot errors for approximation of function u where u(x) = cos(x_1) + sin(x_2), using the passed error function
+# taking as arguments exact solution u, wg solution, and vbf.
+function trig_2d_errs_plot(errf::Function, plot_name::String)
   u(x::Vector{R}) = cos(x[1]) + sin(x[2])
   # (grad u)(x) = (-sin(x_1), cos(x_2))
   # (div (grad u))(x) = -cos(x[1]) - sin(x[2])
   f(x::Vector{R}) = cos(x[1]) + sin(x[2])
   g(x::Vector{R}) = u(x)
 
-  const mesh_bounds = ([0.,0.], [4pi,4pi])
-  const integ_err_rel, integ_err_abs = 1e-14, 1e-14
+  const mesh_bounds = ([0.,0.], [2pi,2pi])
+  const integ_err_rel, integ_err_abs = 1e-12, 1e-12
 
-  const mesh_side_divs = [20:5:65]
+  const mesh_side_divs = [20:5:35]
 
   const plot = FramedPlot()
-  setattr(plot, "title", "Solving for u(x) = cos(x_1) + sin(x_2) on [0,4\\pi]^2")
+  setattr(plot, "title", "Solving for u(x) = cos(x_1) + sin(x_2) on [0,2\\pi]^2")
   setattr(plot, "xlabel", "-log(h)")
   setattr(plot, "ylabel", "log ||Q_0 u - u_h||")
 
@@ -80,7 +82,7 @@ function trig_2d_errs_plot()
 
   const legend_pts_list = {}
   for k=deg(1):deg(4)
-    const errs, diams = errs_and_diams_for_side_divs(dim(2), u, f, g, mesh_bounds, mesh_side_divs, k)
+    const errs, diams = errs_and_diams_for_side_divs(errf, dim(2), u, f, g, mesh_bounds, mesh_side_divs, k)
     const num_errs = length(errs)
     const log_errs, minus_log_diams = Array(R, num_errs), Array(R, num_errs)
     for i=1:num_errs
@@ -99,7 +101,7 @@ function trig_2d_errs_plot()
   const legend = Legend(.1,.25, legend_pts_list)
   add(plot, legend)
 
-  file(plot, "plots/errs_plot.pdf")
+  file(plot, "plots/$plot_name.pdf")
 end
 
 function simple_4d_test()
@@ -187,60 +189,18 @@ function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function)
   flush(OUTPUT_STREAM)
 end
 
-simple_2d_test()
+# Error functions
+err_vs_proj_L2(u::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinearForm) =
+  WGSol.err_vs_proj_L2_norm(u, wg_sol)
+
+err_vs_proj_vbf_seminorm(u::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinearForm) =
+  WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf)
+
+# simple_2d_test()
 
 #trig_Rd_test(mesh_ldims(5,5,5,5), deg(3), deg(2))
 
 #simple_4d_test()
 
-# trig_2d_errs_plot()
-
-trig_2d_sob_norms_unused = "
-  # (||u||_2)^2 = int_{mesh_bounds} u(x)^2 + |(grad u)(x)|^2  + (D_1,1 u)(x)^2 + (D_2,2 u)(x)^2 + (D_1,2 u)(x)^2 dx
-  sob2_norm_sq_u = begin
-    function sum_sq_partials(x::Vector{R})
-      const cos_x1, cos_x2, sin_x1, sin_x2 = cos(x[1]), cos(x[2]), sin(x[1]), sin(x[2])
-      const u_sq = let s = cos_x1 + sin_x2  s*s end
-      # (D_1 u)(x) = -sin(x_1),   (D_2 u)(x) = cos(x_2)
-      const grad_u_norm_sq = sin_x1 * sin_x1 + cos_x2 * cos_x2
-      const d11_sq = cos_x1 * cos_x1 # (D_1,1 u)(x) = -cos(x_1)
-      const d22_sq = sin_x2 * sin_x2 # (D_2,2 u)(x) = -sin(x_2)
-      const d12_sq = 0.
-      u_sq + grad_u_norm_sq + (d11_sq + d22_sq + d12_sq)
-    end
-    hcubature(sum_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
-  end
-
-  sob3_norm_sq_u = begin
-    function sum_additional_sq_partials(x::Vector{R})
-      const cos_x2, sin_x1 = cos(x[2]), sin(x[1])
-      const d111_sq = sin_x1 * sin_x1 # (D_1,1,1 u)(x) = sin(x_1)
-      const d222_sq = cos_x2 * cos_x2 # (D_2,2,2 u)(x) = -cos(x_2)
-      d111_sq + d222_sq # Mixed partials are 0.
-    end
-    sob2_norm_sq_u + hcubature(sum_additional_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
-  end
-
-  sob4_norm_sq_u = begin
-    function sum_additional_sq_partials(x::Vector{R})
-      const cos_x1, sin_x2 = cos(x[1]), sin(x[2])
-      const d1111_sq = cos_x1 * cos_x1 # (D_1,1,1,1 u)(x) = cos(x_1)
-      const d2222_sq = sin_x2 * sin_x2 # (D_2,2,2,2 u)(x) = sin(x_2)
-      d1111_sq + d2222_sq # Mixed partials are 0.
-    end
-    sob3_norm_sq_u + hcubature(sum_additional_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
-  end
-
-  sob5_norm_sq_u = begin
-    function sum_additional_sq_partials(x::Vector{R})
-      const sin_x1, cos_x2 = sin(x[1]), cos(x[2])
-      const d11111_sq = sin_x1 * sin_x1 # (D_1,1,1,1,1 u)(x) = -sin(x_1)
-      const d22222_sq = cos_x2 * cos_x2 # (D_2,2,2,2,2 u)(x) = cos(x_2)
-      # All mixed partials are 0 as before.
-      d11111_sq + d22222_sq
-    end
-    sob4_norm_sq_u + hcubature(sum_additional_sq_partials, mesh_bounds[1], mesh_bounds[2], integ_err_rel, integ_err_abs)[1]
-  end
-
-  const u_sob_norms = [NaN, sqrt(sob2_norm_sq_u), sqrt(sob3_norm_sq_u), sqrt(sob4_norm_sq_u), sqrt(sob5_norm_sq_u)]
-"
+trig_2d_errs_plot(err_vs_proj_vbf_seminorm, "err_vs_proj_vbf_seminorm")
+trig_2d_errs_plot(err_vs_proj_L2, "err_vs_proj_L2_norm")

@@ -156,8 +156,6 @@ function err_grad_vs_wgrad_L2_norm(exact_sol_grad::Function, wg_sol::WGSolution)
   sqrt(sum_fe_diff_norm_sqs)
 end
 
-# TODO: Need to distinguish boundary sides and non-boundary sides.  We can assume that the boundary sides don't
-# contribute here, because f = g on the outside boundary and u_h has g projection values there.
 # Compute semi-norm ||| Q_h u - u_h |||_vbf = sqrt(vbf(Q u - u_h, Q u - u_h)),
 # where Q_h is piecwise L2 projection onto finite element faces.
 function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinearForm)
