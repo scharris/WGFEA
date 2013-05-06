@@ -3,8 +3,11 @@ Commit Notes
 
 TODO
 ----
-
-Renames:
+Make a mesh generator, which generates and records vertices, fe numbers, nb side numbers, boundary side #'s as it generates.
+  Construction
+    - Number of shapes
+    - Region test function, pt -> Bool
+    - Function current state, shape, position -> state including newly attached shapes
 
 Documentation Changes
 ---------------------
