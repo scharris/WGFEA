@@ -1,7 +1,7 @@
 using Base.Test
 using WGBasis
 using Common
-import Mesh, Mesh.fe_num
+import Mesh, Mesh.fen
 import RMesh, RMesh.mesh_coord
 import Poly, Poly.Monomial
 import WGrad, WGrad.WGradSolver
@@ -109,22 +109,22 @@ top_face = RMesh.greater_side_face_perp_to_axis(dim(2))
 
 # fe vertical side supported basis element
 incls = Mesh.fe_inclusions_of_nb_side(support_nb_side_num(beln(37), basis), basis.mesh)
-@test incls.fe1 == fe_num(1)
+@test incls.fe1 == fen(1)
 @test incls.face_in_fe1 == right_face
-@test incls.fe2 == fe_num(2)
+@test incls.fe2 == fen(2)
 @test incls.face_in_fe2 == left_face
 
 incls = fe_inclusions_of_side_support(beln(37), basis)
-@test incls.fe1 == fe_num(1)
+@test incls.fe1 == fen(1)
 @test incls.face_in_fe1 == right_face
-@test incls.fe2 == fe_num(2)
+@test incls.fe2 == fen(2)
 @test incls.face_in_fe2 == left_face
 
 # fe horizontal side supported basis element
 incls = fe_inclusions_of_side_support(beln(45), basis)
-@test incls.fe1 == fe_num(1)
+@test incls.fe1 == fen(1)
 @test incls.face_in_fe1 == top_face
-@test incls.fe2 == fe_num(4)
+@test incls.fe2 == fen(4)
 @test incls.face_in_fe2 == bottom_face
 
 rshape = Mesh.oshape(1)
@@ -142,16 +142,16 @@ rshape = Mesh.oshape(1)
 
 @test interior_mons(basis) == [one, y, y^2, x, x*y, x^2]
 
-@test WGBasis.interior_mon_bel_num(fe_num(1), mon_num(1), basis) == 1
+@test WGBasis.interior_mon_bel_num(fen(1), monn(1), basis) == 1
 
-@test interior_mon_num(beln(3), basis) == mon_num(3)
-@test interior_mon_num(beln(6), basis) == mon_num(6)
+@test interior_mon_num(beln(3), basis) == monn(3)
+@test interior_mon_num(beln(6), basis) == monn(6)
 
 @test interior_mons(basis)[3] == y^2
 @test interior_mons(basis)[6] == x^2
 
 # interior monomials, finite element 2
-@test WGBasis.interior_mon_bel_num(fe_num(2), mon_num(1), basis) == 7
+@test WGBasis.interior_mon_bel_num(fen(2), monn(1), basis) == 7
 
 @test interior_mon(beln(7), basis) == one
 @test interior_mon(beln(12), basis) == x^2
@@ -161,7 +161,7 @@ rshape = Mesh.oshape(1)
 
 
 # interior monomials, finite element 6
-@test WGBasis.interior_mon_bel_num(fe_num(6), mon_num(1), basis) == 31
+@test WGBasis.interior_mon_bel_num(fen(6), monn(1), basis) == 31
 
 @test interior_mon(beln(31), basis) == one
 @test interior_mon(beln(36), basis) == x^2
@@ -170,8 +170,8 @@ rshape = Mesh.oshape(1)
 @test interior_mon_num(beln(36), basis) == 6
 
 # monomials on vertical side between finite elements 1 and 2
-@test WGBasis.side_mon_bel_num(fe_num(1), right_face, mon_num(1), basis) == 37
-@test WGBasis.side_mon_bel_num(fe_num(2), left_face, mon_num(1), basis) == 37
+@test WGBasis.side_mon_bel_num(fen(1), right_face, monn(1), basis) == 37
+@test WGBasis.side_mon_bel_num(fen(2), left_face, monn(1), basis) == 37
 
 @test side_mon(beln(37), basis) == one
 @test side_mon(beln(38), basis) == y
@@ -181,31 +181,31 @@ rshape = Mesh.oshape(1)
 
 @test side_mons_for_oshape_side(rshape, right_face, basis)[1] == side_mons_for_oshape_side(rshape, left_face, basis)[1] == one
 @test side_mons_for_oshape_side(rshape, right_face, basis)[2]  == side_mons_for_oshape_side(rshape, left_face, basis)[2] == y
-@test side_mons_for_fe_side(fe_num(1), right_face, basis) == side_mons_for_fe_side(fe_num(1), left_face, basis) == [one, y]
+@test side_mons_for_fe_side(fen(1), right_face, basis) == side_mons_for_fe_side(fen(1), left_face, basis) == [one, y]
 @test_fails side_mons_for_oshape_side(rshape, right_face, basis)[3]
 
 # monomials on vertical side between finite elements 2 and 3
-@test WGBasis.side_mon_bel_num(fe_num(2), right_face, mon_num(1), basis) == 39
-@test WGBasis.side_mon_bel_num(fe_num(3), left_face, mon_num(1), basis) == 39
+@test WGBasis.side_mon_bel_num(fen(2), right_face, monn(1), basis) == 39
+@test WGBasis.side_mon_bel_num(fen(3), left_face, monn(1), basis) == 39
 
 @test side_mon(beln(39), basis) == one
 @test side_mon(beln(40), basis) == y
 
 # monomials on vertical side between finite elements 5 and 6
-@test WGBasis.side_mon_bel_num(fe_num(5), right_face, mon_num(1), basis) == 43
-@test WGBasis.side_mon_bel_num(fe_num(6), left_face, mon_num(1), basis) == 43
+@test WGBasis.side_mon_bel_num(fen(5), right_face, monn(1), basis) == 43
+@test WGBasis.side_mon_bel_num(fen(6), left_face, monn(1), basis) == 43
 @test side_mon(beln(43), basis) == one
 @test side_mon(beln(44), basis) == y
 
 # monomials on horizontal side between finite elements 1 and 4
-@test WGBasis.side_mon_bel_num(fe_num(1), top_face, mon_num(1), basis) == 45
-@test WGBasis.side_mon_bel_num(fe_num(4), bottom_face, mon_num(1), basis) == 45
+@test WGBasis.side_mon_bel_num(fen(1), top_face, monn(1), basis) == 45
+@test WGBasis.side_mon_bel_num(fen(4), bottom_face, monn(1), basis) == 45
 @test side_mon(beln(45), basis) == one
 @test side_mon(beln(46), basis) == x
 
 @test side_mons_for_oshape_side(rshape, top_face, basis)[1] == side_mons_for_oshape_side(rshape, bottom_face, basis)[1] == one
 @test side_mons_for_oshape_side(rshape, top_face, basis)[2] == side_mons_for_oshape_side(rshape, bottom_face, basis)[2] == x
-@test side_mons_for_fe_side(fe_num(1), top_face, basis) == side_mons_for_fe_side(fe_num(1), bottom_face, basis) == [one, x]
+@test side_mons_for_fe_side(fen(1), top_face, basis) == side_mons_for_fe_side(fen(1), bottom_face, basis) == [one, x]
 @test_fails side_mons_for_oshape_side(rshape, bottom_face, basis)[3]
 
 # monomials on horizontal side between finite elements 2 and 5
@@ -222,22 +222,22 @@ rshape = Mesh.oshape(1)
 wgrad_solver = WGradSolver(deg(1), basis.mesh)
 
 # weak gradients of interior supported elements
-@test wgrad_interior_mon(mon_num(1), rshape, basis) == WGrad.wgrad(one, rshape, Mesh.interior_face, wgrad_solver)
-@test wgrad_interior_mon(mon_num(2), rshape, basis) == WGrad.wgrad(y, rshape, Mesh.interior_face, wgrad_solver)
-@test wgrad_interior_mon(mon_num(3), rshape, basis) == WGrad.wgrad(y^2, rshape, Mesh.interior_face, wgrad_solver)
-@test wgrad_interior_mon(mon_num(4), rshape, basis) == WGrad.wgrad(x, rshape, Mesh.interior_face, wgrad_solver)
-@test wgrad_interior_mon(mon_num(5), rshape, basis) == WGrad.wgrad(x*y, rshape, Mesh.interior_face, wgrad_solver)
-@test wgrad_interior_mon(mon_num(6), rshape, basis) == WGrad.wgrad(x^2, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(monn(1), rshape, basis) == WGrad.wgrad(one, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(monn(2), rshape, basis) == WGrad.wgrad(y, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(monn(3), rshape, basis) == WGrad.wgrad(y^2, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(monn(4), rshape, basis) == WGrad.wgrad(x, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(monn(5), rshape, basis) == WGrad.wgrad(x*y, rshape, Mesh.interior_face, wgrad_solver)
+@test wgrad_interior_mon(monn(6), rshape, basis) == WGrad.wgrad(x^2, rshape, Mesh.interior_face, wgrad_solver)
 
-@test wgrad_side_mon(mon_num(1), rshape, right_face, basis) == WGrad.wgrad(one, rshape, right_face, wgrad_solver)
-@test wgrad_side_mon(mon_num(2), rshape, right_face, basis) == WGrad.wgrad(y, rshape, right_face, wgrad_solver)
-@test_fails wgrad_side_mon(mon_num(3), rshape, right_face, basis)
+@test wgrad_side_mon(monn(1), rshape, right_face, basis) == WGrad.wgrad(one, rshape, right_face, wgrad_solver)
+@test wgrad_side_mon(monn(2), rshape, right_face, basis) == WGrad.wgrad(y, rshape, right_face, wgrad_solver)
+@test_fails wgrad_side_mon(monn(3), rshape, right_face, basis)
 
 
 # test L2 inner products of basis elements
 
 # interior supported element inner products
-int_ips = ips_interior_mons(fe_num(1), basis)
+int_ips = ips_interior_mons(fen(1), basis)
 @test int_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, rshape, Mesh.interior_face, basis.mesh) == 1
 @test int_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, y, rshape, Mesh.interior_face, basis.mesh) == 1/2
 @test int_ips[1,3] == Mesh.integral_face_rel_x_face_rel_on_face(one, y^2, rshape, Mesh.interior_face, basis.mesh) == 1/3
@@ -253,7 +253,7 @@ int_ips = ips_interior_mons(fe_num(1), basis)
 @test int_ips[2,6] == Mesh.integral_face_rel_x_face_rel_on_face(y, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/6
 
 # side supported element inner products
-top_face_ips = ips_fe_side_mons(fe_num(1), top_face, basis)
+top_face_ips = ips_fe_side_mons(fen(1), top_face, basis)
 
 @test top_face_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, rshape, top_face, basis.mesh) == 1
 @test top_face_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, rshape, top_face, basis.mesh) == 1/2

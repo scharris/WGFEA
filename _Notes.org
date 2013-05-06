@@ -5,8 +5,6 @@ TODO
 ----
 
 Renames:
-  fe_num -> fen
-  fe_face -> ferface
 
 Documentation Changes
 ---------------------

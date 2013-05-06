@@ -12,9 +12,9 @@ export AbstractVariationalBilinearForm,
 
 using Common
 import Poly.Polynomial, Poly.Monomial
-import Mesh, Mesh.AbstractMesh, Mesh.OrientedShape, Mesh.FERelFace, Mesh.fe_face, Mesh.oshape, Mesh.fe_num
+import Mesh, Mesh.AbstractMesh, Mesh.OrientedShape, Mesh.RelFace, Mesh.rface, Mesh.oshape, Mesh.fen
 import Proj
-import WGBasis, WGBasis.BElNum, WGBasis.beln, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum, WGBasis.mon_num
+import WGBasis, WGBasis.BElNum, WGBasis.beln, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum, WGBasis.monn
 
 abstract AbstractVariationalBilinearForm
 
@@ -73,7 +73,7 @@ int_mon_vs_int_mon(fe_oshape::OrientedShape,
   error("not implemented, bilinear form implementation is incomplete")
 
 side_mon_vs_int_mon(fe_oshape::OrientedShape,
-                    side_monn::MonNum, side_face::FERelFace,
+                    side_monn::MonNum, side_face::RelFace,
                     int_monn::MonNum,
                     basis::WeakFunsPolyBasis,
                     bf::AbstractVariationalBilinearForm) =
@@ -81,14 +81,14 @@ side_mon_vs_int_mon(fe_oshape::OrientedShape,
 
 int_mon_vs_side_mon(fe_oshape::OrientedShape,
                     int_monn::MonNum,
-                    side_monn::MonNum, side_face::FERelFace,
+                    side_monn::MonNum, side_face::RelFace,
                     basis::WeakFunsPolyBasis,
                     bf::AbstractVariationalBilinearForm) =
   error("not implemented, bilinear form implementation is incomplete")
 
 side_mon_vs_side_mon(fe_oshape::OrientedShape,
-                     monn_1::MonNum, side_face_1::FERelFace,
-                     monn_2::MonNum, side_face_2::FERelFace,
+                     monn_1::MonNum, side_face_1::RelFace,
+                     monn_2::MonNum, side_face_2::RelFace,
                      basis::WeakFunsPolyBasis,
                      bf::AbstractVariationalBilinearForm) =
   error("not implemented, bilinear form implementation is incomplete")
@@ -98,8 +98,8 @@ side_mon_vs_side_mon(fe_oshape::OrientedShape,
 
 
 function poly_on_face_vs_poly_on_face(fe_oshape::OrientedShape,
-                                      p1_coefs::Array{R,1}, face_1::FERelFace,
-                                      p2_coefs::Array{R,1}, face_2::FERelFace,
+                                      p1_coefs::Array{R,1}, face_1::RelFace,
+                                      p2_coefs::Array{R,1}, face_2::RelFace,
                                       basis::WeakFunsPolyBasis,
                                       bf::AbstractVariationalBilinearForm)
   term_pairs_sum = zeroR
@@ -107,13 +107,13 @@ function poly_on_face_vs_poly_on_face(fe_oshape::OrientedShape,
     if face_2 == Mesh.interior_face # interior vs interior
       const num_int_mons = WGBasis.mons_per_fe_interior(basis)
       assert(length(p1_coefs) == length(p2_coefs) == num_int_mons)
-      for monn_1=mon_num(1):num_int_mons, monn_2=mon_num(1):num_int_mons
+      for monn_1=monn(1):num_int_mons, monn_2=monn(1):num_int_mons
         term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * int_mon_vs_int_mon(fe_oshape, monn_1, monn_2, basis, bf)
       end
     else # interior vs side
       const num_int_mons, num_side_mons = WGBasis.mons_per_fe_interior(basis), WGBasis.mons_per_fe_side(basis)
       assert(length(p1_coefs) == num_int_mons && length(p2_coefs) == num_side_mons)
-      for monn_1=mon_num(1):num_int_mons, monn_2=mon_num(1):num_side_mons
+      for monn_1=monn(1):num_int_mons, monn_2=monn(1):num_side_mons
         term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * int_mon_vs_side_mon(fe_oshape, monn_1, monn_2, face_2, basis, bf)
       end
     end
@@ -121,13 +121,13 @@ function poly_on_face_vs_poly_on_face(fe_oshape::OrientedShape,
     if face_2 == Mesh.interior_face # side vs interior
       const num_int_mons, num_side_mons = WGBasis.mons_per_fe_interior(basis), WGBasis.mons_per_fe_side(basis)
       assert(length(p1_coefs) == num_side_mons && length(p2_coefs) == num_int_mons)
-      for monn_1=mon_num(1):num_side_mons, monn_2=mon_num(1):num_int_mons
+      for monn_1=monn(1):num_side_mons, monn_2=monn(1):num_int_mons
         term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * side_mon_vs_int_mon(fe_oshape, monn_1, face_1, monn_2, basis, bf)
       end
     else # side vs side
       const num_side_mons = WGBasis.mons_per_fe_side(basis)
       assert(length(p1_coefs) == length(p2_coefs) == num_side_mons)
-      for monn_1=mon_num(1):num_side_mons, monn_2=mon_num(1):num_side_mons
+      for monn_1=monn(1):num_side_mons, monn_2=monn(1):num_side_mons
         term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * side_mon_vs_side_mon(fe_oshape, monn_1, face_1, monn_2, face_2, basis, bf)
       end
     end
@@ -140,15 +140,15 @@ end
 function make_interior_mon_side_projs(basis::WeakFunsPolyBasis)
   const mesh = basis.mesh
   const int_mons = WGBasis.interior_mons(basis)
-  const num_int_mons = mon_num(length(int_mons))
+  const num_int_mons = monn(length(int_mons))
   const projs_by_int_monn = Array(Array{Array{Polynomial,1},1}, num_int_mons)
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
-  for int_monn=mon_num(1):num_int_mons
+  for int_monn=monn(1):num_int_mons
     projs_by_oshape = Array(Array{Polynomial,1}, num_oshapes)
     for os=Mesh.oshape(1):num_oshapes
       const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
       const projs_by_side = Array(Polynomial, sides_per_fe)
-      for sf=fe_face(1):sides_per_fe
+      for sf=rface(1):sides_per_fe
         const side_mons = WGBasis.side_mons_for_oshape_side(os, sf, basis)
         const proj_coefs = Proj.project_interior_mon_onto_oshape_side(int_mons[int_monn], os, sf, basis)
         projs_by_side[sf] = Polynomial(side_mons, proj_coefs)
@@ -186,15 +186,15 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
 
   nnz = 0 # current number of non-zero values stored, the last stored position in the data arrays
 
-  for fe=fe_num(1):Mesh.num_fes(mesh)
+  for fe=fen(1):Mesh.num_fes(mesh)
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
     const fe_num_sides = Mesh.num_side_faces_for_shape(fe_oshape, mesh)
 
     # fill is_nb_side work array (up to this shapes # sides)
-    for sf=fe_face(1):fe_num_sides  is_nb_side[sf] = !Mesh.is_boundary_side(fe, sf, mesh) end
+    for sf=rface(1):fe_num_sides  is_nb_side[sf] = !Mesh.is_boundary_side(fe, sf, mesh) end
 
     # fill interior vs interior matrix values
-    for monn_1=mon_num(1):num_int_mons, monn_2=mon_num(1):num_int_mons
+    for monn_1=monn(1):num_int_mons, monn_2=monn(1):num_int_mons
       const vbf_val = int_int_vbf_vals[fe_oshape][monn_1, monn_2]
       if vbf_val != zeroR
         const beln_1 = WGBasis.interior_mon_bel_num(fe, monn_1, basis)
@@ -207,12 +207,12 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
     end
 
     # fill remaining matrix values, which all involve at least one side basis element
-    for sf=fe_face(1):fe_num_sides if is_nb_side[sf]
-      for sf_monn=mon_num(1):num_side_mons
+    for sf=rface(1):fe_num_sides if is_nb_side[sf]
+      for sf_monn=monn(1):num_side_mons
         const sf_beln = WGBasis.side_mon_bel_num(fe, sf, sf_monn, basis)
 
         # fill side vs interior and interior vs side matrix values
-        for int_monn=mon_num(1):num_int_mons
+        for int_monn=monn(1):num_int_mons
           int_beln = nothing::Union(BElNum, Nothing)
           # side vs interior
           const side_int_vbf_val = side_int_vbf_vals[fe_oshape][sf, sf_monn, int_monn]
@@ -237,8 +237,8 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
         end # interiors (with sf)
 
         # fill side vs side matrix elements
-        for sf2=fe_face(1):fe_num_sides if is_nb_side[sf2]
-          for sf2_monn=mon_num(1):num_side_mons
+        for sf2=rface(1):fe_num_sides if is_nb_side[sf2]
+          for sf2_monn=monn(1):num_side_mons
             const vbf_val = side_side_vbf_vals[fe_oshape][sf, sf_monn, sf2, sf2_monn]
             if vbf_val != zeroR
               const sf2_beln = WGBasis.side_mon_bel_num(fe, sf2, sf2_monn, basis)
@@ -287,8 +287,8 @@ function int_vs_int_vbf_vals_for_oshape(fe_oshape::OrientedShape, basis::WeakFun
   const num_int_mons = WGBasis.mons_per_fe_interior(basis)
   const vbf_vals = Array(R, num_int_mons, num_int_mons)
   if is_symmetric(vbf)
-    for monn_1=mon_num(1):num_int_mons
-      for monn_2=mon_num(monn_1+1):num_int_mons
+    for monn_1=monn(1):num_int_mons
+      for monn_2=monn(monn_1+1):num_int_mons
         const vbf_val = int_mon_vs_int_mon(fe_oshape, monn_1, monn_2, basis, vbf)
         vbf_vals[monn_1, monn_2] = vbf_val
         vbf_vals[monn_2, monn_1] = vbf_val
@@ -296,7 +296,7 @@ function int_vs_int_vbf_vals_for_oshape(fe_oshape::OrientedShape, basis::WeakFun
       vbf_vals[monn_1, monn_1] = int_mon_vs_int_mon(fe_oshape, monn_1, monn_1, basis, vbf)
     end
   else
-    for monn_1=mon_num(1):num_int_mons, monn_2=mon_num(1):num_int_mons
+    for monn_1=monn(1):num_int_mons, monn_2=monn(1):num_int_mons
       vbf_vals[monn_1, monn_2] = int_mon_vs_int_mon(fe_oshape, monn_1, monn_2, basis, vbf)
     end
   end
@@ -309,7 +309,7 @@ function side_vs_int_vbf_vals_for_oshape(fe_oshape::OrientedShape, basis::WeakFu
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
   const num_sides = Mesh.num_side_faces_for_shape(fe_oshape, basis.mesh)
   const vbf_vals = Array(R, num_sides, num_side_mons, num_int_mons)
-  for int_monn=mon_num(1):num_int_mons, sf=fe_face(1):num_sides, sf_monn=mon_num(1):num_side_mons
+  for int_monn=monn(1):num_int_mons, sf=rface(1):num_sides, sf_monn=monn(1):num_side_mons
     vbf_vals[sf, sf_monn, int_monn] = side_mon_vs_int_mon(fe_oshape, sf_monn, sf, int_monn, basis, vbf)
   end
   vbf_vals
@@ -321,7 +321,7 @@ function int_vs_side_vbf_vals_for_oshape(fe_oshape::OrientedShape, basis::WeakFu
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
   const num_sides = Mesh.num_side_faces_for_shape(fe_oshape, basis.mesh)
   const vbf_vals = Array(R, num_sides, num_side_mons, num_int_mons)
-  for int_monn=mon_num(1):num_int_mons, sf=fe_face(1):num_sides, sf_monn=mon_num(1):num_side_mons
+  for int_monn=monn(1):num_int_mons, sf=rface(1):num_sides, sf_monn=monn(1):num_side_mons
     vbf_vals[sf, sf_monn, int_monn] = int_mon_vs_side_mon(fe_oshape, int_monn, sf_monn, sf, basis, vbf)
   end
   vbf_vals
@@ -335,23 +335,23 @@ function side_vs_side_vbf_vals_for_oshape(fe_oshape::OrientedShape, basis::WeakF
   const vbf_vals = Array(R, num_sides, num_side_mons, num_sides, num_side_mons)
 
   if !is_symmetric(vbf)
-    for sf_1=fe_face(1):num_sides, sf_2=fe_face(1):num_sides,
-        monn_1=mon_num(1):num_side_mons, monn_2=mon_num(1):num_side_mons
+    for sf_1=rface(1):num_sides, sf_2=rface(1):num_sides,
+        monn_1=monn(1):num_side_mons, monn_2=monn(1):num_side_mons
       vbf_vals[sf_1, monn_1, sf_2, monn_2] = side_mon_vs_side_mon(fe_oshape, monn_1, sf_1, monn_2, sf_2, basis, vbf)
     end
   else # vbf is symmetric
     # fill entries where sides differ (symmetric case)
-    for sf_1=fe_face(1):num_sides, sf_2=fe_face(sf_1+1):num_sides
-      for monn_1=mon_num(1):num_side_mons, monn_2=mon_num(1):num_side_mons
+    for sf_1=rface(1):num_sides, sf_2=rface(sf_1+1):num_sides
+      for monn_1=monn(1):num_side_mons, monn_2=monn(1):num_side_mons
         const vbf_val = side_mon_vs_side_mon(fe_oshape, monn_1, sf_1, monn_2, sf_2, basis, vbf)
         vbf_vals[sf_1, monn_1, sf_2, monn_2] = vbf_val
         vbf_vals[sf_2, monn_2, sf_1, monn_1] = vbf_val
       end
     end
     # fill entries where sides are the same (symmetric case)
-    for sf=fe_face(1):num_sides
-      for monn_1=mon_num(1):num_side_mons
-        for monn_2=mon_num(monn_1+1):num_side_mons
+    for sf=rface(1):num_sides
+      for monn_1=monn(1):num_side_mons
+        for monn_2=monn(monn_1+1):num_side_mons
           const vbf_val = side_mon_vs_side_mon(fe_oshape, monn_1, sf, monn_2, sf, basis, vbf)
           vbf_vals[sf, monn_1, sf, monn_2] = vbf_val
           vbf_vals[sf, monn_2, sf, monn_1] = vbf_val

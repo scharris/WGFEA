@@ -1,8 +1,8 @@
 module Mesh
 
-export FENum, fe_num, no_fe,
+export FENum, fen, no_fe,
        NBSideNum, nb_side_num,
-       FERelFace, fe_face, interior_face, no_face,
+       RelFace, rface, interior_face, no_face,
        OrientedShape, oshape,
        NBSideInclusions,
        AbstractMesh,
@@ -38,7 +38,7 @@ import Poly.Monomial, Poly.Polynomial, Poly.VectorMonomial, Poly.PolynomialVecto
 
 # Number type for enumeration of all finite elements in a mesh.
 typealias FENum Uint64
-fe_num(i::Integer) = if i > 0 convert(Uint64, i) else error("finite element number out of range") end
+fen(i::Integer) = if i > 0 convert(Uint64, i) else error("finite element number out of range") end
 const no_fe = zero(FENum)
 
 # Number type for enumeration of all non-boundary sides in a mesh.
@@ -50,9 +50,9 @@ nb_side_num(i::Integer) = if i > 0 convert(Uint64, i) else error("non-boundary s
 # side parts of a finite element relative to the element itself. For all
 # meshes, the interior face is always numbered 0, while the sides are numbered
 # 1 ... num_side_faces_for_fe(fe, mesh) for a given fe.
-typealias FERelFace Uint8
-fe_face(i::Integer) = if i >= 0 convert(Uint8, i) else error("face number out of range") end
-const interior_face = zero(FERelFace)
+typealias RelFace Uint8
+rface(i::Integer) = if i >= 0 convert(Uint8, i) else error("face number out of range") end
+const interior_face = zero(RelFace)
 const no_face = 0xff
 
 typealias OrientedShape Int8
@@ -64,9 +64,9 @@ oshape(i::Integer) = if i > 127 || i <= 0 error("oriented shape number out of ra
 immutable NBSideInclusions
   nb_side_num::NBSideNum
   fe1::FENum
-  face_in_fe1::FERelFace
+  face_in_fe1::RelFace
   fe2::FENum
-  face_in_fe2::FERelFace
+  face_in_fe2::RelFace
 end
 NBSideInclusions() = NBSideInclusions(no_nb_side, no_fe, no_face, no_fe, no_face)
 
@@ -115,18 +115,18 @@ num_side_faces_for_shape(oshape::OrientedShape, mesh::AbstractMesh) =
 dependent_dim_for_nb_side(i::NBSideNum, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
-dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::FERelFace, mesh::AbstractMesh) =
+dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 fe_inclusions_of_nb_side(side_num::NBSideNum, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 # Return non-boundary side number of the indicated fe relative side, or 0 if the side is a boundary side.
-nb_side_num_for_fe_side(fe::FENum, side_face::FERelFace, mesh::AbstractMesh) =
+nb_side_num_for_fe_side(fe::FENum, side_face::RelFace, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 
-is_boundary_side(fe::FENum, face::FERelFace, mesh::AbstractMesh) =
+is_boundary_side(fe::FENum, face::RelFace, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 num_boundary_sides(mesh::AbstractMesh) =
@@ -156,21 +156,21 @@ fe_interior_origin!(fe::FENum, fill::Vector{R}, mesh::AbstractMesh) =
 
 # Integrate a monomial on the indicated face of the reference element, with the
 # monomial interpreted locally on the face.
-integral_face_rel_on_face(m::Monomial, fe_oshape::OrientedShape, face::FERelFace, mesh::AbstractMesh) =
+integral_face_rel_on_face(m::Monomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 # Integrate a global function f on the indicated finite element face, multiplied against
 # a monomial interpreted locally on the face.
-integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FERelFace, mesh::AbstractMesh) =
+integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::RelFace, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 # Integrate a side-local monomial vs. a vector monomial interpreted relative to the
 # entire finite element, dot multiplied with the outward normal for the side.
-integral_side_rel_x_fe_rel_vs_outward_normal_on_side(v::Monomial, q::VectorMonomial, fe_oshape::OrientedShape, side_face::FERelFace, mesh::AbstractMesh) =
+integral_side_rel_x_fe_rel_vs_outward_normal_on_side(v::Monomial, q::VectorMonomial, fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 # Integrate a finite element relative monomial vs. a side relative monomial.
-integral_fe_rel_x_side_rel_on_side(mon1::Monomial, mon2::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, mesh::AbstractMesh) =
+integral_fe_rel_x_side_rel_on_side(mon1::Monomial, mon2::Monomial, fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 #
@@ -180,7 +180,7 @@ integral_fe_rel_x_side_rel_on_side(mon1::Monomial, mon2::Monomial, fe_oshape::Or
 # The following have default implementations or are defined in terms of the required
 # generic functions and usually won't need to be implemented for specific mesh types.
 
-function integral_face_rel_on_face(c::R, fe_oshape::OrientedShape, face::FERelFace, mesh::AbstractMesh)
+function integral_face_rel_on_face(c::R, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh)
   if c == zeroR
     zeroR
   else
@@ -188,7 +188,7 @@ function integral_face_rel_on_face(c::R, fe_oshape::OrientedShape, face::FERelFa
   end
 end
 
-function integral_face_rel_on_face(p::Polynomial, fe_oshape::OrientedShape, face::FERelFace, mesh::AbstractMesh)
+function integral_face_rel_on_face(p::Polynomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.coefs)
     sum += p.coefs[i] * integral_face_rel_on_face(p.mons[i], fe_oshape, face, mesh)
@@ -196,10 +196,10 @@ function integral_face_rel_on_face(p::Polynomial, fe_oshape::OrientedShape, face
   sum
 end
 
-integral_face_rel_on_face(pmc::NomialOrConst, fe::FENum, face::FERelFace, mesh::AbstractMesh) =
+integral_face_rel_on_face(pmc::NomialOrConst, fe::FENum, face::RelFace, mesh::AbstractMesh) =
   integral_face_rel_on_face(pmc, Mesh.oriented_shape_for_fe(fe, mesh), face, mesh)
 
-function integral_global_x_face_rel_on_fe_face(f::Function, p::Polynomial, fe::FENum, face::FERelFace, mesh::AbstractMesh)
+function integral_global_x_face_rel_on_fe_face(f::Function, p::Polynomial, fe::FENum, face::RelFace, mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.coefs)
     sum += p.coefs[i] * integral_global_x_face_rel_on_fe_face(f, p.mons[i], fe, face, mesh)
@@ -208,10 +208,10 @@ function integral_global_x_face_rel_on_fe_face(f::Function, p::Polynomial, fe::F
 end
 
 # Implementations could specialize this to avoid creating the product monomial.
-integral_face_rel_x_face_rel_on_face(mon1::Monomial, mon2::Monomial, fe_oshape::OrientedShape, face::FERelFace, mesh::AbstractMesh) =
+integral_face_rel_x_face_rel_on_face(mon1::Monomial, mon2::Monomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh) =
   integral_face_rel_on_face(mon1 * mon2, fe_oshape, face, mesh)
 
-function integral_face_rel_x_face_rel_on_face(mon::Monomial, p::Polynomial, fe_oshape::OrientedShape, face::FERelFace, mesh::AbstractMesh)
+function integral_face_rel_x_face_rel_on_face(mon::Monomial, p::Polynomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.coefs)
     sum += p.coefs[i] * integral_face_rel_x_face_rel_on_face(mon, p.mons[i], fe_oshape, face, mesh)
@@ -219,10 +219,10 @@ function integral_face_rel_x_face_rel_on_face(mon::Monomial, p::Polynomial, fe_o
   sum
 end
 
-integral_face_rel_x_face_rel_on_face(p::Polynomial, mon::Monomial, fe_oshape::OrientedShape, face::FERelFace, mesh::AbstractMesh) =
+integral_face_rel_x_face_rel_on_face(p::Polynomial, mon::Monomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh) =
   integral_face_rel_x_face_rel_on_face(mon, p, fe_oshape, face, mesh)
 
-function integral_face_rel_x_face_rel_on_face(p1::Polynomial, p2::Polynomial, fe_oshape::OrientedShape, face::FERelFace, mesh::AbstractMesh)
+function integral_face_rel_x_face_rel_on_face(p1::Polynomial, p2::Polynomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p1.coefs), j=1:length(p2.coefs)
     sum += p1.coefs[i] * p2.coefs[j] * integral_face_rel_x_face_rel_on_face(p1.mons[i], p2.mons[j], fe_oshape, face, mesh)
@@ -232,7 +232,7 @@ end
 
 
 # origin (see "Interpreting Monomials..." discussion at top).
-function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p::Polynomial, q::VectorMonomial, fe_oshape::OrientedShape, side_face::FERelFace, mesh::AbstractMesh)
+function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p::Polynomial, q::VectorMonomial, fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.mons)
     sum += p.coefs[i] * integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p.mons[i], q, fe_oshape, side_face, mesh)
@@ -250,7 +250,7 @@ end
 # TODO: unit tests
 function num_non_boundary_sides_for_fe(fe::FENum, mesh::AbstractMesh)
   nb_sides = 0
-  for sf=fe_face(1):Mesh.num_side_faces_for_fe(fe, mesh)
+  for sf=rface(1):Mesh.num_side_faces_for_fe(fe, mesh)
     if !Mesh.is_boundary_side(fe, sf, mesh) nb_sides += 1 end
   end
   nb_sides

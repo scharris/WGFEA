@@ -2,7 +2,7 @@ module WGrad
 export WGradSolver, wgrad
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FERelFace, Mesh.OrientedShape
+import Mesh, Mesh.AbstractMesh, Mesh.RelFace, Mesh.OrientedShape
 import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial, Poly.Nomial
 
 # For a weak function v on a finite element T, the weak gradient of degree r
@@ -76,7 +76,7 @@ end
 # On the reference finite element for our mesh, obtains the weak gradient
 # polynomial vector for the weak function v which is a monomial or polynomial
 # on supporting face v_sface and 0 elsewhere.
-function wgrad(v::Nomial, fe_oshape::OrientedShape, v_sface::FERelFace, solver::WGradSolver)
+function wgrad(v::Nomial, fe_oshape::OrientedShape, v_sface::RelFace, solver::WGradSolver)
   const rhs = [wgrad_def_rhs_comp(v, fe_oshape, v_sface, vmon_num, solver)
                for vmon_num in 1:length(solver.basis_vmons)]
   # solve the linear system
@@ -89,7 +89,7 @@ end
 # on the reference finite element of the mesh for weak function v. Here v
 # is specified as a monomial or polynomial and the supporting face on which
 # it takes the monomial or polynomial value.
-function wgrad_def_rhs_comp(v::Nomial, fe_oshape::OrientedShape, v_sface::FERelFace, vmon_num::Integer, solver::WGradSolver)
+function wgrad_def_rhs_comp(v::Nomial, fe_oshape::OrientedShape, v_sface::RelFace, vmon_num::Integer, solver::WGradSolver)
   const q = solver.basis_vmons[vmon_num]
   if v_sface == Mesh.interior_face
     # Interior supported v: only the -(v_0, div q)_T term can be non-zero in the rhs of (WGRAD_DEF).

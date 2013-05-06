@@ -4,7 +4,7 @@ using Winston
 
 using WG
 using Common
-import Mesh, Mesh.fe_num
+import Mesh, Mesh.fen
 import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_ldims, RMesh.mesh_ldim
 import WGBasis.WeakFunsPolyBasis
 import VBF.AbstractVariationalBilinearForm
@@ -172,7 +172,7 @@ function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function)
   const int_rel_pt = zeros(R, d)
   const fe_origin = Array(R, d)
 
-  for fe=fe_num(1):Mesh.num_fes(basis.mesh)
+  for fe=fen(1):Mesh.num_fes(basis.mesh)
     Mesh.fe_interior_origin!(fe, fe_origin, basis.mesh)
     fe_origin += int_rel_pt
     const wg_sol_val = WGSol.wg_sol_at_interior_rel_point(fe, int_rel_pt, wg_sol)
@@ -196,11 +196,11 @@ err_vs_proj_L2(u::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinear
 err_vs_proj_vbf_seminorm(u::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinearForm) =
   WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf)
 
-# simple_2d_test()
+simple_2d_test()
 
 #trig_Rd_test(mesh_ldims(5,5,5,5), deg(3), deg(2))
 
 #simple_4d_test()
 
-trig_2d_errs_plot(err_vs_proj_vbf_seminorm, "err_vs_proj_vbf_seminorm")
-trig_2d_errs_plot(err_vs_proj_L2, "err_vs_proj_L2_norm")
+#trig_2d_errs_plot(err_vs_proj_vbf_seminorm, "err_vs_proj_vbf_seminorm")
+#trig_2d_errs_plot(err_vs_proj_L2, "err_vs_proj_L2_norm")

@@ -4,7 +4,7 @@ export RectMesh,
        lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis
 
 using Common
-import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FERelFace, Mesh.OrientedShape, Mesh.AbstractMesh, Mesh.NBSideInclusions, Mesh.fe_face
+import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.RelFace, Mesh.OrientedShape, Mesh.AbstractMesh, Mesh.NBSideInclusions, Mesh.rface
 import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
@@ -47,7 +47,7 @@ immutable RectMesh <: AbstractMesh
 
   num_fes::FENum
   num_nb_sides::NBSideNum
-  num_side_faces_per_fe::FERelFace
+  num_side_faces_per_fe::RelFace
 
   rect_diameter::R
   rect_diameter_inv::R
@@ -82,7 +82,7 @@ immutable RectMesh <: AbstractMesh
 
     const num_fes = last(cumprods_mesh_ldims)
     const num_nb_sides = sum(nb_side_counts_by_perp_axis)
-    const num_side_faces_per_fe = fe_face(2 * space_dim)
+    const num_side_faces_per_fe = rface(2 * space_dim)
 
     const rect_diameter = sqrt(dot(fe_dims, fe_dims))
     const rect_diameter_inv = 1./rect_diameter
@@ -204,7 +204,7 @@ import Mesh.dependent_dim_for_nb_side
 dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh) = perp_axis_for_nb_side(i, mesh)
 
 import Mesh.dependent_dim_for_oshape_side
-dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::FERelFace, mesh::RectMesh) = side_face_perp_axis(side_face)
+dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::RelFace, mesh::RectMesh) = side_face_perp_axis(side_face)
 
 import Mesh.fe_inclusions_of_nb_side
 function fe_inclusions_of_nb_side(n::NBSideNum, mesh::RectMesh)
@@ -216,7 +216,7 @@ function fe_inclusions_of_nb_side(n::NBSideNum, mesh::RectMesh)
 end
 
 import Mesh.nb_side_num_for_fe_side
-function nb_side_num_for_fe_side(fe::FENum, side_face::FERelFace, mesh::RectMesh)
+function nb_side_num_for_fe_side(fe::FENum, side_face::RelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
   const side_mesh_coords =
     if side_face_is_lesser_on_perp_axis(side_face)
@@ -233,7 +233,7 @@ end
 
 
 import Mesh.is_boundary_side
-function is_boundary_side(fe::FENum, side_face::FERelFace, mesh::RectMesh)
+function is_boundary_side(fe::FENum, side_face::RelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
   const coord_a = fe_mesh_coord(a, fe, mesh)
   const is_lesser_side = side_face_is_lesser_on_perp_axis(side_face)
@@ -289,7 +289,7 @@ end
 
 
 import Mesh.integral_face_rel_on_face
-function integral_face_rel_on_face(mon::Monomial, fe_oshape::OrientedShape, face::FERelFace, mesh::RectMesh)
+function integral_face_rel_on_face(mon::Monomial, fe_oshape::OrientedShape, face::RelFace, mesh::RectMesh)
   if face == Mesh.interior_face
     Poly.integral_on_rect_at_origin(mon, mesh.fe_dims)
   else
@@ -300,7 +300,7 @@ function integral_face_rel_on_face(mon::Monomial, fe_oshape::OrientedShape, face
 end
 
 import Mesh.integral_global_x_face_rel_on_fe_face
-function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::FERelFace, mesh::RectMesh)
+function integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::RelFace, mesh::RectMesh)
   const d = mesh.space_dim
   const fe_x = mesh.intgd_args_work_array
   const fe_int_origin = Mesh.fe_interior_origin(fe, mesh)
@@ -337,7 +337,7 @@ end
 
 # Integrate a side-relative monomial m on its side face vs. an fe-relative vector monomial dotted with the outward normal.
 import Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side
-function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(m::Monomial, q::VectorMonomial, fe_oshape::OrientedShape, side_face::FERelFace, mesh::RectMesh)
+function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(m::Monomial, q::VectorMonomial, fe_oshape::OrientedShape, side_face::RelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
   const qa = q[a]
   if qa == zeroR
@@ -353,7 +353,7 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(m::Monomial, q::Ve
 end
 
 import Mesh.integral_fe_rel_x_side_rel_on_side
-function integral_fe_rel_x_side_rel_on_side(fe_mon::Monomial, side_mon::Monomial, fe_oshape::OrientedShape, side_face::FERelFace, mesh::RectMesh)
+function integral_fe_rel_x_side_rel_on_side(fe_mon::Monomial, side_mon::Monomial, fe_oshape::OrientedShape, side_face::RelFace, mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
   const is_lesser_side = side_face_is_lesser_on_perp_axis(side_face)
   const side_fe_rel_a_coord = is_lesser_side ? zeroR : mesh.fe_dims[a]
@@ -405,16 +405,16 @@ end
 # side-related functions
 
 # Find the axis which is perpendicular to the given side face.
-side_face_perp_axis(side::FERelFace) = dim(div(side-1, 2) + 1)
+side_face_perp_axis(side::RelFace) = dim(div(side-1, 2) + 1)
 
 # Determine whether a side face is the one with lesser axis value along its perpendicular axis.
-side_face_is_lesser_on_perp_axis(side::FERelFace) = mod(side-1, 2) == 0
+side_face_is_lesser_on_perp_axis(side::RelFace) = mod(side-1, 2) == 0
 
 # Returns the side face with lesser axis value along the indicated axis.
-lesser_side_face_perp_to_axis(a::Dim) = fe_face(2*a - 1)
+lesser_side_face_perp_to_axis(a::Dim) = rface(2*a - 1)
 
 # Returns the side face with greater axis value along the indicated axis.
-greater_side_face_perp_to_axis(a::Dim) = fe_face(2*a)
+greater_side_face_perp_to_axis(a::Dim) = rface(2*a)
 
 
 # Finds the perpendicular axis for a given non-boundary side in the mesh.

@@ -11,14 +11,14 @@ export WGSolution,
 
 using Common
 import Poly, Poly.Polynomial
-import Mesh, Mesh.FENum, Mesh.FERelFace, Mesh.fe_face, Mesh.fe_num
-import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.mon_num
+import Mesh, Mesh.FENum, Mesh.RelFace, Mesh.rface, Mesh.fen
+import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.monn
 import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
 
 immutable WGSolution
   basis_coefs::Vector{R}
-  boundary_projs::Dict{(FENum,FERelFace), Vector{R}}
+  boundary_projs::Dict{(FENum,RelFace), Vector{R}}
   basis::WeakFunsPolyBasis
 end
 
@@ -29,9 +29,9 @@ function wg_sol_at_interior_rel_point(fe::FENum, x::Vector{R}, wg_sol::WGSolutio
   const basis = wg_sol.basis
   const int_mons = WGBasis.interior_mons(basis)
   sum = zeroR
-  for monn=mon_num(1):WGBasis.mons_per_fe_interior(basis)
-    const beln = WGBasis.interior_mon_bel_num(fe, monn, basis)
-    sum += sol_coefs[beln] * Poly.value_at(int_mons[monn], x)
+  for int_monn=monn(1):WGBasis.mons_per_fe_interior(basis)
+    const beln = WGBasis.interior_mon_bel_num(fe, int_monn, basis)
+    sum += sol_coefs[beln] * Poly.value_at(int_mons[int_monn], x)
   end
   sum
 end
@@ -45,11 +45,11 @@ wg_sol_interior_poly(fe::FENum, wg_sol::WGSolution) =
   Polynomial(WGBasis.interior_mons(wg_sol.basis),
              WGBasis.fe_interior_poly_coefs(fe, wg_sol.basis_coefs, wg_sol.basis))
 
-wg_sol_side_poly(fe::FENum, side_face::FERelFace, wg_sol::WGSolution) =
+wg_sol_side_poly(fe::FENum, side_face::RelFace, wg_sol::WGSolution) =
   Polynomial(WGBasis.side_mons_for_fe_side(fe, side_face, wg_sol.basis),
              WGBasis.fe_side_poly_coefs(fe, side_face, wg_sol.basis_coefs, wg_sol.basis))
 
-wg_sol_side_coefs(fe::FENum, side_face::FERelFace, wg_sol::WGSolution) =
+wg_sol_side_coefs(fe::FENum, side_face::RelFace, wg_sol::WGSolution) =
   WGBasis.fe_side_poly_coefs(fe, side_face, wg_sol.basis_coefs, wg_sol.basis)
 
 
@@ -68,22 +68,22 @@ function wg_sol_wgrad_on_interior(fe::FENum, wg_sol::WGSolution)
   total_wgrad = Poly.zero_poly_vec(Mesh.space_dim(mesh))
 
   # Add contributions for the terms of the solution's interior polynomial.
-  for monn=mon_num(1):basis.mons_per_fe_interior
-    const beln = WGBasis.interior_mon_bel_num(fe, monn, basis)
-    total_wgrad += sol_coefs[beln] * WGBasis.wgrad_interior_mon(monn, fe_oshape, basis)
+  for int_monn=monn(1):basis.mons_per_fe_interior
+    const beln = WGBasis.interior_mon_bel_num(fe, int_monn, basis)
+    total_wgrad += sol_coefs[beln] * WGBasis.wgrad_interior_mon(int_monn, fe_oshape, basis)
   end
 
   # Add contributions for the solution's side polynomials, for both non-boundary and boundary sides.
-  for sf=fe_face(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
+  for sf=rface(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
     if Mesh.is_boundary_side(fe, sf, mesh)
       const proj_coefs = boundary_projs[(fe, sf)]
-      for monn=mon_num(1):basis.mons_per_fe_side
-        total_wgrad += proj_coefs[monn] * WGBasis.wgrad_side_mon(monn, fe_oshape, sf, basis)
+      for side_monn=monn(1):basis.mons_per_fe_side
+        total_wgrad += proj_coefs[side_monn] * WGBasis.wgrad_side_mon(side_monn, fe_oshape, sf, basis)
       end
     else
-      for monn=mon_num(1):basis.mons_per_fe_side
-        const beln = WGBasis.side_mon_bel_num(fe, sf, monn, basis)
-        total_wgrad += sol_coefs[beln] * WGBasis.wgrad_side_mon(monn, fe_oshape, sf, basis)
+      for side_monn=monn(1):basis.mons_per_fe_side
+        const beln = WGBasis.side_mon_bel_num(fe, sf, side_monn, basis)
+        total_wgrad += sol_coefs[beln] * WGBasis.wgrad_side_mon(side_monn, fe_oshape, sf, basis)
       end
     end
   end
@@ -103,7 +103,7 @@ function err_L2_norm(exact_sol::Function, wg_sol::WGSolution)
   const fe_origin = Array(R, d)
 
   sum_fe_diff_norm_sqs = zeroR
-  for fe=fe_num(1):Mesh.num_fes(mesh)
+  for fe=fen(1):Mesh.num_fes(mesh)
     Mesh.fe_interior_origin!(fe, fe_origin, mesh)
     function sq_diff(x::Vector{R})
       for i=1:d  fe_rel_x[i] = x[i] - fe_origin[i] end
@@ -122,7 +122,7 @@ function err_vs_proj_L2_norm(exact_sol::Function, wg_sol::WGSolution)
   const fe_rel_x = Array(R, Mesh.space_dim(mesh))
 
   sum_fe_diff_norm_sqs = zeroR
-  for fe=fe_num(1):Mesh.num_fes(mesh)
+  for fe=fen(1):Mesh.num_fes(mesh)
     const proj_poly = Proj.project_onto_fe_face_as_poly(exact_sol, fe, Mesh.interior_face, basis)
     const wg_sol_poly = wg_sol_interior_poly(fe, wg_sol)
     const diff = proj_poly - wg_sol_poly
@@ -141,7 +141,7 @@ function err_grad_vs_wgrad_L2_norm(exact_sol_grad::Function, wg_sol::WGSolution)
   const fe_origin = Array(R, d)
 
   sum_fe_diff_norm_sqs = zeroR
-  for fe=fe_num(1):Mesh.num_fes(mesh)
+  for fe=fen(1):Mesh.num_fes(mesh)
     Mesh.fe_interior_origin!(fe, fe_origin, mesh)
     const wgrad = wg_sol_wgrad_on_interior(fe, wg_sol)
     function diff_norm_sq(x::Vector{R})
@@ -178,17 +178,17 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
   # on each interior or non-boundary side.
 
   sum = zeroR
-  for fe=fe_num(1):Mesh.num_fes(mesh)
+  for fe=fen(1):Mesh.num_fes(mesh)
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
     const num_sides = Mesh.num_side_faces_for_shape(fe_oshape, mesh)
     # Find non-boundary sides
-    for sf=fe_face(1):num_sides
+    for sf=rface(1):num_sides
       is_nb_side[sf] = !Mesh.is_boundary_side(fe, sf, mesh)
     end
 
     # Compute exact solution projection minus wg solution for all faces.
     const int_diff = Proj.project_onto_fe_face(exact_sol, fe, Mesh.interior_face, basis) - wg_sol_interior_coefs(fe, wg_sol)
-    for sf=fe_face(1):num_sides if is_nb_side[sf]
+    for sf=rface(1):num_sides if is_nb_side[sf]
       diff = Proj.project_onto_fe_face(exact_sol, fe, sf, basis)
       diff -= wg_sol_side_coefs(fe, sf, wg_sol)
       side_diffs[sf] = diff
@@ -197,7 +197,7 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
     # interior vs interior
     sum += VBF.poly_on_face_vs_poly_on_face(fe_oshape, int_diff, Mesh.interior_face, int_diff, Mesh.interior_face, basis, vbf)
 
-    for sf=fe_face(1):num_sides if is_nb_side[sf]
+    for sf=rface(1):num_sides if is_nb_side[sf]
       const sf_diff = side_diffs[sf]
 
       # Add contributions from pairings of a side and interior.
@@ -215,14 +215,14 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
       # side vs side
       if vbf_symm
         # contributions from pairings of unequal sides (symmetric case)
-        for sf2=fe_face(sf+1):num_sides if is_nb_side[sf2]
+        for sf2=rface(sf+1):num_sides if is_nb_side[sf2]
           sum += 2 * VBF.poly_on_face_vs_poly_on_face(fe_oshape, sf_diff, sf, side_diffs[sf2], sf2, basis, vbf)
         end end
         # contributions from side self-pairings (symmetric case)
         sum += VBF.poly_on_face_vs_poly_on_face(fe_oshape, sf_diff, sf, sf_diff, sf, basis, vbf)
       else # vbf not symmetric
         # contributions for all side vs side pairings (asymmetric case)
-        for sf2=fe_face(1):num_sides if is_nb_side[sf2]
+        for sf2=rface(1):num_sides if is_nb_side[sf2]
           sum += VBF.poly_on_face_vs_poly_on_face(fe_oshape, sf_diff, sf, side_diffs[sf2], sf2, basis, vbf)
         end end
       end
