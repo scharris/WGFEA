@@ -64,7 +64,8 @@ immutable VectorMonomial
   mon_pos::Dim # the position of the non-zero monomial component among the output components
 
   VectorMonomial(mon::Monomial, mon_pos::Dim) =
-    mon_pos <= domain_dim(mon) ? new(mon, mon_pos) : error("monomial component position exceeds monomial domain dimension")
+    mon_pos <= domain_dim(mon) ? new(mon, mon_pos) 
+                               : error("monomial component position exceeds monomial domain dimension")
 end
 
 # A vector of polynomials having the same domain.  Or alternately it may represent a vector valued function
@@ -459,7 +460,7 @@ function mons_of_deg_le_with_const_dim(deg::Deg, const_dim::Dim, dom_dim::Dim)
          mons_of_deg_le(deg, dom_dim))
 end
 
-# All VectorMonomials not exceeding the passed degree, to be used as a basis for spaces of vector valued functions with polynomial components.
+# all VectorMonomials not exceeding the indicated degree
 vector_mons_of_deg_le(deg::Deg, dom_dim::Dim) =
   flatten(map(mon -> [VectorMonomial(mon, dim(i)) for i=1:domain_dim(mon)],
               mons_of_deg_le(deg, dom_dim)))
