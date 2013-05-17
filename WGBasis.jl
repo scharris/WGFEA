@@ -28,7 +28,8 @@ export WeakFunsPolyBasis,
        ips_oshape_side_mons
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OrientedShape, Mesh.RelFace, Mesh.rface, Mesh.oshape, Mesh.fen
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OrientedShape, Mesh.RelFace, Mesh.rface,
+       Mesh.oshape, Mesh.fen
 import Poly, Poly.Monomial, Poly.Polynomial, Poly.PolynomialVector
 import WGrad, WGrad.WGradSolver
 
@@ -52,14 +53,13 @@ import WGrad, WGrad.WGradSolver
 #
 # The basis elements are first arranged into two groups, the first being those
 # which are supported on finite element interiors, followed by those supported
-# on non-boundary finite element sides. Within each of these two groups the
-# faces supporting the basis elements are first ordered as determined by the
-# mesh which was passed to the basis at time of construction. Finally, within
-# the block of basis elements allocated to a particular face, the monomials
-# representing the basis elements on the face are arranged lexicographically by
-# increasing exponent, so e.g. x^0 y^2 appears prior to x^1 y^1. Together with
-# the mesh which determines ordering of faces, these rules completely order the
-# basis elements for our space V_h of weak function polynomials.
+# on non-boundary finite element sides. The ordering of interiors and sides within
+# these groups are as determined by the mesh with which the basis was constructed.
+# Within the block of basis elements allocated to a particular interior or side face,
+# the monomials representing the basis elements on the face are arranged
+# lexicographically by increasing exponent, so e.g. x^0 y^2 appears prior to x^1 y^1.
+# Together with the mesh which determines ordering of faces, these rules completely
+# order the basis elements for our space V_h of weak function polynomials.
 
 # basis element number type
 typealias BElNum Uint64
@@ -201,7 +201,8 @@ function make_side_mon_to_mon_num_maps(side_mons_by_dep_dim::Array{Array{Monomia
   maps
 end
 
-# Compute weak gradients of interior supported basis element monomials, indexed by fe oriented shape, then monomial number.
+# Compute weak gradients of interior supported basis element monomials, indexed by fe oriented shape,
+# then monomial number.
 function make_interior_mon_wgrads(int_mons::Array{Monomial,1}, wgrad_solver::WGradSolver)
   const num_oshapes = Mesh.num_oriented_element_shapes(wgrad_solver.mesh)
   const wgrads_by_oshape = Array(Array{PolynomialVector,1}, num_oshapes)
@@ -308,7 +309,7 @@ function ub_estimate_num_bel_bel_common_support_fe_triplets(basis::WeakFunsPolyB
   for fe=fen(1):num_fes
     const nb_sides = Mesh.num_non_boundary_sides_for_fe(fe, mesh)
     const side_sidemon_choices = nb_sides * mons_per_side
-    sum += 2 * mons_per_int * nb_sides * mons_per_side + # interior mons with side mons and side mons with interior mons
+    sum += 2 * mons_per_int * nb_sides * mons_per_side + # interior mons with side mons and vice versa
            side_sidemon_choices * side_sidemon_choices  # non-boundary side mons with non-boundary side mons
   end
   sum
