@@ -110,7 +110,10 @@ function err_L2_norm(exact_sol::Function, wg_sol::WGSolution)
       const diff = exact_sol(x) - wg_sol_at_interior_rel_point(fe, fe_rel_x, wg_sol)
       diff * diff
     end
-    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(sq_diff, one, fe, Mesh.interior_face, mesh)
+    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(sq_diff,
+                                                                       one,
+                                                                       fe, Mesh.interior_face,
+                                                                       mesh)
   end
   sqrt(sum_fe_diff_norm_sqs)
 end
@@ -123,11 +126,15 @@ function err_vs_proj_L2_norm(exact_sol::Function, wg_sol::WGSolution)
 
   sum_fe_diff_norm_sqs = zeroR
   for fe=fen(1):Mesh.num_fes(mesh)
-    const proj_poly = Proj.project_onto_fe_face_as_poly(exact_sol, fe, Mesh.interior_face, basis)
+    const proj_poly = Proj.project_onto_fe_face_as_poly(exact_sol,
+                                                        fe, Mesh.interior_face,
+                                                        basis)
     const wg_sol_poly = wg_sol_interior_poly(fe, wg_sol)
     const diff = proj_poly - wg_sol_poly
     const diff_sq = diff * diff
-    sum_fe_diff_norm_sqs += Mesh.integral_face_rel_on_face(diff_sq, fe, Mesh.interior_face, mesh)
+    sum_fe_diff_norm_sqs += Mesh.integral_face_rel_on_face(diff_sq,
+                                                           fe, Mesh.interior_face,
+                                                           mesh)
   end
   sqrt(sum_fe_diff_norm_sqs)
 end
@@ -151,7 +158,10 @@ function err_grad_vs_wgrad_L2_norm(exact_sol_grad::Function, wg_sol::WGSolution)
       const diff = exact_sol_grad(x) - Poly.value_at(wgrad, fe_rel_x)
       dot(diff, diff)
     end
-    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(diff_norm_sq, one, fe, Mesh.interior_face, mesh)
+    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(diff_norm_sq,
+                                                                       one,
+                                                                       fe, Mesh.interior_face,
+                                                                       mesh)
   end
   sqrt(sum_fe_diff_norm_sqs)
 end
@@ -187,7 +197,10 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
     end
 
     # Compute exact solution projection minus wg solution for all faces.
-    const int_diff = Proj.project_onto_fe_face(exact_sol, fe, Mesh.interior_face, basis) - wg_sol_interior_coefs(fe, wg_sol)
+    const int_diff = Proj.project_onto_fe_face(exact_sol,
+                                               fe, Mesh.interior_face,
+                                               basis) -
+                     wg_sol_interior_coefs(fe, wg_sol)
     for sf=rface(1):num_sides if is_nb_side[sf]
       diff = Proj.project_onto_fe_face(exact_sol, fe, sf, basis)
       diff -= wg_sol_side_coefs(fe, sf, wg_sol)
@@ -195,7 +208,11 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
     end end
 
     # interior vs interior
-    sum += VBF.poly_on_face_vs_poly_on_face(fe_oshape, int_diff, Mesh.interior_face, int_diff, Mesh.interior_face, basis, vbf)
+    sum += VBF.poly_on_face_vs_poly_on_face(fe_oshape,
+                                            int_diff, Mesh.interior_face,
+                                            int_diff, Mesh.interior_face,
+                                            basis,
+                                            vbf)
 
     for sf=rface(1):num_sides if is_nb_side[sf]
       const sf_diff = side_diffs[sf]
@@ -203,12 +220,20 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
       # Add contributions from pairings of a side and interior.
 
       # interior vs side
-      const int_vs_side = VBF.poly_on_face_vs_poly_on_face(fe_oshape, int_diff, Mesh.interior_face, sf_diff, sf, basis, vbf)
+      const int_vs_side = VBF.poly_on_face_vs_poly_on_face(fe_oshape,
+                                                           int_diff, Mesh.interior_face,
+                                                           sf_diff, sf,
+                                                           basis,
+                                                           vbf)
       sum += int_vs_side
 
       # side vs interior
       sum += if vbf_symm  int_vs_side
-             else VBF.poly_on_face_vs_poly_on_face(fe_oshape, sf_diff, sf, int_diff, Mesh.interior_face, basis, vbf) end
+             else VBF.poly_on_face_vs_poly_on_face(fe_oshape,
+                                                   sf_diff, sf,
+                                                   int_diff, Mesh.interior_face,
+                                                   basis,
+                                                   vbf) end
 
       # Add contributions for pairings of sides.
 
