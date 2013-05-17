@@ -17,8 +17,8 @@ import WGSol.WGSolution
 #   vbf(u_h, b_i) = (f, (b_i)_0) for all basis elements b_i
 #
 # With
-#   u_h = sum_j{eta_j b_j} + Q_b g, where Q_b is L2 projection on each segment of the outside
-# boundary of Omega and 0 elsewhere, this becomes
+#   u_h = sum_j{eta_j b_j} + Q_b g, where Q_b is L2 projection on each segment of 
+# the outside boundary of Omega and 0 elsewhere, this becomes
 #   vbf(sum_j{eta_j b_j} + Q_b g, b_i) = (f, (b_i)_0) for all i,
 # ie.,
 #   (sys)
@@ -62,7 +62,10 @@ function sys_rhs(f::Function,
   const rhs = Array(R, basis.total_bels)
   for i=1:basis.total_bels
     const bel_i = beln(i)
-    rhs[i] = ip_on_interiors(f, bel_i, basis) - vbf_boundary_projs_vs_bel(vbf, g_projs, bel_i, basis)
+    rhs[i] = ip_on_interiors(f, bel_i, basis) - vbf_boundary_projs_vs_bel(vbf, 
+                                                                          g_projs,
+                                                                          bel_i,
+                                                                          basis)
   end
   rhs
 end
@@ -76,7 +79,10 @@ function ip_on_interiors(f::Function,
   else
     const bel_fe = WGBasis.support_interior_num(bel, basis)
     const bel_mon = WGBasis.interior_mon(bel, basis)
-    Mesh.integral_global_x_face_rel_on_fe_face(f, bel_mon, bel_fe, Mesh.interior_face, basis.mesh)
+    Mesh.integral_global_x_face_rel_on_fe_face(f, 
+                                               bel_mon, 
+                                               bel_fe, Mesh.interior_face,
+                                               basis.mesh)
   end
 end
 
@@ -92,13 +98,16 @@ function vbf_boundary_projs_vs_bel(vbf::AbstractVariationalBilinearForm,
   const mesh = basis.mesh
   bside_contrs = zeroR
   if WGBasis.is_interior_supported(bel, basis)
-    # Only any outside boundary sides which are included in the bel's support fe can contribute.
+    # Only outside boundary sides which are included in the bel's support fe can contribute.
     const bel_fe = WGBasis.support_interior_num(bel, basis)
     const bel_monn = WGBasis.interior_mon_num(bel, basis)
     for sf=rface(1):Mesh.num_side_faces_for_fe(bel_fe, mesh)
       if Mesh.is_boundary_side(bel_fe, sf, mesh)
         const proj = boundary_proj(bel_fe, sf, b_projs)
-        bside_contrs += vbf_proj_on_fe_bside_vs_int_mon(vbf, proj, bel_fe, sf, bel_monn, basis)
+        bside_contrs += vbf_proj_on_fe_bside_vs_int_mon(vbf, 
+                                                        proj, bel_fe, sf,
+                                                        bel_monn,
+                                                        basis)
       end
     end
   else # side supported bel
