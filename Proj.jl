@@ -18,7 +18,7 @@ import WGBasis, WGBasis.WeakFunsPolyBasis
 
 
 # Return coefficients for the projection onto the indicated face, relative to the basis elements for the face.
-function project_onto_fe_face(g::Function, 
+function project_onto_fe_face(g::Function,
                               fe::FENum, face::RelFace,
                               basis::WeakFunsPolyBasis)
   if face == Mesh.interior_face
@@ -40,8 +40,8 @@ end
 function project_onto_fe_face(c::R,
                               fe::FENum, face::RelFace,
                               basis::WeakFunsPolyBasis)
-  const mons = face == Mesh.interior_face ? WGBasis.interior_mons(basis)
-                                          : WGBasis.side_mons_for_fe_side(fe, face, basis)
+  const mons = face == Mesh.interior_face ? WGBasis.interior_mons(basis) :
+                                            WGBasis.side_mons_for_fe_side(fe, face, basis)
   const num_mons = length(mons)
   const one_mon = Mesh.one_mon(basis.mesh)
   const proj = zeros(R, num_mons)
@@ -57,13 +57,12 @@ end
 
 
 function project_onto_fe_face_as_poly(g::FunctionOrConst,
-                             fe::FENum, face::RelFace,
-                             basis::WeakFunsPolyBasis) =
-  let proj_coefs = project_onto_fe_face(g, fe, face, basis),
-      mons = face == Mesh.interior_face ? WGBasis.interior_mons(basis) 
-                                        : WGBasis.side_mons_for_fe_side(fe, face, basis)
-    Polynomial(mons, proj_coefs)
-  end
+                                      fe::FENum, face::RelFace,
+                                      basis::WeakFunsPolyBasis)
+  const proj_coefs = project_onto_fe_face(g, fe, face, basis)
+  const mons = face == Mesh.interior_face ? WGBasis.interior_mons(basis) :
+                                            WGBasis.side_mons_for_fe_side(fe, face, basis)
+  Polynomial(mons, proj_coefs)
 end
 
 
@@ -73,10 +72,10 @@ function project_interior_mon_onto_oshape_side(int_mon::Monomial,
                                                basis::WeakFunsPolyBasis)
   const side_mons = WGBasis.side_mons_for_oshape_side(fe_oshape, side_face, basis)
   const ips_side_bels = WGBasis.ips_oshape_side_mons(fe_oshape, side_face, basis)
-  const ips_int_mon_vs_bels = 
+  const ips_int_mon_vs_bels =
     [Mesh.integral_fe_rel_x_side_rel_on_side(int_mon, side_bel_mon, fe_oshape, side_face, basis.mesh)::R
      for side_bel_mon in side_mons]
-     
+
   ips_side_bels \ ips_int_mon_vs_bels
 end
 

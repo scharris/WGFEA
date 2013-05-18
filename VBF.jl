@@ -108,14 +108,14 @@ function poly_on_face_vs_poly_on_face(fe_oshape::OrientedShape,
       const num_int_mons = WGBasis.mons_per_fe_interior(basis)
       assert(length(p1_coefs) == length(p2_coefs) == num_int_mons)
       for monn_1=monn(1):num_int_mons, monn_2=monn(1):num_int_mons
-        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * 
+        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] *
                           int_mon_vs_int_mon(fe_oshape, monn_1, monn_2, basis, bf)
       end
     else # interior vs side
       const num_int_mons, num_side_mons = WGBasis.mons_per_fe_interior(basis), WGBasis.mons_per_fe_side(basis)
       assert(length(p1_coefs) == num_int_mons && length(p2_coefs) == num_side_mons)
       for monn_1=monn(1):num_int_mons, monn_2=monn(1):num_side_mons
-        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] * 
+        term_pairs_sum += p1_coefs[monn_1]*p2_coefs[monn_2] *
                           int_mon_vs_side_mon(fe_oshape, monn_1, monn_2, face_2, basis, bf)
       end
     end
@@ -149,7 +149,7 @@ function make_interior_mon_side_projs(basis::WeakFunsPolyBasis)
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   for int_monn=monn(1):num_int_mons
     projs_by_oshape = Array(Array{Polynomial,1}, num_oshapes)
-    for os=Mesh.oshape(1):num_oshapes
+    for os=oshape(1):num_oshapes
       const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
       const projs_by_side = Array(Polynomial, sides_per_fe)
       for sf=rface(1):sides_per_fe

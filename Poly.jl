@@ -64,8 +64,8 @@ immutable VectorMonomial
   mon_pos::Dim # the position of the non-zero monomial component among the output components
 
   VectorMonomial(mon::Monomial, mon_pos::Dim) =
-    mon_pos <= domain_dim(mon) ? new(mon, mon_pos) 
-                               : error("monomial component position exceeds monomial domain dimension")
+    mon_pos <= domain_dim(mon) ? new(mon, mon_pos) :
+                                 error("monomial component position exceeds monomial domain dimension")
 end
 
 # A vector of polynomials having the same domain.  Or alternately it may represent a vector valued function
