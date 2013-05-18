@@ -214,7 +214,7 @@ function fe_inclusions_of_nb_side(n::NBSideNum, mesh::RectMesh)
   const a = sgeom.perp_axis
   const lesser_fe = fe_with_mesh_coords(sgeom.mesh_coords, mesh)
   const greater_fe =  lesser_fe + (a == 1 ? 1 : mesh.cumprods_mesh_ldims[a-1])
-  NBSideInclusions(n, 
+  NBSideInclusions(n,
                    lesser_fe, greater_side_face_perp_to_axis(a),
                    greater_fe, lesser_side_face_perp_to_axis(a))
 end
@@ -247,9 +247,10 @@ end
 import Mesh.num_boundary_sides
 function num_boundary_sides(mesh::RectMesh)
   const d = mesh.space_dim
-  bsides = zeroR
+  const one = convert(Uint64, 1)
+  bsides = zero(Uint64)
   for side_perp_axis=1:d
-    prod = oneR
+    prod = one
     for r=1:d
       prod *= (r == side_perp_axis ? 2 : mesh.mesh_ldims[r])
     end

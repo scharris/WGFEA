@@ -271,7 +271,7 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p::Polynomial,
                                                               mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.mons)
-    sum += p.coefs[i] * 
+    sum += p.coefs[i] *
            integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p.mons[i], q, fe_oshape, side_face, mesh)
   end
   sum

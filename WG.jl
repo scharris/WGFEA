@@ -168,7 +168,7 @@ function boundary_projections(g::FunctionOrConst, basis::WeakFunsPolyBasis)
   const mesh = basis.mesh
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
   const projs = Dict{(FENum,RelFace), Vector{R}}()
-  ##sizehint(projs, min(Mesh.num_boundary_sides(mesh), 10000))
+  sizehint(projs, Mesh.num_boundary_sides(mesh))
 
   for fe=fen(1):Mesh.num_fes(mesh),
       sf=rface(1):Mesh.num_side_faces_for_fe(fe, mesh)

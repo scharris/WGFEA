@@ -10,7 +10,7 @@ Make a mesh generator, which generates and records vertices, fe numbers, nb side
     - Function current state, shape, position -> state including newly attached shapes
 
 Accept simple gmsh mesh files for triangles.
-   $MeshFormat
+     $MeshFormat
      2.2 0 8
      $EndMeshFormat
      $Nodes
@@ -50,15 +50,16 @@ Read elements section, for each element:
     Relative sides by number do not need to be stored as they can be quickly computed from reference points list,
      e.g. using a standard order such as 1 vs 2, 1 vs 3, 2 vs 3
   Store oshape and origin (first node) location by fe
-  Add side inclusion entries (pt#,pt#) -> [(fe, rface)]
-    (using this structure allows storing rface, see gmsh docs to determine node/side ordering within an element)
+  Add side inclusion entries (lesser pt#, greater pt#) -> [(fe, rface)]
 
 Order sides from incls map which have two fe's, these are the nb sides. Use NBSideIncls in place of fen list.
 Remainder are boundary sides.
-  Store fe, rface, nb side incls (indexed by nb side #)
+  Store fe, rface, nb side incls indexed by nb side #
 
 From above, store fe, rface indexed by nb side #
 
+Mesh functions
+--------------
 dependent_dim_for_nb_side(i::NBSideNum, mesh::AbstractMesh)
   Lookup oshaope, defer to fn below.
 dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh) =
