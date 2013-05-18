@@ -9,6 +9,76 @@ Make a mesh generator, which generates and records vertices, fe numbers, nb side
     - Region test function, pt -> Bool
     - Function current state, shape, position -> state including newly attached shapes
 
+Accept simple gmsh mesh files for triangles.
+   $MeshFormat
+     2.2 0 8
+     $EndMeshFormat
+     $Nodes
+     6                      six mesh nodes:
+     1 0.0 0.0 0.0            node #1: coordinates (0.0, 0.0, 0.0)
+     2 1.0 0.0 0.0            node #2: coordinates (1.0, 0.0, 0.0)
+     3 1.0 1.0 0.0            etc.
+     4 0.0 1.0 0.0
+     5 2.0 0.0 0.0
+     6 2.0 1.0 0.0
+     $EndNodes
+     $Elements
+     2                      two elements:
+     1 3 2 99 2 1 2 3 4       quad #1: type 3, physical 99, elementary 2, nodes 1 2 3 4
+     2 3 2 99 2 2 5 6 3       quad #2: type 3, physical 99, elementary 2, nodes 2 5 6 3
+     $EndElements
+# General Format:
+     $MeshFormat
+     version-number file-type data-size
+     $EndMeshFormat
+     $Nodes
+     number-of-nodes
+     node-number x-coord y-coord z-coord
+     ...
+     $EndNodes
+     $Elements
+     number-of-elements
+     elm-number elm-type number-of-tags < tag > ... node-number-list
+     ...
+     $EndElements
+...
+Read and store points by index.
+
+Read elements section, for each element:
+  Determine if the oshape has been seen before, create new oshape if not (read mesh physical property marker for oshape)
+    Oshape should store reference points and dep dim by side num.
+    Relative sides by number do not need to be stored as they can be quickly computed from reference points list,
+     e.g. using a standard order such as 1 vs 2, 1 vs 3, 2 vs 3
+  Store oshape and origin (first node) location by fe
+  Add side inclusion entries (pt#,pt#) -> [(fe, rface)]
+    (using this structure allows storing rface, see gmsh docs to determine node/side ordering within an element)
+
+Order sides from incls map which have two fe's, these are the nb sides. Use NBSideIncls in place of fen list.
+Remainder are boundary sides.
+  Store fe, rface, nb side incls (indexed by nb side #)
+
+From above, store fe, rface indexed by nb side #
+
+dependent_dim_for_nb_side(i::NBSideNum, mesh::AbstractMesh)
+  Lookup oshaope, defer to fn below.
+dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh) =
+  Find dim that has least abs diff between the two points.
+fe_inclusions_of_nb_side(side_num::NBSideNum, mesh::AbstractMesh) =
+  Stored directly in array produced above.
+nb_side_num_for_fe_side(fe::FENum, side_face::RelFace, mesh::AbstractMesh) =
+
+is_boundary_side(fe::FENum, face::RelFace, mesh::AbstractMesh) =
+num_boundary_sides(mesh::AbstractMesh) =
+shape_diameter_inv(oshape::OrientedShape, mesh::AbstractMesh) =
+max_fe_diameter(mesh::AbstractMesh) =
+fe_interior_origin!(fe::FENum, fill::Vector{R}, mesh::AbstractMesh) =
+integral_face_rel_on_face(m::Monomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh) =
+integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::RelFace, mesh::AbstractMesh) =
+integral_fe_rel_x_side_rel_on_side(mon1::Monomial, mon2::Monomial, fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh)
+
+
+
+
 Documentation Changes
 ---------------------
 rmesh docs:
