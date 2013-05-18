@@ -16,7 +16,7 @@ immutable A_s <: AbstractVariationalBilinearForm
   int_mon_side_projs::Array{Array{Array{Polynomial,1},1},1} # by interior monomial number, fe shape, side face
 
   function A_s(basis::WeakFunsPolyBasis)
-    new(VBF.make_interior_mon_side_projs(basis))
+    new(Proj.make_interior_mon_side_projs(basis))
   end
 end
 

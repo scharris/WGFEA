@@ -12,9 +12,6 @@ import VBF_a_s.a_s
 import WGSol, WGSol.WGSolution
 import Cubature.hcubature
 
-# 75x75, deg(3),deg(2)
-# non-cholesky solver: L2 norm of Q u - u_h: 4.694257769983945e-11 (repeated 4 times)
-# cholesky solver: 1.169841805399121e-10 (repeated 3 times)
 
 function simple_2d_test()
   u(x::Vector{R}) = x[1]*(1-x[1])*x[2]*(1-x[2])
@@ -22,7 +19,7 @@ function simple_2d_test()
   f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
   g = 0.0
 
-  mesh = RectMesh([0.,0.], [1.,1.], mesh_ldims(75,75))
+  mesh = RectMesh([0.,0.], [1.,1.], mesh_ldims(25,25))
   basis = WeakFunsPolyBasis(deg(3), deg(2), mesh)
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)

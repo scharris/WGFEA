@@ -5,8 +5,8 @@ export project_onto_fe_face,
 
 using Common
 import Poly.Monomial, Poly.Polynomial
-import Mesh, Mesh.FENum, Mesh.RelFace, Mesh.OrientedShape
-import WGBasis, WGBasis.WeakFunsPolyBasis
+import Mesh, Mesh.FENum, Mesh.RelFace, Mesh.OrientedShape, Mesh.rface, Mesh.oshape
+import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.monn
 
 
 # Projection onto a Subspace
@@ -65,7 +65,29 @@ function project_onto_fe_face_as_poly(g::FunctionOrConst,
   Polynomial(mons, proj_coefs)
 end
 
-
+# TODO: unit tests
+function make_interior_mon_side_projs(basis::WeakFunsPolyBasis)
+  const mesh = basis.mesh
+  const int_mons = WGBasis.interior_mons(basis)
+  const num_int_mons = monn(length(int_mons))
+  const projs_by_int_monn = Array(Array{Array{Polynomial,1},1}, num_int_mons)
+  const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
+  for int_monn=monn(1):num_int_mons
+    projs_by_oshape = Array(Array{Polynomial,1}, num_oshapes)
+    for os=oshape(1):num_oshapes
+      const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
+      const projs_by_side = Array(Polynomial, sides_per_fe)
+      for sf=rface(1):sides_per_fe
+        const side_mons = WGBasis.side_mons_for_oshape_side(os, sf, basis)
+        const proj_coefs = project_interior_mon_onto_oshape_side(int_mons[int_monn], os, sf, basis)
+        projs_by_side[sf] = Polynomial(side_mons, proj_coefs)
+      end
+      projs_by_oshape[os] = projs_by_side
+    end
+    projs_by_int_monn[int_monn] = projs_by_oshape
+  end
+  projs_by_int_monn
+end
 
 function project_interior_mon_onto_oshape_side(int_mon::Monomial,
                                                fe_oshape::OrientedShape, side_face::RelFace,

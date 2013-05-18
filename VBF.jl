@@ -6,9 +6,7 @@ export AbstractVariationalBilinearForm,
        int_mon_vs_side_mon,
        side_mon_vs_side_mon,
        poly_on_face_vs_poly_on_face,
-       bel_vs_bel_transpose,
-       bel_vs_bel_transpose_dense,
-       make_interior_mon_side_projs
+       bel_vs_bel_transpose
 
 using Common
 import Poly.Polynomial, Poly.Monomial
@@ -19,10 +17,10 @@ import WGBasis, WGBasis.BElNum, WGBasis.beln, WGBasis.WeakFunsPolyBasis, WGBasis
 abstract AbstractVariationalBilinearForm
 
 # TODO: Rewrite this to document the even stronger assumption being used
-#       in the code, which is that all the bf_T's are the *same* function
-#       after translation, ie. they are all implementable as a single bf
-#       on a reference element, so long as their input functions are translated
-#       properly.
+#       in the code, which is that all the bf_T's for T's of the same oriented
+#       shape are the *same* function after translation of the input functions,
+#       ie. they are all implementable as a single bf per reference element.
+#
 # We assume the following property for the bilinear forms bf
 # represented by subtypes of AbstractVariationalBilinearForm.
 # --------------------------------------------------------------------
@@ -140,30 +138,6 @@ function poly_on_face_vs_poly_on_face(fe_oshape::OrientedShape,
 end
 
 
-# TODO: unit tests
-function make_interior_mon_side_projs(basis::WeakFunsPolyBasis)
-  const mesh = basis.mesh
-  const int_mons = WGBasis.interior_mons(basis)
-  const num_int_mons = monn(length(int_mons))
-  const projs_by_int_monn = Array(Array{Array{Polynomial,1},1}, num_int_mons)
-  const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
-  for int_monn=monn(1):num_int_mons
-    projs_by_oshape = Array(Array{Polynomial,1}, num_oshapes)
-    for os=oshape(1):num_oshapes
-      const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
-      const projs_by_side = Array(Polynomial, sides_per_fe)
-      for sf=rface(1):sides_per_fe
-        const side_mons = WGBasis.side_mons_for_oshape_side(os, sf, basis)
-        const proj_coefs = Proj.project_interior_mon_onto_oshape_side(int_mons[int_monn], os, sf, basis)
-        projs_by_side[sf] = Polynomial(side_mons, proj_coefs)
-      end
-      projs_by_oshape[os] = projs_by_side
-    end
-    projs_by_int_monn[int_monn] = projs_by_oshape
-  end
-  projs_by_int_monn
-end
-
 
 function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
   # data arrays for construction of the sparse matrix
@@ -172,7 +146,7 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
   const col_nums = Array(Int, interacting_bel_pairs_ub)
   const nonzeros = Array(R, interacting_bel_pairs_ub)
 
-  println("Computing vbf bel vs bel matrix, with $(int64(basis.total_bels)) basis elements, $(int64(basis.total_bels)^2) pairs.")
+  println("Computing vbf bel vs bel matrix, with $(int64(basis.total_bels)) basis elements.")
   println("Mesh has $(int(basis.mesh.num_fes)) finite elements, and $(int(basis.mesh.num_nb_sides)) nb sides.")
   println("Basis has $(int(basis.mons_per_fe_interior)) monomials per interior, $(int(basis.mons_per_fe_side)) monomials per side.")
   println("Data arrays for non-zeros are of initial (upper bound) size $(int64(interacting_bel_pairs_ub)).")
@@ -377,175 +351,5 @@ function side_vs_side_vbf_vals_for_oshape(fe_oshape::OrientedShape,
 
   vbf_vals
 end
-
-
-# The following function and supporting functions are used for testing only, and will not complete in reasonable
-# time or memory for even moderately large problems.  They implement a dense matrix variant of the vbf bel vs bel
-# matrix which uses a straightforward exhaustive bel vs. bel approach, as opposed to the more efficient fe-wise
-# computations of the new sparse approach. It is usefull mainly to test the fe-wise sparse implementation.  These
-# functions should be moved into a test file.
-
-
-function bel_vs_bel_transpose_dense(basis::WeakFunsPolyBasis, bf::AbstractVariationalBilinearForm)
-  const num_int_bels = basis.num_interior_bels
-  const first_nb_side_bel = basis.first_nb_side_bel
-  const m = Array(R, basis.total_bels, basis.total_bels)
-
-  if !is_symmetric(bf)
-    for i=1:num_int_bels, j=1:num_int_bels
-      const ip = int_bel_vs_int_bel(beln(i), beln(j), basis, bf)
-      m[j,i] = ip
-    end
-    for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
-      const bel_i = beln(i)
-      const bel_j = beln(j)
-      m[j,i] = side_bel_vs_int_bel(bel_i, bel_j, basis, bf)
-      m[i,j] = int_bel_vs_side_bel(bel_j, bel_i, basis, bf)
-    end
-    for i=first_nb_side_bel:basis.total_bels, j=first_nb_side_bel:basis.total_bels
-      m[j,i] = side_bel_vs_side_bel(beln(i), beln(j), basis, bf)
-    end
-  else # bf is symmetric
-    for i=1:num_int_bels
-      const bel_i = beln(i)
-      for j=1:i-1
-        const ip = int_bel_vs_int_bel(bel_i, beln(j), basis, bf)
-        m[j,i] = ip
-        m[i,j] = ip
-      end
-      m[i,i] = int_bel_vs_int_bel(bel_i, bel_i, basis, bf)
-    end
-    for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
-      const ip = side_bel_vs_int_bel(beln(i), beln(j), basis, bf)
-      m[j,i] = ip
-      m[i,j] = ip
-    end
-    for i=first_nb_side_bel:basis.total_bels
-      const bel_i = beln(i)
-      for j=first_nb_side_bel:i-1
-        const ip = side_bel_vs_side_bel(bel_i, beln(j), basis, bf)
-        m[j,i] = ip
-        m[i,j] = ip
-      end
-      m[i,i] = side_bel_vs_side_bel(bel_i, bel_i, basis, bf)
-    end
-  end
-  m
-end
-
-
-function int_bel_vs_int_bel(bel_1::BElNum,
-                            bel_2::BElNum,
-                            basis::WeakFunsPolyBasis,
-                            bf::AbstractVariationalBilinearForm)
-  const fe1 = WGBasis.support_interior_num(bel_1, basis)
-  const fe2 = WGBasis.support_interior_num(bel_2, basis)
-  if fe1 != fe2
-    zeroR # by locality property
-  else
-    # By common support summability property, we only need the contribution from the single common fe.
-    let monn_1 = WGBasis.interior_mon_num(bel_1, basis)
-        monn_2 = WGBasis.interior_mon_num(bel_2, basis)
-      int_mon_vs_int_mon(Mesh.oriented_shape_for_fe(fe1,basis.mesh), monn_1, monn_2, basis, bf)
-    end
-  end
-end
-
-
-function int_bel_vs_side_bel(ibel::BElNum,
-                             sbel::BElNum,
-                             basis::WeakFunsPolyBasis,
-                             bf::AbstractVariationalBilinearForm)
-  # Determine if the side is one of the faces of the interior's finite element, and which one if so.
-  const int_num = WGBasis.support_interior_num(ibel, basis)
-  const side_incls = WGBasis.fe_inclusions_of_side_support(sbel, basis)
-  const side_face = int_num == side_incls.fe1 ? side_incls.face_in_fe1 :
-                    int_num == side_incls.fe2 ? side_incls.face_in_fe2 : Mesh.no_face
-  if side_face == Mesh.no_face # no fe includes both supports
-    zeroR # by locality property
-  else
-    # By common support summability property, we only need the contribution from the single common fe.
-    let side_monn = WGBasis.side_mon_num(sbel, basis)
-        int_monn = WGBasis.interior_mon_num(ibel, basis)
-      int_mon_vs_side_mon(Mesh.oriented_shape_for_fe(int_num,basis.mesh), int_monn, side_monn, side_face, basis, bf)
-    end
-  end
-end
-
-
-function side_bel_vs_int_bel(sbel::BElNum,
-                             ibel::BElNum,
-                             basis::WeakFunsPolyBasis,
-                             bf::AbstractVariationalBilinearForm)
-  # Determine if the side is one of the faces of the interior's finite element, and which one if so.
-  const side_incls = WGBasis.fe_inclusions_of_side_support(sbel, basis)
-  const int_num = WGBasis.support_interior_num(ibel, basis)
-  const side_face = int_num == side_incls.fe1 ? side_incls.face_in_fe1 :
-                    int_num == side_incls.fe2 ? side_incls.face_in_fe2 : Mesh.no_face
-  if side_face == Mesh.no_face
-    zeroR # by locality property
-  else
-    # By common support summability property, we only need the contribution from the single common fe.
-    let side_monn = WGBasis.side_mon_num(sbel, basis)
-        int_monn = WGBasis.interior_mon_num(ibel, basis)
-      side_mon_vs_int_mon(Mesh.oriented_shape_for_fe(int_num,basis.mesh), side_monn, side_face, int_monn, basis, bf)
-    end
-  end
-end
-
-
-function side_bel_vs_side_bel(bel_1::BElNum,
-                              bel_2::BElNum,
-                              basis::WeakFunsPolyBasis,
-                              bf::AbstractVariationalBilinearForm)
-  const incls_1 = WGBasis.fe_inclusions_of_side_support(bel_1, basis)
-  const incls_2 = WGBasis.fe_inclusions_of_side_support(bel_2, basis)
-  if incls_1.fe1 != incls_2.fe1 &&
-     incls_1.fe1 != incls_2.fe2 &&
-     incls_1.fe2 != incls_2.fe1 &&
-     incls_1.fe2 != incls_2.fe2    # no fe includes both supports...
-    zeroR # by locality property
-  else
-    const monn_1 = WGBasis.side_mon_num(bel_1, basis)
-    const monn_2 = WGBasis.side_mon_num(bel_2, basis)
-
-    # By the common support summability property, we can sum the contributions from
-    # whichever of the support side including finite elements includes both supports.
-
-    # contribution from incls_1.fe1
-    if incls_1.fe1 == incls_2.fe1
-      side_mon_vs_side_mon(Mesh.oriented_shape_for_fe(incls_1.fe1,basis.mesh),
-                           monn_1, incls_1.face_in_fe1,
-                           monn_2, incls_2.face_in_fe1,
-                           basis,
-                           bf)
-    elseif incls_1.fe1 == incls_2.fe2
-      side_mon_vs_side_mon(Mesh.oriented_shape_for_fe(incls_1.fe1,basis.mesh),
-                           monn_1, incls_1.face_in_fe1,
-                           monn_2, incls_2.face_in_fe2,
-                           basis,
-                           bf)
-    else
-      zeroR
-    end +
-    # contribution from incls_1.fe2
-    if incls_1.fe2 == incls_2.fe1
-      side_mon_vs_side_mon(Mesh.oriented_shape_for_fe(incls_1.fe2,basis.mesh),
-                                                      monn_1, incls_1.face_in_fe2,
-                                                      monn_2, incls_2.face_in_fe1,
-                                                      basis,
-                                                      bf)
-    elseif incls_1.fe2 == incls_2.fe2
-      side_mon_vs_side_mon(Mesh.oriented_shape_for_fe(incls_1.fe2,basis.mesh),
-                                                      monn_1, incls_1.face_in_fe2,
-                                                      monn_2, incls_2.face_in_fe2,
-                                                      basis,
-                                                      bf)
-    else
-      zeroR
-    end
-  end
-end
-
 
 end # end of module
