@@ -132,9 +132,10 @@ function err_vs_proj_L2_norm(exact_sol::Function, wg_sol::WGSolution)
     const wg_sol_poly = wg_sol_interior_poly(fe, wg_sol)
     const diff = proj_poly - wg_sol_poly
     const diff_sq = diff * diff
-    sum_fe_diff_norm_sqs += Mesh.integral_face_rel_on_face(diff_sq,
-                                                           fe, Mesh.interior_face,
-                                                           mesh)
+    const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
+    sum_fe_diff_norm_sqs += Mesh.integral_face_rel_on_oshape_face(diff_sq,
+                                                                  fe_oshape, Mesh.interior_face,
+                                                                  mesh)
   end
   sqrt(sum_fe_diff_norm_sqs)
 end

@@ -293,10 +293,10 @@ end
 # which are locally defined on the side.
 
 
-import Mesh.integral_face_rel_on_face
-function integral_face_rel_on_face(mon::Monomial,
-                                   fe_oshape::OrientedShape, face::RelFace,
-                                   mesh::RectMesh)
+import Mesh.integral_face_rel_on_oshape_face
+function integral_face_rel_on_oshape_face(mon::Monomial,
+                                          fe_oshape::OrientedShape, face::RelFace,
+                                          mesh::RectMesh)
   if face == Mesh.interior_face
     Poly.integral_on_rect_at_origin(mon, mesh.fe_dims)
   else
@@ -351,11 +351,11 @@ end
 
 # Integrate a side-relative monomial m on its side face vs. an fe-relative vector monomial dotted with the
 # outward normal.
-import Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side
-function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(m::Monomial,
-                                                              q::VectorMonomial,
-                                                              fe_oshape::OrientedShape, side_face::RelFace,
-                                                              mesh::RectMesh)
+import Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side
+function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(m::Monomial,
+                                                                     q::VectorMonomial,
+                                                                     fe_oshape::OrientedShape, side_face::RelFace,
+                                                                     mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
   const qa = q[a]
   if qa == zeroR
@@ -370,11 +370,11 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(m::Monomial,
   end
 end
 
-import Mesh.integral_fe_rel_x_side_rel_on_side
-function integral_fe_rel_x_side_rel_on_side(fe_mon::Monomial,
-                                            side_mon::Monomial,
-                                            fe_oshape::OrientedShape, side_face::RelFace,
-                                            mesh::RectMesh)
+import Mesh.integral_fe_rel_x_side_rel_on_oshape_side
+function integral_fe_rel_x_side_rel_on_oshape_side(fe_mon::Monomial,
+                                                   side_mon::Monomial,
+                                                   fe_oshape::OrientedShape, side_face::RelFace,
+                                                   mesh::RectMesh)
   const a = side_face_perp_axis(side_face)
   const is_lesser_side = side_face_is_lesser_on_perp_axis(side_face)
   const side_fe_rel_a_coord = is_lesser_side ? zeroR : mesh.fe_dims[a]

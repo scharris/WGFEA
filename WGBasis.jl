@@ -250,11 +250,11 @@ function make_interior_mon_ips(mons::Array{Monomial,1}, mesh::AbstractMesh)
     for i=1:num_mons
       const mon_i = mons[i]
       for j=1:i-1
-        const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, mons[j], os, Mesh.interior_face, mesh)
+        const ip = Mesh.integral_face_rel_x_face_rel_on_oshape_face(mon_i, mons[j], os, Mesh.interior_face, mesh)
         m[i,j] = ip
         m[j,i] = ip
       end
-      m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, mon_i, os, Mesh.interior_face, mesh)
+      m[i,i] = Mesh.integral_face_rel_x_face_rel_on_oshape_face(mon_i, mon_i, os, Mesh.interior_face, mesh)
     end
     ips_by_oshape[os] = m
   end
@@ -276,11 +276,11 @@ function make_side_mon_ips(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, mes
       for i=1:num_mons
         const mon_i = ref_mons[i]
         for j=1:i-1
-          const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, ref_mons[j], os, sf, mesh)
+          const ip = Mesh.integral_face_rel_x_face_rel_on_oshape_face(mon_i, ref_mons[j], os, sf, mesh)
           m[i,j] = ip
           m[j,i] = ip
         end
-        m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(mon_i, mon_i, os, sf, mesh)
+        m[i,i] = Mesh.integral_face_rel_x_face_rel_on_oshape_face(mon_i, mon_i, os, sf, mesh)
       end
       ips_by_side[sf] = m
     end

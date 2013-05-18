@@ -40,7 +40,7 @@ function int_mon_vs_int_mon(fe_oshape::OrientedShape,
   const ip_wgrads =
     let wgrad_1 = WGBasis.wgrad_interior_mon(monn_1, fe_oshape, basis)
         wgrad_2 = WGBasis.wgrad_interior_mon(monn_2, fe_oshape, basis)
-      Mesh.integral_face_rel_on_face(dot(wgrad_1,wgrad_2), fe_oshape, Mesh.interior_face, mesh)
+      Mesh.integral_face_rel_on_oshape_face(dot(wgrad_1,wgrad_2), fe_oshape, Mesh.interior_face, mesh)
     end
 
   # stabilization term: The values on the boundary (b_i/j)_b are 0, leaving only
@@ -51,7 +51,7 @@ function int_mon_vs_int_mon(fe_oshape::OrientedShape,
     for sf=rface(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
       const proj_1 = bf.int_mon_side_projs[monn_1][fe_oshape][sf]
       const proj_2 = bf.int_mon_side_projs[monn_2][fe_oshape][sf]
-      sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_face(proj_1, proj_2, fe_oshape, sf, mesh)
+      sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_oshape_face(proj_1, proj_2, fe_oshape, sf, mesh)
     end
     Mesh.shape_diameter_inv(fe_oshape, mesh) * sum_over_sides
   end
@@ -71,7 +71,7 @@ function side_mon_vs_int_mon(fe_oshape::OrientedShape,
   const ip_wgrads =
     let side_wgrad = WGBasis.wgrad_side_mon(side_monn, fe_oshape, side_face, basis),
         int_wgrad =  WGBasis.wgrad_interior_mon(int_monn, fe_oshape, basis)
-      Mesh.integral_face_rel_on_face(dot(side_wgrad, int_wgrad), fe_oshape, Mesh.interior_face, mesh)
+      Mesh.integral_face_rel_on_oshape_face(dot(side_wgrad, int_wgrad), fe_oshape, Mesh.interior_face, mesh)
     end
 
   # stabilization term: (1/h_T) <Q_b v_0T - v_b, Q_b w_0T - w_b>_bnd(T)
@@ -81,7 +81,7 @@ function side_mon_vs_int_mon(fe_oshape::OrientedShape,
   const stab = begin
     const side_mon = WGBasis.side_mons_for_oshape_side(fe_oshape, side_face, basis)[side_monn]
     const int_proj = bf.int_mon_side_projs[int_monn][fe_oshape][side_face]
-    const ip = -Mesh.integral_face_rel_x_face_rel_on_face(int_proj, side_mon, fe_oshape, side_face, mesh)
+    const ip = -Mesh.integral_face_rel_x_face_rel_on_oshape_face(int_proj, side_mon, fe_oshape, side_face, mesh)
     Mesh.shape_diameter_inv(fe_oshape, mesh) * ip
   end
 
@@ -111,7 +111,7 @@ function side_mon_vs_side_mon(fe_oshape::OrientedShape,
   const ip_wgrads =
     let wgrad_1 = WGBasis.wgrad_side_mon(monn_1, fe_oshape, side_face_1, basis)
         wgrad_2 = WGBasis.wgrad_side_mon(monn_2, fe_oshape, side_face_2, basis)
-      Mesh.integral_face_rel_on_face(dot(wgrad_1, wgrad_2), fe_oshape, Mesh.interior_face, mesh)
+      Mesh.integral_face_rel_on_oshape_face(dot(wgrad_1, wgrad_2), fe_oshape, Mesh.interior_face, mesh)
     end
 
   # stabilization term: (1/h_T) <Q_b v_0T - v_b, Q_b w_0T - w_b>_bnd(T)
@@ -128,7 +128,7 @@ function side_mon_vs_side_mon(fe_oshape::OrientedShape,
       const side_mons = WGBasis.side_mons_for_oshape_side(fe_oshape, common_supp_side, basis)
       const mon_1 = side_mons[monn_1]
       const mon_2 = side_mons[monn_2]
-      const ip = Mesh.integral_face_rel_x_face_rel_on_face(mon_1, mon_2, fe_oshape, common_supp_side, mesh)
+      const ip = Mesh.integral_face_rel_x_face_rel_on_oshape_face(mon_1, mon_2, fe_oshape, common_supp_side, mesh)
       Mesh.shape_diameter_inv(fe_oshape, mesh) * ip
     end
 

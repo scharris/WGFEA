@@ -238,24 +238,24 @@ wgrad_solver = WGradSolver(deg(1), basis.mesh)
 
 # interior supported element inner products
 int_ips = ips_interior_mons(fen(1), basis)
-@test int_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, rshape, Mesh.interior_face, basis.mesh) == 1
-@test int_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, y, rshape, Mesh.interior_face, basis.mesh) == 1/2
-@test int_ips[1,3] == Mesh.integral_face_rel_x_face_rel_on_face(one, y^2, rshape, Mesh.interior_face, basis.mesh) == 1/3
-@test int_ips[1,4] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, rshape, Mesh.interior_face, basis.mesh) == 1/2
-@test int_ips[1,5] == Mesh.integral_face_rel_x_face_rel_on_face(one, x*y, rshape, Mesh.interior_face, basis.mesh) == 1/4
-@test int_ips[1,6] == Mesh.integral_face_rel_x_face_rel_on_face(one, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/3
+@test int_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, one, rshape, Mesh.interior_face, basis.mesh) == 1
+@test int_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, y, rshape, Mesh.interior_face, basis.mesh) == 1/2
+@test int_ips[1,3] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, y^2, rshape, Mesh.interior_face, basis.mesh) == 1/3
+@test int_ips[1,4] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, x, rshape, Mesh.interior_face, basis.mesh) == 1/2
+@test int_ips[1,5] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, x*y, rshape, Mesh.interior_face, basis.mesh) == 1/4
+@test int_ips[1,6] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/3
 
-@test int_ips[2,1] == Mesh.integral_face_rel_x_face_rel_on_face(y, one, rshape, Mesh.interior_face, basis.mesh) == 1/2
-@test int_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_face(y, y, rshape, Mesh.interior_face, basis.mesh) == 1/3
-@test int_ips[2,3] == Mesh.integral_face_rel_x_face_rel_on_face(y, y^2, rshape, Mesh.interior_face, basis.mesh) == 1/4
-@test int_ips[2,4] == Mesh.integral_face_rel_x_face_rel_on_face(y, x, rshape, Mesh.interior_face, basis.mesh) == 1/4
-@test int_ips[2,5] == Mesh.integral_face_rel_x_face_rel_on_face(y, x*y, rshape, Mesh.interior_face, basis.mesh) == 1/6
-@test int_ips[2,6] == Mesh.integral_face_rel_x_face_rel_on_face(y, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/6
+@test int_ips[2,1] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(y, one, rshape, Mesh.interior_face, basis.mesh) == 1/2
+@test int_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(y, y, rshape, Mesh.interior_face, basis.mesh) == 1/3
+@test int_ips[2,3] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(y, y^2, rshape, Mesh.interior_face, basis.mesh) == 1/4
+@test int_ips[2,4] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(y, x, rshape, Mesh.interior_face, basis.mesh) == 1/4
+@test int_ips[2,5] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(y, x*y, rshape, Mesh.interior_face, basis.mesh) == 1/6
+@test int_ips[2,6] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(y, x^2, rshape, Mesh.interior_face, basis.mesh) == 1/6
 
 # side supported element inner products
 top_face_ips = ips_fe_side_mons(fen(1), top_face, basis)
 
-@test top_face_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_face(one, one, rshape, top_face, basis.mesh) == 1
-@test top_face_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_face(one, x, rshape, top_face, basis.mesh) == 1/2
+@test top_face_ips[1,1] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, one, rshape, top_face, basis.mesh) == 1
+@test top_face_ips[1,2] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(one, x, rshape, top_face, basis.mesh) == 1/2
 @test top_face_ips[2,1] == top_face_ips[1,2]
-@test top_face_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_face(x, x, rshape, top_face, basis.mesh) == 1/3
+@test top_face_ips[2,2] == Mesh.integral_face_rel_x_face_rel_on_oshape_face(x, x, rshape, top_face, basis.mesh) == 1/3

@@ -26,11 +26,11 @@ export FENum, fen, no_fe,
        is_boundary_side,
        num_boundary_sides,
        num_non_boundary_sides_for_fe,
-       integral_face_rel_on_face,
+       integral_face_rel_on_oshape_face,
        integral_global_x_face_rel_on_fe_face,
-       integral_face_rel_x_face_rel_on_face,
-       integral_side_rel_x_fe_rel_vs_outward_normal_on_side,
-       integral_fe_rel_x_side_rel_on_side
+       integral_face_rel_x_face_rel_on_oshape_face,
+       integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side,
+       integral_fe_rel_x_side_rel_on_oshape_side
 
 
 using Common
@@ -156,9 +156,9 @@ fe_interior_origin!(fe::FENum, fill::Vector{R}, mesh::AbstractMesh) =
 
 # Integrate a monomial on the indicated face of the reference element, with the
 # monomial interpreted locally on the face.
-integral_face_rel_on_face(m::Monomial,
-                          fe_oshape::OrientedShape, face::RelFace,
-                          mesh::AbstractMesh) =
+integral_face_rel_on_oshape_face(m::Monomial,
+                                 fe_oshape::OrientedShape, face::RelFace,
+                                 mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 # Integrate a global function f on the indicated finite element face, multiplied against
@@ -171,17 +171,17 @@ integral_global_x_face_rel_on_fe_face(f::Function,
 
 # Integrate a side-local monomial vs. a vector monomial interpreted relative to the
 # entire finite element, dot multiplied with the outward normal for the side.
-integral_side_rel_x_fe_rel_vs_outward_normal_on_side(v::Monomial,
-                                                     q::VectorMonomial,
-                                                     fe_oshape::OrientedShape, side_face::RelFace,
-                                                     mesh::AbstractMesh) =
+integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(v::Monomial,
+                                                            q::VectorMonomial,
+                                                            fe_oshape::OrientedShape, side_face::RelFace,
+                                                            mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 # Integrate a finite element relative monomial vs. a side relative monomial.
-integral_fe_rel_x_side_rel_on_side(mon1::Monomial,
-                                   mon2::Monomial,
-                                   fe_oshape::OrientedShape, side_face::RelFace,
-                                   mesh::AbstractMesh) =
+integral_fe_rel_x_side_rel_on_oshape_side(mon1::Monomial,
+                                          mon2::Monomial,
+                                          fe_oshape::OrientedShape, side_face::RelFace,
+                                          mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 #
@@ -191,30 +191,26 @@ integral_fe_rel_x_side_rel_on_side(mon1::Monomial,
 # The following have default implementations or are defined in terms of the required
 # generic functions and usually won't need to be implemented for specific mesh types.
 
-function integral_face_rel_on_face(c::R,
-                                   fe_oshape::OrientedShape, face::RelFace,
-                                   mesh::AbstractMesh)
+function integral_face_rel_on_oshape_face(c::R,
+                                          fe_oshape::OrientedShape, face::RelFace,
+                                          mesh::AbstractMesh)
   if c == zeroR
     zeroR
   else
-    c * integral_face_rel_on_face(one_mon(mesh), fe_oshape, face, mesh)
+    c * integral_face_rel_on_oshape_face(one_mon(mesh), fe_oshape, face, mesh)
   end
 end
 
-function integral_face_rel_on_face(p::Polynomial,
-                                   fe_oshape::OrientedShape, face::RelFace,
-                                   mesh::AbstractMesh)
+function integral_face_rel_on_oshape_face(p::Polynomial,
+                                          fe_oshape::OrientedShape, face::RelFace,
+                                          mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.coefs)
-    sum += p.coefs[i] * integral_face_rel_on_face(p.mons[i], fe_oshape, face, mesh)
+    sum += p.coefs[i] * integral_face_rel_on_oshape_face(p.mons[i], fe_oshape, face, mesh)
   end
   sum
 end
 
-integral_face_rel_on_face(pmc::NomialOrConst,
-                          fe::FENum, face::RelFace,
-                          mesh::AbstractMesh) =
-  integral_face_rel_on_face(pmc, Mesh.oriented_shape_for_fe(fe, mesh), face, mesh)
 
 function integral_global_x_face_rel_on_fe_face(f::Function,
                                                p::Polynomial,
@@ -228,51 +224,51 @@ function integral_global_x_face_rel_on_fe_face(f::Function,
 end
 
 # Implementations could specialize this to avoid creating the product monomial.
-integral_face_rel_x_face_rel_on_face(mon1::Monomial,
-                                     mon2::Monomial,
-                                     fe_oshape::OrientedShape, face::RelFace,
-                                     mesh::AbstractMesh) =
-  integral_face_rel_on_face(mon1 * mon2, fe_oshape, face, mesh)
+integral_face_rel_x_face_rel_on_oshape_face(mon1::Monomial,
+                                            mon2::Monomial,
+                                            fe_oshape::OrientedShape, face::RelFace,
+                                            mesh::AbstractMesh) =
+  integral_face_rel_on_oshape_face(mon1 * mon2, fe_oshape, face, mesh)
 
-function integral_face_rel_x_face_rel_on_face(mon::Monomial,
-                                              p::Polynomial,
-                                              fe_oshape::OrientedShape, face::RelFace,
-                                              mesh::AbstractMesh)
+function integral_face_rel_x_face_rel_on_oshape_face(mon::Monomial,
+                                                     p::Polynomial,
+                                                     fe_oshape::OrientedShape, face::RelFace,
+                                                     mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.coefs)
-    sum += p.coefs[i] * integral_face_rel_x_face_rel_on_face(mon, p.mons[i], fe_oshape, face, mesh)
+    sum += p.coefs[i] * integral_face_rel_x_face_rel_on_oshape_face(mon, p.mons[i], fe_oshape, face, mesh)
   end
   sum
 end
 
-integral_face_rel_x_face_rel_on_face(p::Polynomial,
-                                     mon::Monomial,
-                                     fe_oshape::OrientedShape, face::RelFace,
-                                     mesh::AbstractMesh) =
-  integral_face_rel_x_face_rel_on_face(mon, p, fe_oshape, face, mesh)
+integral_face_rel_x_face_rel_on_oshape_face(p::Polynomial,
+                                            mon::Monomial,
+                                            fe_oshape::OrientedShape, face::RelFace,
+                                            mesh::AbstractMesh) =
+  integral_face_rel_x_face_rel_on_oshape_face(mon, p, fe_oshape, face, mesh)
 
-function integral_face_rel_x_face_rel_on_face(p1::Polynomial,
-                                              p2::Polynomial,
-                                              fe_oshape::OrientedShape, face::RelFace,
-                                              mesh::AbstractMesh)
+function integral_face_rel_x_face_rel_on_oshape_face(p1::Polynomial,
+                                                     p2::Polynomial,
+                                                     fe_oshape::OrientedShape, face::RelFace,
+                                                     mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p1.coefs), j=1:length(p2.coefs)
     sum += p1.coefs[i] * p2.coefs[j] *
-           integral_face_rel_x_face_rel_on_face(p1.mons[i], p2.mons[j], fe_oshape, face, mesh)
+           integral_face_rel_x_face_rel_on_oshape_face(p1.mons[i], p2.mons[j], fe_oshape, face, mesh)
   end
   sum
 end
 
 
 # origin (see "Interpreting Monomials..." discussion at top).
-function integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p::Polynomial,
-                                                              q::VectorMonomial,
-                                                              fe_oshape::OrientedShape, side_face::RelFace,
-                                                              mesh::AbstractMesh)
+function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(p::Polynomial,
+                                                                     q::VectorMonomial,
+                                                                     fe_oshape::OrientedShape, side_face::RelFace,
+                                                                     mesh::AbstractMesh)
   sum = zeroR
   for i=1:length(p.mons)
     sum += p.coefs[i] *
-           integral_side_rel_x_fe_rel_vs_outward_normal_on_side(p.mons[i], q, fe_oshape, side_face, mesh)
+           integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(p.mons[i], q, fe_oshape, side_face, mesh)
   end
   sum
 end

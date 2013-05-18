@@ -62,12 +62,12 @@ function make_vmon_ips_by_oshape(vmons::Array{VectorMonomial,1}, mesh::AbstractM
       for j=i-1:-1:1
         const bj = vmons[j]
         const ip = if Poly.mons_in_same_comp_of_vmons(bi, bj)
-                     Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bj.mon, os, Mesh.interior_face, mesh)
+                     Mesh.integral_face_rel_x_face_rel_on_oshape_face(bi_mon, bj.mon, os, Mesh.interior_face, mesh)
                    else zeroR end
         m[i,j] = ip
         m[j,i] = ip
       end
-      m[i,i] = Mesh.integral_face_rel_x_face_rel_on_face(bi_mon, bi_mon, os, Mesh.interior_face, mesh)
+      m[i,i] = Mesh.integral_face_rel_x_face_rel_on_oshape_face(bi_mon, bi_mon, os, Mesh.interior_face, mesh)
     end
     ips_by_oshape[os] = m
   end
@@ -84,7 +84,7 @@ function wgrad(v::Nomial,
                for q_vmon_num in 1:length(solver.basis_vmons)]
   # solve the linear system
   const sol_coefs = solver.ips_basis_vs_basis[fe_oshape] \ rhs
-  
+
   Poly.linear_comb(sol_coefs, solver.basis_vmons)
 end
 
@@ -102,10 +102,10 @@ function wgrad_def_rhs_comp(v::Nomial,
   if v_sface == Mesh.interior_face
     # Interior supported v: only the -(v_0, div q)_T term can be non-zero in the rhs of (WGRAD_DEF).
     const div_q = solver.basis_divs[q_vmon_num]
-    -Mesh.integral_face_rel_x_face_rel_on_face(v, div_q, fe_oshape, Mesh.interior_face, solver.mesh)
+    -Mesh.integral_face_rel_x_face_rel_on_oshape_face(v, div_q, fe_oshape, Mesh.interior_face, solver.mesh)
   else
     # Side supported v: only the <v_b, q.n>_bnd(T) term can be non-zero.
-    Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(v, q, fe_oshape, v_sface, solver.mesh)
+    Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(v, q, fe_oshape, v_sface, solver.mesh)
   end
 end
 

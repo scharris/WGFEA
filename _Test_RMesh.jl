@@ -484,129 +484,129 @@ VM = VectorMonomial # alias for brevity
 
 # Integrate constants on faces of reference element.
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(one_mon, rect_oshape, Mesh.interior_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, Mesh.interior_face, rmesh3x4x5),
   1/3 * 1/4 * 1/5
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(one_mon, rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, left_face, rmesh3x4x5),
   1/4 * 1/5
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(one_mon, rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, right_face, rmesh3x4x5),
   1/4 * 1/5
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(one_mon, rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, bottom_face, rmesh3x4x5),
   1/3 * 1/5
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(one_mon, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, top_face, rmesh3x4x5),
   1/3 * 1/5
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(one_mon, rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, back_face, rmesh3x4x5),
   1/3 * 1/4
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(one_mon, rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, front_face, rmesh3x4x5),
   1/3 * 1/4
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(3., rect_oshape, Mesh.interior_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(3., rect_oshape, Mesh.interior_face, rmesh3x4x5),
   3 * 1/3 * 1/4 * 1/5
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(3., rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(3., rect_oshape, front_face, rmesh3x4x5),
   3 * 1/3 * 1/4
 )
 
 # Integrate monomials on faces of reference element.
 
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x*y*z^2, rect_oshape, Mesh.interior_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x*y*z^2, rect_oshape, Mesh.interior_face, rmesh3x4x5),
   (1/3)^2/2 * (1/4)^2/2 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(y*z^2, rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(y*z^2, rect_oshape, left_face, rmesh3x4x5),
   (1/4)^2/2 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(y*z^2, rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(y*z^2, rect_oshape, right_face, rmesh3x4x5),
   (1/4)^2/2 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x*z^2, rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x*z^2, rect_oshape, bottom_face, rmesh3x4x5),
   (1/3)^2/2 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(y*z^2, rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(y*z^2, rect_oshape, bottom_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(y*z^2, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(y*z^2, rect_oshape, top_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^2*y, rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x^2*y, rect_oshape, back_face, rmesh3x4x5),
   (1/3)^3/3 * (1/4)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^2*y, rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x^2*y, rect_oshape, front_face, rmesh3x4x5),
   (1/3)^3/3 * (1/4)^2/2
 )
 
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^3*y^4*z^1, rect_oshape, Mesh.interior_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x^3*y^4*z, rect_oshape, Mesh.interior_face, rmesh3x4x5),
   (1/3)^4/4 * (1/4)^5/5 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(y^4*z^1, rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(y^4*z, rect_oshape, left_face, rmesh3x4x5),
   (1/4)^5/5 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(y^4*z^1, rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(y^4*z, rect_oshape, right_face, rmesh3x4x5),
   (1/4)^5/5 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^3*z^1, rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x^3*z, rect_oshape, bottom_face, rmesh3x4x5),
   (1/3)^4/4 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^3*z^1, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x^3*z, rect_oshape, top_face, rmesh3x4x5),
   (1/3)^4/4 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^3*y^4, rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x^3*y^4, rect_oshape, back_face, rmesh3x4x5),
   (1/3)^4/4 * (1/4)^5/5
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^3*y^4, rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x^3*y^4, rect_oshape, front_face, rmesh3x4x5),
   (1/3)^4/4 * (1/4)^5/5
 )
 
 # Integrate polynomial on faces of reference element.
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(2*y^1*z^2 + 3*x^3*y^4*z^1, rect_oshape, Mesh.interior_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(2*y*z^2 + 3*x^3*y^4*z, rect_oshape, Mesh.interior_face, rmesh3x4x5),
   2(1/3 * (1/4)^2/2 * (1/5)^3/3) + 3((1/3)^4/4 * (1/4)^5/5 * (1/5)^2/2)
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(1.2*y^1*z^2 + 3.4*x^3*y^4*z^1, rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(1.2*y*z^2 + 3.4*x^3*y^4*z, rect_oshape, left_face, rmesh3x4x5),
   1.2((1/4)^2/2 * (1/5)^3/3)
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(1.5*y^1*z^2 + 0.123*y^4*z^1, rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(1.5*y*z^2 + 0.123*y^4*z, rect_oshape, right_face, rmesh3x4x5),
   1.5((1/4)^2/2 * (1/5)^3/3) + 0.123((1/4)^5/5 * (1/5)^2/2)
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(y^1*z^2 + x^3*y^4*z^1, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(y*z^2 + x^3*y^4*z, rect_oshape, top_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(4.5*x^1*z^2 + 2.3x^3*z^1, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(4.5*x*z^2 + 2.3x^3*z, rect_oshape, top_face, rmesh3x4x5),
   4.5((1/3)^2/2 * (1/5)^3/3) + 2.3((1/3)^4/4 * (1/5)^2/2)
 )
 @test nearly_eq(
-  Mesh.integral_face_rel_on_face(x^1*y^2 + x^3*y^4, rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_face_rel_on_oshape_face(x*y^2 + x^3*y^4, rect_oshape, back_face, rmesh3x4x5),
   (1/3)^2/2 * (1/4)^3/3 + (1/3)^4/4 * (1/4)^5/5
 )
 
@@ -614,114 +614,114 @@ VM = VectorMonomial # alias for brevity
 # Integrate vector monomials vs outward normals on the side faces of the reference finite element.
 
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, left_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, right_face, rmesh3x4x5),
   (1/3)^3 * (1/4)^5/5 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(z, VM(y^4*z, dim(1)), rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(z, VM(y^4*z, dim(1)), rect_oshape, left_face, rmesh3x4x5),
   -(1/4)^5/5 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(y^2*z,   VM(x^3*y^4*z, dim(1)), rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(y^2*z,   VM(x^3*y^4*z, dim(1)), rect_oshape, right_face, rmesh3x4x5),
   (1/3)^3 * (1/4)^7/7 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x*y^2*z, VM(x^3*y^4*z, dim(1)), rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x*y^2*z, VM(x^3*y^4*z, dim(1)), rect_oshape, right_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, top_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, back_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(1)), rect_oshape, front_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, left_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, right_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, bottom_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, top_face, rmesh3x4x5),
   (1/4)^4 * (1/3)^4/4 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x^2*z,   VM(x^3*y^4*z, dim(2)), rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x^2*z,   VM(x^3*y^4*z, dim(2)), rect_oshape, top_face, rmesh3x4x5),
   (1/4)^4 * (1/3)^6/6 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x^2*y*z, VM(x^3*y^4*z, dim(2)), rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x^2*y*z, VM(x^3*y^4*z, dim(2)), rect_oshape, top_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, back_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(2)), rect_oshape, front_face, rmesh3x4x5),
   0
 )
 
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, left_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, right_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, bottom_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, top_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, back_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4*z, dim(3)), rect_oshape, front_face, rmesh3x4x5),
   (1/5) * (1/3)^4/4 * (1/4)^5/5
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x^2*y,   VM(x^3*y^4*z, dim(3)), rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x^2*y,   VM(x^3*y^4*z, dim(3)), rect_oshape, front_face, rmesh3x4x5),
   (1/5) * (1/3)^6/6 * (1/4)^6/6
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x^2*y*z, VM(x^3*y^4*z, dim(3)), rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x^2*y*z, VM(x^3*y^4*z, dim(3)), rect_oshape, front_face, rmesh3x4x5),
   0
 )
 
 # Integrate on lesser faces using monomials which are constant in the corresponding dimension (so the integrals aren't 0).
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(y^4*z,   dim(1)), rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(y^4*z,   dim(1)), rect_oshape, left_face, rmesh3x4x5),
   -(1/4)^5/5 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*z,   dim(2)), rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*z,   dim(2)), rect_oshape, bottom_face, rmesh3x4x5),
   -(1/3)^4/4 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4, dim(3)), rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4, dim(3)), rect_oshape, back_face, rmesh3x4x5),
   -(1/3)^4/4 * (1/4)^5/5
 )
 
@@ -797,65 +797,65 @@ f2(x::Vector{R}) = (x[1] - fe17_coords[1])^2 * (x[2] - fe17_coords[2])^3
 
 
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(x*y, y, rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x*y, y, rect_oshape, right_face, rmesh3x4x5),
   (1/3) * (1/4)^3/3 * (1/5)
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(x*y*z, y*z, rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x*y*z, y*z, rect_oshape, right_face, rmesh3x4x5),
   (1/3) * (1/4)^3/3 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(y*z, x*y*z, rect_oshape, right_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(y*z, x*y*z, rect_oshape, right_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(x*y, y, rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x*y, y, rect_oshape, left_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(y^2*z, y*z, rect_oshape, left_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(y^2*z, y*z, rect_oshape, left_face, rmesh3x4x5),
   (1/4)^4/4 * (1/5)^3/3
 )
 
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(y*z, y, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(y*z, y, rect_oshape, top_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(y*z, x, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(y*z, x, rect_oshape, top_face, rmesh3x4x5),
   (1/4) * (1/3)^2/2 * (1/5)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(x*y*z, x*z, rect_oshape, top_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x*y*z, x*z, rect_oshape, top_face, rmesh3x4x5),
   (1/4) * (1/3)^3/3 * (1/5)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(x*y, x*z, rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x*y, x*z, rect_oshape, bottom_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(x*z, z, rect_oshape, bottom_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x*z, z, rect_oshape, bottom_face, rmesh3x4x5),
   (1/3)^2/2 * (1/5)^3/3
 )
 
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(y*x, z, rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(y*x, z, rect_oshape, front_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(z*x, y, rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(z*x, y, rect_oshape, front_face, rmesh3x4x5),
   (1/5) * (1/3)^2/2 * (1/4)^2/2
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(z*x*y, x*y, rect_oshape, front_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(z*x*y, x*y, rect_oshape, front_face, rmesh3x4x5),
   (1/5) * (1/3)^3/3 * (1/4)^3/3
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(y*z, y*x, rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(y*z, y*x, rect_oshape, back_face, rmesh3x4x5),
   0
 )
 @test nearly_eq(
-  Mesh.integral_fe_rel_x_side_rel_on_side(x*y, x*y^2, rect_oshape, back_face, rmesh3x4x5),
+  Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x*y, x*y^2, rect_oshape, back_face, rmesh3x4x5),
   (1/3)^3/3 * (1/4)^4/4
 )
 
@@ -970,48 +970,48 @@ y = Monomial(0,1)
 one_mon = RMesh.one_mon(rmesh3x2)
 
 # Integrate constants on faces of reference element.
-@test Mesh.integral_face_rel_on_face(one_mon, rect_oshape, Mesh.interior_face, rmesh3x2) == 1.
-@test Mesh.integral_face_rel_on_face(one_mon, rect_oshape, left_face, rmesh3x2) == 1.
-@test Mesh.integral_face_rel_on_face(one_mon, rect_oshape, right_face, rmesh3x2) == 1.
-@test Mesh.integral_face_rel_on_face(one_mon, rect_oshape, bottom_face, rmesh3x2) == 1.
-@test Mesh.integral_face_rel_on_face(one_mon, rect_oshape, top_face, rmesh3x2) == 1.
-@test Mesh.integral_face_rel_on_face(3., rect_oshape, Mesh.interior_face, rmesh3x2) == 3.
-@test Mesh.integral_face_rel_on_face(3., rect_oshape, top_face, rmesh3x2) == 3.
+@test Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, Mesh.interior_face, rmesh3x2) == 1.
+@test Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, left_face, rmesh3x2) == 1.
+@test Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, right_face, rmesh3x2) == 1.
+@test Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, bottom_face, rmesh3x2) == 1.
+@test Mesh.integral_face_rel_on_oshape_face(one_mon, rect_oshape, top_face, rmesh3x2) == 1.
+@test Mesh.integral_face_rel_on_oshape_face(3., rect_oshape, Mesh.interior_face, rmesh3x2) == 3.
+@test Mesh.integral_face_rel_on_oshape_face(3., rect_oshape, top_face, rmesh3x2) == 3.
 
 # Integrate monomials on faces of reference element.
 
-@test Mesh.integral_face_rel_on_face(x*y^2, rect_oshape, Mesh.interior_face, rmesh3x2) == 1/6
-@test Mesh.integral_face_rel_on_face(y^2, rect_oshape, left_face, rmesh3x2) == 1/3
-@test Mesh.integral_face_rel_on_face(y^2, rect_oshape, right_face, rmesh3x2) == 1/3
-@test Mesh.integral_face_rel_on_face(x*y^2, rect_oshape, right_face, rmesh3x2) == 0
-@test Mesh.integral_face_rel_on_face(x, rect_oshape, bottom_face, rmesh3x2) == 1/2
-@test Mesh.integral_face_rel_on_face(x, rect_oshape, top_face, rmesh3x2) == 1/2
-@test Mesh.integral_face_rel_on_face(x*y, rect_oshape, top_face, rmesh3x2) == 0
+@test Mesh.integral_face_rel_on_oshape_face(x*y^2, rect_oshape, Mesh.interior_face, rmesh3x2) == 1/6
+@test Mesh.integral_face_rel_on_oshape_face(y^2, rect_oshape, left_face, rmesh3x2) == 1/3
+@test Mesh.integral_face_rel_on_oshape_face(y^2, rect_oshape, right_face, rmesh3x2) == 1/3
+@test Mesh.integral_face_rel_on_oshape_face(x*y^2, rect_oshape, right_face, rmesh3x2) == 0
+@test Mesh.integral_face_rel_on_oshape_face(x, rect_oshape, bottom_face, rmesh3x2) == 1/2
+@test Mesh.integral_face_rel_on_oshape_face(x, rect_oshape, top_face, rmesh3x2) == 1/2
+@test Mesh.integral_face_rel_on_oshape_face(x*y, rect_oshape, top_face, rmesh3x2) == 0
 
-@test Mesh.integral_face_rel_on_face(x^3*y^4, rect_oshape, Mesh.interior_face, rmesh3x2) == 1/20
-@test Mesh.integral_face_rel_on_face(y^4, rect_oshape, left_face, rmesh3x2) == 1/5
-@test Mesh.integral_face_rel_on_face(y^4, rect_oshape, right_face, rmesh3x2) == 1/5
-@test Mesh.integral_face_rel_on_face(x*y^4, rect_oshape, right_face, rmesh3x2) == 0
-@test Mesh.integral_face_rel_on_face(x^3, rect_oshape, bottom_face, rmesh3x2) == 1/4
-@test Mesh.integral_face_rel_on_face(x^3, rect_oshape, top_face, rmesh3x2) == 1/4
-@test Mesh.integral_face_rel_on_face(x^3*y, rect_oshape, top_face, rmesh3x2) == 0
+@test Mesh.integral_face_rel_on_oshape_face(x^3*y^4, rect_oshape, Mesh.interior_face, rmesh3x2) == 1/20
+@test Mesh.integral_face_rel_on_oshape_face(y^4, rect_oshape, left_face, rmesh3x2) == 1/5
+@test Mesh.integral_face_rel_on_oshape_face(y^4, rect_oshape, right_face, rmesh3x2) == 1/5
+@test Mesh.integral_face_rel_on_oshape_face(x*y^4, rect_oshape, right_face, rmesh3x2) == 0
+@test Mesh.integral_face_rel_on_oshape_face(x^3, rect_oshape, bottom_face, rmesh3x2) == 1/4
+@test Mesh.integral_face_rel_on_oshape_face(x^3, rect_oshape, top_face, rmesh3x2) == 1/4
+@test Mesh.integral_face_rel_on_oshape_face(x^3*y, rect_oshape, top_face, rmesh3x2) == 0
 
 ## Integrate polynomial on faces of reference element.
-@test nearly_eq(Mesh.integral_face_rel_on_face(2*x*y^2 + 3*x^3*y^4, rect_oshape, Mesh.interior_face, rmesh3x2), 2*(1/6) + 3*(1/20))
-@test nearly_eq(Mesh.integral_face_rel_on_face(1.2*y^2 + 3.4*y^4, rect_oshape, left_face, rmesh3x2), 1.2/3 + 3.4/5)
-@test nearly_eq(Mesh.integral_face_rel_on_face(1.5*y^2 + 0.123*y^4, rect_oshape, right_face, rmesh3x2), 1.5*(1/3) + 0.123*(1/5))
-@test nearly_eq(Mesh.integral_face_rel_on_face(1.2x + 2x^3, rect_oshape, bottom_face, rmesh3x2), 1.2/2 + 2/4)
-@test nearly_eq(Mesh.integral_face_rel_on_face(4.5*x*y^2 + 23.2x^3, rect_oshape, top_face, rmesh3x2), 23.2/4)
+@test nearly_eq(Mesh.integral_face_rel_on_oshape_face(2*x*y^2 + 3*x^3*y^4, rect_oshape, Mesh.interior_face, rmesh3x2), 2*(1/6) + 3*(1/20))
+@test nearly_eq(Mesh.integral_face_rel_on_oshape_face(1.2*y^2 + 3.4*y^4, rect_oshape, left_face, rmesh3x2), 1.2/3 + 3.4/5)
+@test nearly_eq(Mesh.integral_face_rel_on_oshape_face(1.5*y^2 + 0.123*y^4, rect_oshape, right_face, rmesh3x2), 1.5*(1/3) + 0.123*(1/5))
+@test nearly_eq(Mesh.integral_face_rel_on_oshape_face(1.2x + 2x^3, rect_oshape, bottom_face, rmesh3x2), 1.2/2 + 2/4)
+@test nearly_eq(Mesh.integral_face_rel_on_oshape_face(4.5*x*y^2 + 23.2x^3, rect_oshape, top_face, rmesh3x2), 23.2/4)
 
 # Integrate vector monomials vs outward normals on the side faces of the reference finite element.
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(one_mon, VM(x^3*y^4, dim(1)), rect_oshape, left_face, rmesh3x2), 0)
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(y, VM(x^3*y^4, dim(1)), rect_oshape, right_face, rmesh3x2), 1/6)
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(y, VM(y^2, dim(1)), rect_oshape, left_face, rmesh3x2), -1/4)
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x*y, VM(y^2, dim(1)), rect_oshape, right_face, rmesh3x2), 0)
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(y, VM(x*y^2, dim(1)), rect_oshape, bottom_face, rmesh3x2), 0)
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(y, VM(y^2, dim(1)), rect_oshape, top_face, rmesh3x2), 0)
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x, VM(x^2, dim(2)), rect_oshape, bottom_face, rmesh3x2), -1/4)
-@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_side(x, VM(x^2, dim(2)), rect_oshape, top_face, rmesh3x2), 1/4)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(one_mon, VM(x^3*y^4, dim(1)), rect_oshape, left_face, rmesh3x2), 0)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(y, VM(x^3*y^4, dim(1)), rect_oshape, right_face, rmesh3x2), 1/6)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(y, VM(y^2, dim(1)), rect_oshape, left_face, rmesh3x2), -1/4)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x*y, VM(y^2, dim(1)), rect_oshape, right_face, rmesh3x2), 0)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(y, VM(x*y^2, dim(1)), rect_oshape, bottom_face, rmesh3x2), 0)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(y, VM(y^2, dim(1)), rect_oshape, top_face, rmesh3x2), 0)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x, VM(x^2, dim(2)), rect_oshape, bottom_face, rmesh3x2), -1/4)
+@test nearly_eq(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x, VM(x^2, dim(2)), rect_oshape, top_face, rmesh3x2), 1/4)
 
 # Test integration of a product of an arbitrary function and an element-local monomial on finite element faces.
 
