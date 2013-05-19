@@ -2,7 +2,7 @@ using Base.Test
 using Common
 import Mesh
 import RMesh.RectMesh, RMesh.mesh_ldims
-import WGBasis, WGBasis.BElNum, WGBasis.beln, WGBasis.WeakFunsPolyBasis
+import WGBasis, WGBasis.BElNum, WGBasis.belnum, WGBasis.WeakFunsPolyBasis
 import VBF, VBF.AbstractVariationalBilinearForm
 import VBF_a_s.a_s
 
@@ -17,37 +17,37 @@ function bel_vs_bel_transpose_dense(basis::WeakFunsPolyBasis, bf::AbstractVariat
 
   if !VBF.is_symmetric(bf)
     for i=1:num_int_bels, j=1:num_int_bels
-      const ip = int_bel_vs_int_bel(beln(i), beln(j), basis, bf)
+      const ip = int_bel_vs_int_bel(belnum(i), belnum(j), basis, bf)
       m[j,i] = ip
     end
     for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
-      const bel_i = beln(i)
-      const bel_j = beln(j)
+      const bel_i = belnum(i)
+      const bel_j = belnum(j)
       m[j,i] = side_bel_vs_int_bel(bel_i, bel_j, basis, bf)
       m[i,j] = int_bel_vs_side_bel(bel_j, bel_i, basis, bf)
     end
     for i=first_nb_side_bel:basis.total_bels, j=first_nb_side_bel:basis.total_bels
-      m[j,i] = side_bel_vs_side_bel(beln(i), beln(j), basis, bf)
+      m[j,i] = side_bel_vs_side_bel(belnum(i), belnum(j), basis, bf)
     end
   else # bf is symmetric
     for i=1:num_int_bels
-      const bel_i = beln(i)
+      const bel_i = belnum(i)
       for j=1:i-1
-        const ip = int_bel_vs_int_bel(bel_i, beln(j), basis, bf)
+        const ip = int_bel_vs_int_bel(bel_i, belnum(j), basis, bf)
         m[j,i] = ip
         m[i,j] = ip
       end
       m[i,i] = int_bel_vs_int_bel(bel_i, bel_i, basis, bf)
     end
     for i=first_nb_side_bel:basis.total_bels, j=1:num_int_bels
-      const ip = side_bel_vs_int_bel(beln(i), beln(j), basis, bf)
+      const ip = side_bel_vs_int_bel(belnum(i), belnum(j), basis, bf)
       m[j,i] = ip
       m[i,j] = ip
     end
     for i=first_nb_side_bel:basis.total_bels
-      const bel_i = beln(i)
+      const bel_i = belnum(i)
       for j=first_nb_side_bel:i-1
-        const ip = side_bel_vs_side_bel(bel_i, beln(j), basis, bf)
+        const ip = side_bel_vs_side_bel(bel_i, belnum(j), basis, bf)
         m[j,i] = ip
         m[i,j] = ip
       end

@@ -3,7 +3,7 @@ export A_s, a_s
 
 using Common
 import Poly.Polynomial, Poly.Monomial
-import Mesh, Mesh.OrientedShape, Mesh.RelFace, Mesh.rface, Mesh.OrientedShape
+import Mesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.fefacenum
 import Proj
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
 import VBF, VBF.AbstractVariationalBilinearForm
@@ -29,7 +29,7 @@ is_symmetric(bf::A_s) = true
 
 
 import VBF.int_mon_vs_int_mon
-function int_mon_vs_int_mon(fe_oshape::OrientedShape,
+function int_mon_vs_int_mon(fe_oshape::OShapeNum,
                             monn_1::MonNum,
                             monn_2::MonNum,
                             basis::WeakFunsPolyBasis,
@@ -48,7 +48,7 @@ function int_mon_vs_int_mon(fe_oshape::OrientedShape,
   # = (1/h_T) sum_{s in sides(T)} {<Q_b (b_i)_0T, Q_b (b_j)_0T>_s}
   const stab = begin
     sum_over_sides = zeroR
-    for sf=rface(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
+    for sf=fefacenum(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
       const proj_1 = bf.int_mon_side_projs[monn_1][fe_oshape][sf]
       const proj_2 = bf.int_mon_side_projs[monn_2][fe_oshape][sf]
       sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_oshape_face(proj_1, proj_2, fe_oshape, sf, mesh)
@@ -60,8 +60,8 @@ function int_mon_vs_int_mon(fe_oshape::OrientedShape,
 end
 
 import VBF.side_mon_vs_int_mon
-function side_mon_vs_int_mon(fe_oshape::OrientedShape,
-                             side_monn::MonNum, side_face::RelFace,
+function side_mon_vs_int_mon(fe_oshape::OShapeNum,
+                             side_monn::MonNum, side_face::FEFaceNum,
                              int_monn::MonNum,
                              basis::WeakFunsPolyBasis,
                              bf::A_s)
@@ -89,9 +89,9 @@ function side_mon_vs_int_mon(fe_oshape::OrientedShape,
 end
 
 import VBF.int_mon_vs_side_mon
-function int_mon_vs_side_mon(fe_oshape::OrientedShape,
+function int_mon_vs_side_mon(fe_oshape::OShapeNum,
                              int_monn::MonNum,
-                             side_monn::MonNum, side_face::RelFace,
+                             side_monn::MonNum, side_face::FEFaceNum,
                              basis::WeakFunsPolyBasis,
                              bf::A_s)
   assert(is_symmetric(bf), "int_mon_vs_side_mon needs independent implementation, bilinear form is not symmetric")
@@ -100,9 +100,9 @@ end
 
 
 import VBF.side_mon_vs_side_mon
-function side_mon_vs_side_mon(fe_oshape::OrientedShape,
-                              monn_1::MonNum, side_face_1::RelFace,
-                              monn_2::MonNum, side_face_2::RelFace,
+function side_mon_vs_side_mon(fe_oshape::OShapeNum,
+                              monn_1::MonNum, side_face_1::FEFaceNum,
+                              monn_2::MonNum, side_face_2::FEFaceNum,
                               basis::WeakFunsPolyBasis,
                               bf::A_s)
   const mesh = basis.mesh

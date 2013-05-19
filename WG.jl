@@ -3,10 +3,10 @@ export WGSolver, solve
 
 using Common
 import Poly, Poly.Polynomial
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.OrientedShape, Mesh.RelFace, Mesh.rface, Mesh.fen
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.fefacenum, Mesh.fenum
 import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
-import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.beln, WGBasis.MonNum, WGBasis.monn
+import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.belnum, WGBasis.MonNum, WGBasis.monnum
 import WGSol.WGSolution
 
 # METHOD
@@ -41,7 +41,7 @@ immutable WGSolver
   end
 end
 
-typealias BoundaryProjections Dict{(FENum,RelFace), Vector{R}}
+typealias BoundaryProjections Dict{(FENum, FEFaceNum), Vector{R}}
 
 
 # Solve the system, returning coefficients for all basis elements.
@@ -61,7 +61,7 @@ function sys_rhs(f::Function,
                  basis::WeakFunsPolyBasis)
   const rhs = Array(R, basis.total_bels)
   for i=1:basis.total_bels
-    const bel_i = beln(i)
+    const bel_i = belnum(i)
     rhs[i] = ip_on_interiors(f, bel_i, basis) - vbf_boundary_projs_vs_bel(vbf,
                                                                           g_projs,
                                                                           bel_i,
@@ -102,7 +102,7 @@ function vbf_boundary_projs_vs_bel(vbf::AbstractVariationalBilinearForm,
     const bel_fe = WGBasis.support_interior_num(bel, basis)
     const bel_fe_oshape = Mesh.oriented_shape_for_fe(bel_fe, basis.mesh)
     const bel_monn = WGBasis.interior_mon_num(bel, basis)
-    for sf=rface(1):Mesh.num_side_faces_for_shape(bel_fe_oshape, mesh)
+    for sf=fefacenum(1):Mesh.num_side_faces_for_shape(bel_fe_oshape, mesh)
       if Mesh.is_boundary_side(bel_fe, sf, mesh)
         const proj = boundary_proj(bel_fe, sf, b_projs)
         bside_contrs += vbf_proj_on_oshape_bside_vs_int_mon(vbf,
@@ -115,14 +115,14 @@ function vbf_boundary_projs_vs_bel(vbf::AbstractVariationalBilinearForm,
     # Only outside boundary sides in one of the fe's including the bel side support can contribute.
     const bel_monn = WGBasis.side_mon_num(bel, basis)
     const bel_supp_incls = WGBasis.fe_inclusions_of_side_support(bel, basis)
-    for (bel_supp_fe, bel_supp_rface) in ((bel_supp_incls.fe1, bel_supp_incls.face_in_fe1),
+    for (bel_supp_fe, bel_supp_face) in ((bel_supp_incls.fe1, bel_supp_incls.face_in_fe1),
                                           (bel_supp_incls.fe2, bel_supp_incls.face_in_fe2))
       # Sum contributions from outside boundary sides of this supporting fe face.
-      for bsf=rface(1):Mesh.num_side_faces_for_fe(bel_supp_fe, mesh) if Mesh.is_boundary_side(bel_supp_fe, bsf, mesh)
+      for bsf=fefacenum(1):Mesh.num_side_faces_for_fe(bel_supp_fe, mesh) if Mesh.is_boundary_side(bel_supp_fe, bsf, mesh)
         const proj = boundary_proj(bel_supp_fe, bsf, b_projs)
         bside_contrs += vbf_proj_on_fe_bside_vs_side_mon(vbf,
                                                          proj, bel_supp_fe, bsf,
-                                                         bel_monn, bel_supp_rface,
+                                                         bel_monn, bel_supp_face,
                                                          basis)
       end end
     end
@@ -131,13 +131,13 @@ function vbf_boundary_projs_vs_bel(vbf::AbstractVariationalBilinearForm,
 end
 
 function vbf_proj_on_oshape_bside_vs_int_mon(vbf::AbstractVariationalBilinearForm,
-                                             proj_coefs::Vector{R}, fe_oshape::OrientedShape, proj_bside_face::RelFace,
+                                             proj_coefs::Vector{R}, fe_oshape::OShapeNum, proj_bside_face::FEFaceNum,
                                              int_monn::MonNum,
                                              basis::WeakFunsPolyBasis)
   proj_mon_contrs = zeroR
   for i=1:length(proj_coefs)
     proj_mon_contrs += proj_coefs[i] * VBF.side_mon_vs_int_mon(fe_oshape,
-                                                               monn(i), proj_bside_face,
+                                                               monnum(i), proj_bside_face,
                                                                int_monn,
                                                                basis,
                                                                vbf)
@@ -146,14 +146,14 @@ function vbf_proj_on_oshape_bside_vs_int_mon(vbf::AbstractVariationalBilinearFor
 end
 
 function vbf_proj_on_fe_bside_vs_side_mon(vbf::AbstractVariationalBilinearForm,
-                                          proj_coefs::Vector{R}, fe::FENum, proj_bside_face::RelFace,
-                                          side_monn::MonNum, side_mon_face::RelFace,
+                                          proj_coefs::Vector{R}, fe::FENum, proj_bside_face::FEFaceNum,
+                                          side_monn::MonNum, side_mon_face::FEFaceNum,
                                           basis::WeakFunsPolyBasis)
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   proj_mon_contrs = zeroR
   for i=1:length(proj_coefs)
     proj_mon_contrs += proj_coefs[i] * VBF.side_mon_vs_side_mon(fe_oshape,
-                                                                monn(i), proj_bside_face,
+                                                                monnum(i), proj_bside_face,
                                                                 side_monn, side_mon_face,
                                                                 basis,
                                                                 vbf)
@@ -161,17 +161,17 @@ function vbf_proj_on_fe_bside_vs_side_mon(vbf::AbstractVariationalBilinearForm,
   proj_mon_contrs
 end
 
-boundary_proj(fe::FENum, side_face::RelFace, projs::BoundaryProjections) =
+boundary_proj(fe::FENum, side_face::FEFaceNum, projs::BoundaryProjections) =
   projs[(fe,side_face)]
 
 function boundary_projections(g::FunctionOrConst, basis::WeakFunsPolyBasis)
   const mesh = basis.mesh
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
-  const projs = Dict{(FENum,RelFace), Vector{R}}()
+  const projs = Dict{(FENum, FEFaceNum), Vector{R}}()
   sizehint(projs, Mesh.num_boundary_sides(mesh))
 
-  for fe=fen(1):Mesh.num_fes(mesh),
-      sf=rface(1):Mesh.num_side_faces_for_fe(fe, mesh)
+  for fe=fenum(1):Mesh.num_fes(mesh),
+      sf=fefacenum(1):Mesh.num_side_faces_for_fe(fe, mesh)
     if Mesh.is_boundary_side(fe, sf, mesh)
       projs[(fe,sf)] = Proj.project_onto_fe_face(g, fe, sf, basis)
     end

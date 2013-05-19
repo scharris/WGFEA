@@ -2,7 +2,7 @@ module WGrad
 export WGradSolver, wgrad
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.RelFace, Mesh.OrientedShape
+import Mesh, Mesh.AbstractMesh, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.oshapenum
 import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial, Poly.Nomial
 
 # For a weak function v on a finite element T, the weak gradient of degree r
@@ -54,7 +54,7 @@ function make_vmon_ips_by_oshape(vmons::Array{VectorMonomial,1}, mesh::AbstractM
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Matrix{R}, num_oshapes)
   const num_vmons = length(vmons)
-  for os=Mesh.oshape(1):num_oshapes
+  for os=oshapenum(1):num_oshapes
     const m = Array(R, num_vmons,num_vmons)
     for i=1:num_vmons
       const bi = vmons[i]
@@ -78,7 +78,7 @@ end
 # Obtain the weak gradient polynomial vector for the weak function v which is a monomial or polynomial
 # on supporting face v_sface and 0 elsewhere.
 function wgrad(v::Nomial,
-               fe_oshape::OrientedShape, v_sface::RelFace,
+               fe_oshape::OShapeNum, v_sface::FEFaceNum,
                solver::WGradSolver)
   const rhs = [wgrad_def_rhs_comp(v, fe_oshape, v_sface, q_vmon_num, solver)
                for q_vmon_num in 1:length(solver.basis_vmons)]
@@ -95,7 +95,7 @@ end
 # is specified as a monomial or polynomial and the supporting face on which
 # it takes the monomial or polynomial value.
 function wgrad_def_rhs_comp(v::Nomial,
-                            fe_oshape::OrientedShape, v_sface::RelFace,
+                            fe_oshape::OShapeNum, v_sface::FEFaceNum,
                             q_vmon_num::Integer,
                             solver::WGradSolver)
   const q = solver.basis_vmons[q_vmon_num]

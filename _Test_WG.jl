@@ -4,7 +4,7 @@ using Winston
 
 using WG
 using Common
-import Mesh, Mesh.fen
+import Mesh, Mesh.fenum
 import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_ldims, RMesh.mesh_ldim
 import WGBasis.WeakFunsPolyBasis
 import VBF.AbstractVariationalBilinearForm
@@ -169,7 +169,7 @@ function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function)
   const int_rel_pt = zeros(R, d)
   const fe_origin = Array(R, d)
 
-  for fe=fen(1):Mesh.num_fes(basis.mesh)
+  for fe=fenum(1):Mesh.num_fes(basis.mesh)
     Mesh.fe_interior_origin!(fe, fe_origin, basis.mesh)
     fe_origin += int_rel_pt
     const wg_sol_val = WGSol.wg_sol_at_interior_rel_point(fe, int_rel_pt, wg_sol)

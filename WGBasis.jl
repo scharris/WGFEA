@@ -1,8 +1,8 @@
 module WGBasis
 
 export WeakFunsPolyBasis,
-       BElNum, beln,
-       MonNum, monn,
+       BElNum, belnum,
+       MonNum, monnum,
        is_interior_supported,
        ub_estimate_num_bel_bel_common_support_fe_triplets,
        support_interior_num,
@@ -28,8 +28,8 @@ export WeakFunsPolyBasis,
        ips_oshape_side_mons
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OrientedShape, Mesh.RelFace, Mesh.rface,
-       Mesh.oshape, Mesh.fen
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.fefacenum,
+       Mesh.oshapenum, Mesh.fenum
 import Poly, Poly.Monomial, Poly.Polynomial, Poly.PolynomialVector
 import WGrad, WGrad.WGradSolver
 
@@ -63,11 +63,11 @@ import WGrad, WGrad.WGradSolver
 
 # basis element number type
 typealias BElNum Uint64
-beln(i::Integer) = if i > 0 convert(Uint64, i) else error("basis number out of range") end
+belnum(i::Integer) = if i > 0 convert(Uint64, i) else error("basis number out of range") end
 const no_bel = uint64(0)
 
 typealias MonNum Uint16
-monn(i::Integer) = if i > 0 convert(Uint16, i) else error("monomial number out of range") end
+monnum(i::Integer) = if i > 0 convert(Uint16, i) else error("monomial number out of range") end
 
 immutable WeakFunsPolyBasis
 
@@ -112,8 +112,8 @@ immutable WeakFunsPolyBasis
     const dom_dim = Mesh.space_dim(mesh)
     const interior_mons = make_interior_mons(interior_polys_max_deg, dom_dim)
     const side_mons_by_dep_dim = make_side_mons(side_polys_max_deg, dom_dim)
-    const mons_per_fe_interior = monn(length(interior_mons))
-    const mons_per_fe_side = monn(length(side_mons_by_dep_dim[1]))
+    const mons_per_fe_interior = monnum(length(interior_mons))
+    const mons_per_fe_side = monnum(length(side_mons_by_dep_dim[1]))
     const num_interior_bels = Mesh.num_fes(mesh) * mons_per_fe_interior
 
     # Precompute weak gradients by face and monomial
@@ -207,7 +207,7 @@ function make_interior_mon_wgrads(int_mons::Array{Monomial,1}, wgrad_solver::WGr
   const num_oshapes = Mesh.num_oriented_element_shapes(wgrad_solver.mesh)
   const wgrads_by_oshape = Array(Array{PolynomialVector,1}, num_oshapes)
   const num_mons = length(int_mons)
-  for os=oshape(1):num_oshapes
+  for os=oshapenum(1):num_oshapes
     const wgrads = Array(PolynomialVector, num_mons)
     for m=1:num_mons
       wgrads[m] = WGrad.wgrad(int_mons[m], os, Mesh.interior_face, wgrad_solver)
@@ -223,10 +223,10 @@ function make_side_mon_wgrads(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, 
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const wgrads_by_oshape = Array(Array{Array{PolynomialVector,1},1}, num_oshapes)
   const mons_per_side = length(side_mons_by_dep_dim[1])
-  for os=oshape(1):num_oshapes
+  for os=oshapenum(1):num_oshapes
     const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
     const wgrads_by_side = Array(Array{PolynomialVector,1}, sides_per_fe)
-    for sf=rface(1):sides_per_fe
+    for sf=fefacenum(1):sides_per_fe
       const side_dep_dim = Mesh.dependent_dim_for_oshape_side(os, sf, mesh)
       const side_mons = side_mons_by_dep_dim[side_dep_dim]
       const wgrads = Array(PolynomialVector, mons_per_side)
@@ -245,7 +245,7 @@ function make_interior_mon_ips(mons::Array{Monomial,1}, mesh::AbstractMesh)
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Matrix{R}, num_oshapes)
   const num_mons = length(mons)
-  for os=oshape(1):num_oshapes
+  for os=oshapenum(1):num_oshapes
     const m = Array(R, num_mons,num_mons)
     for i=1:num_mons
       const mon_i = mons[i]
@@ -266,10 +266,10 @@ function make_side_mon_ips(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, mes
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Array{Matrix{R}}, num_oshapes)
   const num_mons = length(side_mons_by_dep_dim[1])
-  for os=oshape(1):num_oshapes
+  for os=oshapenum(1):num_oshapes
     const num_side_faces = Mesh.num_side_faces_for_shape(os, mesh)
     const ips_by_side = Array(Matrix{R}, num_side_faces)
-    for sf=rface(1):num_side_faces
+    for sf=fefacenum(1):num_side_faces
       const m = Array(R, num_mons, num_mons)
       const dep_dim = Mesh.dependent_dim_for_oshape_side(os, sf, mesh)
       const ref_mons = side_mons_by_dep_dim[dep_dim]
@@ -306,7 +306,7 @@ function ub_estimate_num_bel_bel_common_support_fe_triplets(basis::WeakFunsPolyB
   const num_fes = Mesh.num_fes(mesh)
 
   sum = num_fes * mons_per_int * mons_per_int # interior mons with interior mons
-  for fe=fen(1):num_fes
+  for fe=fenum(1):num_fes
     const nb_sides = Mesh.num_non_boundary_sides_for_fe(fe, mesh)
     const side_sidemon_choices = nb_sides * mons_per_side
     sum += 2 * mons_per_int * nb_sides * mons_per_side + # interior mons with side mons and vice versa
@@ -361,7 +361,7 @@ end
 # Return interior polynomial coefficients for a particular finite element given coefficients for all basis elements.
 function fe_interior_poly_coefs(fe::FENum, all_basis_coefs::Vector{R}, basis::WeakFunsPolyBasis)
   const num_int_mons = basis.mons_per_fe_interior
-  const first_beln = interior_mon_bel_num(fe, monn(1), basis)
+  const first_beln = interior_mon_bel_num(fe, monnum(1), basis)
   all_basis_coefs[first_beln : first_beln + num_int_mons - 1]
 end
 
@@ -369,13 +369,13 @@ mons_per_fe_interior(basis::WeakFunsPolyBasis) = basis.mons_per_fe_interior
 
 mons_per_fe_side(basis::WeakFunsPolyBasis) = basis.mons_per_fe_side
 
-function side_mons_for_fe_side(fe::FENum, side_face::RelFace, basis::WeakFunsPolyBasis)
+function side_mons_for_fe_side(fe::FENum, side_face::FEFaceNum, basis::WeakFunsPolyBasis)
   const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
   const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
   basis.side_mons_by_dep_dim[side_dep_dim]
 end
 
-function side_mons_for_oshape_side(fe_oshape::OrientedShape, side_face::RelFace, basis::WeakFunsPolyBasis)
+function side_mons_for_oshape_side(fe_oshape::OShapeNum, side_face::FEFaceNum, basis::WeakFunsPolyBasis)
   const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
   basis.side_mons_by_dep_dim[side_dep_dim]
 end
@@ -385,7 +385,7 @@ function side_mon_num(i::BElNum, basis::WeakFunsPolyBasis)
   convert(MonNum, mod(sides_relative_bel_ix, basis.mons_per_fe_side) + 1)
 end
 
-function side_mon_num(mon::Monomial, fe_oshape::OrientedShape, side_face::RelFace, basis::WeakFunsPolyBasis)
+function side_mon_num(mon::Monomial, fe_oshape::OShapeNum, side_face::FEFaceNum, basis::WeakFunsPolyBasis)
   const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
   basis.side_mon_to_mon_num_map_by_dep_dim[side_dep_dim][mon]
 end
@@ -398,24 +398,24 @@ function side_mon(i::BElNum, basis::WeakFunsPolyBasis)
   basis.side_mons_by_dep_dim[side_dep_dim][mon_num]
 end
 
-function side_mon_bel_num(fe::FENum, side_face::RelFace, monn::MonNum, basis::WeakFunsPolyBasis)
+function side_mon_bel_num(fe::FENum, side_face::FEFaceNum, monn::MonNum, basis::WeakFunsPolyBasis)
   const nb_side_num = Mesh.nb_side_num_for_fe_side(fe, side_face, basis.mesh)
   basis.first_nb_side_bel + (nb_side_num-1) * basis.mons_per_fe_side + (monn-1)
 end
 
 # Return side polynomial coefficients for a particular finite element side given coefficients for all basis elements.
-function fe_side_poly_coefs(fe::FENum, side_face::RelFace, all_basis_coefs::Vector{R}, basis::WeakFunsPolyBasis)
+function fe_side_poly_coefs(fe::FENum, side_face::FEFaceNum, all_basis_coefs::Vector{R}, basis::WeakFunsPolyBasis)
   const side_mons = side_mons_for_fe_side(fe, side_face, basis)
-  const first_beln = side_mon_bel_num(fe, side_face, monn(1), basis)
+  const first_beln = side_mon_bel_num(fe, side_face, monnum(1), basis)
   all_basis_coefs[first_beln : first_beln + length(side_mons) - 1]
 end
 
 # weak gradient accessors
 
-wgrad_interior_mon(mon_num::MonNum, fe_oshape::OrientedShape, basis::WeakFunsPolyBasis) =
+wgrad_interior_mon(mon_num::MonNum, fe_oshape::OShapeNum, basis::WeakFunsPolyBasis) =
   basis.interior_mon_wgrads[fe_oshape][mon_num]
 
-wgrad_side_mon(mon_num::MonNum, fe_oshape::OrientedShape, side_face::RelFace, basis::WeakFunsPolyBasis) =
+wgrad_side_mon(mon_num::MonNum, fe_oshape::OShapeNum, side_face::FEFaceNum, basis::WeakFunsPolyBasis) =
   basis.side_mon_wgrads[fe_oshape][side_face][mon_num]
 
 # L2 inner product matrix accessors
@@ -425,7 +425,7 @@ function ips_interior_mons(fe::FENum, basis::WeakFunsPolyBasis)
   basis.ips_interior_mons[fe_oshape]
 end
 
-function ips_fe_side_mons(fe::FENum, side_face::RelFace, basis::WeakFunsPolyBasis)
+function ips_fe_side_mons(fe::FENum, side_face::FEFaceNum, basis::WeakFunsPolyBasis)
   if side_face == Mesh.interior_face error("Side face is required here, got interior.")
   else
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, basis.mesh)
@@ -433,7 +433,7 @@ function ips_fe_side_mons(fe::FENum, side_face::RelFace, basis::WeakFunsPolyBasi
   end
 end
 
-function ips_oshape_side_mons(fe_oshape::OrientedShape, side_face::RelFace, basis::WeakFunsPolyBasis)
+function ips_oshape_side_mons(fe_oshape::OShapeNum, side_face::FEFaceNum, basis::WeakFunsPolyBasis)
   if side_face == Mesh.interior_face error("Side face is required here, got interior.")
   else
     basis.ips_side_mons[fe_oshape][side_face]
@@ -463,7 +463,7 @@ end
 function bel_summaries_supported_on_fe(fe::FENum, basis::WeakFunsPolyBasis)
   bsums = Array(BElSummary,0)
   for i=1:basis.total_bels
-    bsum = bel_summary(beln(i), basis)
+    bsum = bel_summary(belnum(i), basis)
     if bsum.support.fe1 == fe || bsum.support.fe2 == fe
         push!(bsums, bsum)
     end

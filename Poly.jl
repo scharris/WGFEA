@@ -548,7 +548,7 @@ function coefs_closer_than(eps::R, p1::Polynomial, p2::Polynomial)
     if abs(c1 - c2) > eps
       return false
     else
-      if has(cp2_coefs_by_mon, mon)
+      if haskey(cp2_coefs_by_mon, mon)
         delete!(cp2_coefs_by_mon, mon)
       end
     end

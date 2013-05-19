@@ -42,15 +42,33 @@ Accept simple gmsh mesh files for triangles.
      ...
      $EndElements
 ...
-Read and store points by index.
 
+RefTri
+  # implicit first vertex at (0,0)
+  vert_2::(R,R)
+  vert_3::(R,R)
+  side_dep_dims::Array{Dim, 1}  # if abs(delta x) < abs(delta y) then 1 else 2
+
+ElTri
+  oshape::OrientedShape
+  # offset to apply to vertexes of the ref triangle (including an implicit (0,0) vertex) to obtain this element triangle
+  origin_x::R
+  origin_y::R
+
+pts::Array{(R,R), 1}
+oshape_ref_tris::Array{RefTri,1} # indexed by oshape #
+oshapes_by_physprop::Dict{AsciiString, OrientedShapeNum}
+fes::Array{ElTri, 1}
+fe_side_incls::Dict{(PointNum, PointNum), Array{(FENum, RelFace), 1}}
+
+
+
+Read and store points by index.
 Read elements section, for each element:
-  Determine if the oshape has been seen before, create new oshape if not (read mesh physical property marker for oshape)
-    Oshape should store reference points and dep dim by side num.
-    Relative sides by number do not need to be stored as they can be quickly computed from reference points list,
-     e.g. using a standard order such as 1 vs 2, 1 vs 3, 2 vs 3
-  Store oshape and origin (first node) location by fe
-  Add side inclusion entries (lesser pt#, greater pt#) -> [(fe, rface)]
+  Create new RefTri and oshape # (= length(oshape_ref_tris) + 1) if phys prop attribute is not yet in oshapes_by_physprop (add it)
+  Create ElTri with first vertex coords and oshape #, add to fes.
+  For each side, add to fe_side_incls an entry
+    (lesser pt#, greater pt#) -> [(fe, rface)]
 
 Order sides from incls map which have two fe's, these are the nb sides. Use NBSideIncls in place of fen list.
 Remainder are boundary sides.
