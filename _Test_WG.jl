@@ -1,6 +1,6 @@
 using Base.Test
 
-using Winston
+#using Winston
 
 using WG
 using Common
