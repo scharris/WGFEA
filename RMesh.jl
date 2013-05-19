@@ -184,13 +184,11 @@ num_fes(mesh::RectMesh) = mesh.num_fes
 import Mesh.num_nb_sides
 num_nb_sides(mesh::RectMesh) = mesh.num_nb_sides
 
-const rect_oshape = Mesh.oshapenum(1)
-
 import Mesh.num_oriented_element_shapes
-num_oriented_element_shapes(mesh::RectMesh) = rect_oshape
+num_oriented_element_shapes(mesh::RectMesh) = Mesh.oshape_one
 
 import Mesh.oriented_shape_for_fe
-oriented_shape_for_fe(fe::FENum, mesh::RectMesh) = rect_oshape
+oriented_shape_for_fe(fe::FENum, mesh::RectMesh) = Mesh.oshape_one
 
 import Mesh.num_side_faces_for_fe
 num_side_faces_for_fe(fe::FENum, mesh::RectMesh) = mesh.num_side_faces_per_fe

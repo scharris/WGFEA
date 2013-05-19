@@ -3,7 +3,7 @@ export WGSolver, solve
 
 using Common
 import Poly, Poly.Polynomial
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.fefacenum, Mesh.fenum
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one, Mesh.fenum
 import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.belnum, WGBasis.MonNum, WGBasis.monnum
@@ -102,7 +102,7 @@ function vbf_boundary_projs_vs_bel(vbf::AbstractVariationalBilinearForm,
     const bel_fe = WGBasis.support_interior_num(bel, basis)
     const bel_fe_oshape = Mesh.oriented_shape_for_fe(bel_fe, basis.mesh)
     const bel_monn = WGBasis.interior_mon_num(bel, basis)
-    for sf=fefacenum(1):Mesh.num_side_faces_for_shape(bel_fe_oshape, mesh)
+    for sf=feface_one:Mesh.num_side_faces_for_shape(bel_fe_oshape, mesh)
       if Mesh.is_boundary_side(bel_fe, sf, mesh)
         const proj = boundary_proj(bel_fe, sf, b_projs)
         bside_contrs += vbf_proj_on_oshape_bside_vs_int_mon(vbf,
@@ -118,7 +118,7 @@ function vbf_boundary_projs_vs_bel(vbf::AbstractVariationalBilinearForm,
     for (bel_supp_fe, bel_supp_face) in ((bel_supp_incls.fe1, bel_supp_incls.face_in_fe1),
                                           (bel_supp_incls.fe2, bel_supp_incls.face_in_fe2))
       # Sum contributions from outside boundary sides of this supporting fe face.
-      for bsf=fefacenum(1):Mesh.num_side_faces_for_fe(bel_supp_fe, mesh) if Mesh.is_boundary_side(bel_supp_fe, bsf, mesh)
+      for bsf=feface_one:Mesh.num_side_faces_for_fe(bel_supp_fe, mesh) if Mesh.is_boundary_side(bel_supp_fe, bsf, mesh)
         const proj = boundary_proj(bel_supp_fe, bsf, b_projs)
         bside_contrs += vbf_proj_on_fe_bside_vs_side_mon(vbf,
                                                          proj, bel_supp_fe, bsf,
@@ -171,7 +171,7 @@ function boundary_projections(g::FunctionOrConst, basis::WeakFunsPolyBasis)
   sizehint(projs, Mesh.num_boundary_sides(mesh))
 
   for fe=fenum(1):Mesh.num_fes(mesh),
-      sf=fefacenum(1):Mesh.num_side_faces_for_fe(fe, mesh)
+      sf=feface_one:Mesh.num_side_faces_for_fe(fe, mesh)
     if Mesh.is_boundary_side(fe, sf, mesh)
       projs[(fe,sf)] = Proj.project_onto_fe_face(g, fe, sf, basis)
     end

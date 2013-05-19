@@ -10,7 +10,7 @@ export AbstractVariationalBilinearForm,
 
 using Common
 import Poly.Polynomial, Poly.Monomial
-import Mesh, Mesh.AbstractMesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.fefacenum, Mesh.oshapenum, Mesh.fenum
+import Mesh, Mesh.AbstractMesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one, Mesh.fefacenum, Mesh.oshape_one, Mesh.fenum
 import Proj
 import WGBasis, WGBasis.BElNum, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum, WGBasis.monnum
 
@@ -170,7 +170,7 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
     const fe_num_sides = Mesh.num_side_faces_for_shape(fe_oshape, mesh)
 
     # fill is_nb_side work array (up to this shapes # sides)
-    for sf=fefacenum(1):fe_num_sides  is_nb_side[sf] = !Mesh.is_boundary_side(fe, sf, mesh) end
+    for sf=feface_one:fe_num_sides  is_nb_side[sf] = !Mesh.is_boundary_side(fe, sf, mesh) end
 
     # fill interior vs interior matrix values
     for monn_1=monnum(1):num_int_mons, monn_2=monnum(1):num_int_mons
@@ -186,7 +186,7 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
     end
 
     # fill remaining matrix values, which all involve at least one side basis element
-    for sf=fefacenum(1):fe_num_sides if is_nb_side[sf]
+    for sf=feface_one:fe_num_sides if is_nb_side[sf]
       for sf_monn=monnum(1):num_side_mons
         const sf_beln = WGBasis.side_mon_bel_num(fe, sf, sf_monn, basis)
 
@@ -216,7 +216,7 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
         end # interiors (with sf)
 
         # fill side vs side matrix elements
-        for sf2=fefacenum(1):fe_num_sides if is_nb_side[sf2]
+        for sf2=feface_one:fe_num_sides if is_nb_side[sf2]
           for sf2_monn=monnum(1):num_side_mons
             const vbf_val = side_side_vbf_vals[fe_oshape][sf, sf_monn, sf2, sf2_monn]
             if vbf_val != zeroR
@@ -251,7 +251,7 @@ function reference_vbf_values(basis::WeakFunsPolyBasis, vbf::AbstractVariational
   const side_int_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn)
   const int_side_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn) # [sic]
   const side_side_vbf_vals = Array(Array{R,4}, num_oshapes) # by fe oshape, (side_face_1, monn_1, side_face_2, monn_2)
-  for os=oshapenum(1):num_oshapes
+  for os=oshape_one:num_oshapes
     int_int_vbf_vals[os] = int_vs_int_vbf_vals_for_oshape(os, basis, vbf)
     side_int_vbf_vals[os] = side_vs_int_vbf_vals_for_oshape(os, basis, vbf)
     int_side_vbf_vals[os] = vbf_symm ? side_int_vbf_vals[os] : int_vs_side_vbf_vals_for_oshape(os, basis, vbf)
@@ -292,7 +292,7 @@ function side_vs_int_vbf_vals_for_oshape(fe_oshape::OShapeNum,
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
   const num_sides = Mesh.num_side_faces_for_shape(fe_oshape, basis.mesh)
   const vbf_vals = Array(R, num_sides, num_side_mons, num_int_mons)
-  for int_monn=monnum(1):num_int_mons, sf=fefacenum(1):num_sides, sf_monn=monnum(1):num_side_mons
+  for int_monn=monnum(1):num_int_mons, sf=feface_one:num_sides, sf_monn=monnum(1):num_side_mons
     vbf_vals[sf, sf_monn, int_monn] = side_mon_vs_int_mon(fe_oshape, sf_monn, sf, int_monn, basis, vbf)
   end
   vbf_vals
@@ -307,7 +307,7 @@ function int_vs_side_vbf_vals_for_oshape(fe_oshape::OShapeNum,
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
   const num_sides = Mesh.num_side_faces_for_shape(fe_oshape, basis.mesh)
   const vbf_vals = Array(R, num_sides, num_side_mons, num_int_mons)
-  for int_monn=monnum(1):num_int_mons, sf=fefacenum(1):num_sides, sf_monn=monnum(1):num_side_mons
+  for int_monn=monnum(1):num_int_mons, sf=feface_one:num_sides, sf_monn=monnum(1):num_side_mons
     vbf_vals[sf, sf_monn, int_monn] = int_mon_vs_side_mon(fe_oshape, int_monn, sf_monn, sf, basis, vbf)
   end
   vbf_vals
@@ -323,13 +323,13 @@ function side_vs_side_vbf_vals_for_oshape(fe_oshape::OShapeNum,
   const vbf_vals = Array(R, num_sides, num_side_mons, num_sides, num_side_mons)
 
   if !is_symmetric(vbf)
-    for sf_1=fefacenum(1):num_sides, sf_2=fefacenum(1):num_sides,
+    for sf_1=feface_one:num_sides, sf_2=feface_one:num_sides,
         monn_1=monnum(1):num_side_mons, monn_2=monnum(1):num_side_mons
       vbf_vals[sf_1, monn_1, sf_2, monn_2] = side_mon_vs_side_mon(fe_oshape, monn_1, sf_1, monn_2, sf_2, basis, vbf)
     end
   else # vbf is symmetric
     # fill entries where sides differ (symmetric case)
-    for sf_1=fefacenum(1):num_sides, sf_2=fefacenum(sf_1+1):num_sides
+    for sf_1=feface_one:num_sides, sf_2=fefacenum(sf_1+1):num_sides
       for monn_1=monnum(1):num_side_mons, monn_2=monnum(1):num_side_mons
         const vbf_val = side_mon_vs_side_mon(fe_oshape, monn_1, sf_1, monn_2, sf_2, basis, vbf)
         vbf_vals[sf_1, monn_1, sf_2, monn_2] = vbf_val
@@ -337,7 +337,7 @@ function side_vs_side_vbf_vals_for_oshape(fe_oshape::OShapeNum,
       end
     end
     # fill entries where sides are the same (symmetric case)
-    for sf=fefacenum(1):num_sides
+    for sf=feface_one:num_sides
       for monn_1=monnum(1):num_side_mons
         for monn_2=monnum(monn_1+1):num_side_mons
           const vbf_val = side_mon_vs_side_mon(fe_oshape, monn_1, sf, monn_2, sf, basis, vbf)

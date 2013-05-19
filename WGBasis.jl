@@ -28,8 +28,8 @@ export WeakFunsPolyBasis,
        ips_oshape_side_mons
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.fefacenum,
-       Mesh.oshapenum, Mesh.fenum
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one,
+       Mesh.oshape_one, Mesh.fenum
 import Poly, Poly.Monomial, Poly.Polynomial, Poly.PolynomialVector
 import WGrad, WGrad.WGradSolver
 
@@ -207,7 +207,7 @@ function make_interior_mon_wgrads(int_mons::Array{Monomial,1}, wgrad_solver::WGr
   const num_oshapes = Mesh.num_oriented_element_shapes(wgrad_solver.mesh)
   const wgrads_by_oshape = Array(Array{PolynomialVector,1}, num_oshapes)
   const num_mons = length(int_mons)
-  for os=oshapenum(1):num_oshapes
+  for os=oshape_one:num_oshapes
     const wgrads = Array(PolynomialVector, num_mons)
     for m=1:num_mons
       wgrads[m] = WGrad.wgrad(int_mons[m], os, Mesh.interior_face, wgrad_solver)
@@ -223,10 +223,10 @@ function make_side_mon_wgrads(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, 
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const wgrads_by_oshape = Array(Array{Array{PolynomialVector,1},1}, num_oshapes)
   const mons_per_side = length(side_mons_by_dep_dim[1])
-  for os=oshapenum(1):num_oshapes
+  for os=oshape_one:num_oshapes
     const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
     const wgrads_by_side = Array(Array{PolynomialVector,1}, sides_per_fe)
-    for sf=fefacenum(1):sides_per_fe
+    for sf=feface_one:sides_per_fe
       const side_dep_dim = Mesh.dependent_dim_for_oshape_side(os, sf, mesh)
       const side_mons = side_mons_by_dep_dim[side_dep_dim]
       const wgrads = Array(PolynomialVector, mons_per_side)
@@ -245,7 +245,7 @@ function make_interior_mon_ips(mons::Array{Monomial,1}, mesh::AbstractMesh)
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Matrix{R}, num_oshapes)
   const num_mons = length(mons)
-  for os=oshapenum(1):num_oshapes
+  for os=oshape_one:num_oshapes
     const m = Array(R, num_mons,num_mons)
     for i=1:num_mons
       const mon_i = mons[i]
@@ -266,10 +266,10 @@ function make_side_mon_ips(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, mes
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Array{Matrix{R}}, num_oshapes)
   const num_mons = length(side_mons_by_dep_dim[1])
-  for os=oshapenum(1):num_oshapes
+  for os=oshape_one:num_oshapes
     const num_side_faces = Mesh.num_side_faces_for_shape(os, mesh)
     const ips_by_side = Array(Matrix{R}, num_side_faces)
-    for sf=fefacenum(1):num_side_faces
+    for sf=feface_one:num_side_faces
       const m = Array(R, num_mons, num_mons)
       const dep_dim = Mesh.dependent_dim_for_oshape_side(os, sf, mesh)
       const ref_mons = side_mons_by_dep_dim[dep_dim]

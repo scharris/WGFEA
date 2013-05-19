@@ -2,7 +2,7 @@ module WGrad
 export WGradSolver, wgrad
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.oshapenum
+import Mesh, Mesh.AbstractMesh, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.oshape_one
 import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial, Poly.Nomial
 
 # For a weak function v on a finite element T, the weak gradient of degree r
@@ -54,7 +54,7 @@ function make_vmon_ips_by_oshape(vmons::Array{VectorMonomial,1}, mesh::AbstractM
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   const ips_by_oshape = Array(Matrix{R}, num_oshapes)
   const num_vmons = length(vmons)
-  for os=oshapenum(1):num_oshapes
+  for os=oshape_one:num_oshapes
     const m = Array(R, num_vmons,num_vmons)
     for i=1:num_vmons
       const bi = vmons[i]

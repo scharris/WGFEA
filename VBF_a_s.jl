@@ -3,7 +3,7 @@ export A_s, a_s
 
 using Common
 import Poly.Polynomial, Poly.Monomial
-import Mesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.fefacenum
+import Mesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one
 import Proj
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
 import VBF, VBF.AbstractVariationalBilinearForm
@@ -48,7 +48,7 @@ function int_mon_vs_int_mon(fe_oshape::OShapeNum,
   # = (1/h_T) sum_{s in sides(T)} {<Q_b (b_i)_0T, Q_b (b_j)_0T>_s}
   const stab = begin
     sum_over_sides = zeroR
-    for sf=fefacenum(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
+    for sf=feface_one:Mesh.num_side_faces_for_shape(fe_oshape, mesh)
       const proj_1 = bf.int_mon_side_projs[monn_1][fe_oshape][sf]
       const proj_2 = bf.int_mon_side_projs[monn_2][fe_oshape][sf]
       sum_over_sides += Mesh.integral_face_rel_x_face_rel_on_oshape_face(proj_1, proj_2, fe_oshape, sf, mesh)

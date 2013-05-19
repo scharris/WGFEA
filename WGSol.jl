@@ -11,7 +11,7 @@ export WGSolution,
 
 using Common
 import Poly, Poly.Polynomial
-import Mesh, Mesh.FENum, Mesh.FEFaceNum, Mesh.fefacenum, Mesh.fenum
+import Mesh, Mesh.FENum, Mesh.FEFaceNum, Mesh.fefacenum, Mesh.feface_one, Mesh.fenum
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.monnum
 import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
@@ -74,7 +74,7 @@ function wg_sol_wgrad_on_interior(fe::FENum, wg_sol::WGSolution)
   end
 
   # Add contributions for the solution's side polynomials, for both non-boundary and boundary sides.
-  for sf=fefacenum(1):Mesh.num_side_faces_for_shape(fe_oshape, mesh)
+  for sf=feface_one:Mesh.num_side_faces_for_shape(fe_oshape, mesh)
     if Mesh.is_boundary_side(fe, sf, mesh)
       const proj_coefs = boundary_projs[(fe, sf)]
       for side_monn=monnum(1):basis.mons_per_fe_side
@@ -193,7 +193,7 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
     const num_sides = Mesh.num_side_faces_for_shape(fe_oshape, mesh)
     # Find non-boundary sides
-    for sf=fefacenum(1):num_sides
+    for sf=feface_one:num_sides
       is_nb_side[sf] = !Mesh.is_boundary_side(fe, sf, mesh)
     end
 
@@ -202,7 +202,7 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
                                                fe, Mesh.interior_face,
                                                basis) -
                      wg_sol_interior_coefs(fe, wg_sol)
-    for sf=fefacenum(1):num_sides if is_nb_side[sf]
+    for sf=feface_one:num_sides if is_nb_side[sf]
       diff = Proj.project_onto_fe_face(exact_sol, fe, sf, basis)
       diff -= wg_sol_side_coefs(fe, sf, wg_sol)
       side_diffs[sf] = diff
@@ -215,7 +215,7 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
                                             basis,
                                             vbf)
 
-    for sf=fefacenum(1):num_sides if is_nb_side[sf]
+    for sf=feface_one:num_sides if is_nb_side[sf]
       const sf_diff = side_diffs[sf]
 
       # Add contributions from pairings of a side and interior.
@@ -248,7 +248,7 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
         sum += VBF.poly_on_face_vs_poly_on_face(fe_oshape, sf_diff, sf, sf_diff, sf, basis, vbf)
       else # vbf not symmetric
         # contributions for all side vs side pairings (asymmetric case)
-        for sf2=fefacenum(1):num_sides if is_nb_side[sf2]
+        for sf2=feface_one:num_sides if is_nb_side[sf2]
           sum += VBF.poly_on_face_vs_poly_on_face(fe_oshape, sf_diff, sf, side_diffs[sf2], sf2, basis, vbf)
         end end
       end

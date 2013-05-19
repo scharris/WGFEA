@@ -5,7 +5,7 @@ export project_onto_fe_face,
 
 using Common
 import Poly.Monomial, Poly.Polynomial
-import Mesh, Mesh.FENum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.fefacenum, Mesh.oshapenum
+import Mesh, Mesh.FENum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.feface_one, Mesh.oshape_one
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.monnum
 
 
@@ -74,10 +74,10 @@ function make_interior_mon_side_projs(basis::WeakFunsPolyBasis)
   const num_oshapes = Mesh.num_oriented_element_shapes(mesh)
   for int_monn=monnum(1):num_int_mons
     projs_by_oshape = Array(Array{Polynomial,1}, num_oshapes)
-    for os=oshapenum(1):num_oshapes
+    for os=oshape_one:num_oshapes
       const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
       const projs_by_side = Array(Polynomial, sides_per_fe)
-      for sf=fefacenum(1):sides_per_fe
+      for sf=feface_one:sides_per_fe
         const side_mons = WGBasis.side_mons_for_oshape_side(os, sf, basis)
         const proj_coefs = project_interior_mon_onto_oshape_side(int_mons[int_monn], os, sf, basis)
         projs_by_side[sf] = Polynomial(side_mons, proj_coefs)

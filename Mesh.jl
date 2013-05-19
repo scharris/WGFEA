@@ -2,7 +2,7 @@ module Mesh
 
 export FENum, fenum, no_fe,
        NBSideNum, nbsidenum,
-       FEFaceNum, fefacenum, interior_face, no_face,
+       FEFaceNum, fefacenum, interior_face, feface_one, no_face,
        OShapeNum, oshapenum,
        NBSideInclusions,
        AbstractMesh,
@@ -38,25 +38,27 @@ import Poly.Monomial, Poly.Polynomial, Poly.VectorMonomial, Poly.PolynomialVecto
 
 # Number type for enumeration of all finite elements in a mesh.
 typealias FENum Uint64
-fenum(i::Integer) = if i > 0 convert(Uint64, i) else error("finite element number out of range") end
+fenum(i::Integer) = if i > typemax(FENum) || i <= 0 error("fe number out of range") else convert(FENum, i) end
 const no_fe = zero(FENum)
 
 # Number type for enumeration of all non-boundary sides in a mesh.
 typealias NBSideNum Uint64
 no_nb_side = uint64(0)
-nbsidenum(i::Integer) = if i > 0 convert(Uint64, i) else error("non-boundary side number out of range") end
+nbsidenum(i::Integer) = if i > typemax(NBSideNum) || i <= 0 error("nb side number out of range") else convert(NBSideNum, i) end
 
 # Finite Element Relative Face - Number type for enumerating the interior and
 # side parts of a finite element relative to the element itself. For all
 # meshes, the interior face is always numbered 0, while the sides are numbered
 # 1 ... num_side_faces_for_fe(fe, mesh) for a given fe.
 typealias FEFaceNum Uint8
-fefacenum(i::Integer) = if i >= 0 convert(Uint8, i) else error("face number out of range") end
-const interior_face = zero(FEFaceNum)
-const no_face = 0xff
+fefacenum(i::Integer) = if i >= typemax(FEFaceNum) || i < 0 error("fe face number out of range") else convert(FEFaceNum, i) end
+const interior_face = fefacenum(0)
+const feface_one = fefacenum(1)
+const no_face = typemax(FEFaceNum)
 
-typealias OShapeNum Int8
-oshapenum(i::Integer) = if i > 127 || i <= 0 error("oriented shape number out of range") else convert(Int8, i) end
+typealias OShapeNum Uint16
+oshapenum(i::Integer) = if i > typemax(OShapeNum) || i <= 0 error("oriented shape number out of range") else convert(OShapeNum, i) end
+const oshape_one = oshapenum(1)
 
 # Given a side not in the outside boundary, this structure represents the two
 # finite elements which include the side, together with the side's face number
@@ -280,15 +282,15 @@ end
 # TODO: unit tests
 function num_non_boundary_sides_for_fe(fe::FENum, mesh::AbstractMesh)
   nb_sides = 0
-  for sf=fefacenum(1):Mesh.num_side_faces_for_fe(fe, mesh)
-    if !Mesh.is_boundary_side(fe, sf, mesh) nb_sides += 1 end
+  for sf=feface_one:num_side_faces_for_fe(fe, mesh)
+    if !is_boundary_side(fe, sf, mesh) nb_sides += 1 end
   end
   nb_sides
 end
 
 function max_num_shape_sides(mesh::AbstractMesh)
   max_sides= 0
-  for os=oshapenum(1):num_oriented_element_shapes(mesh)
+  for os=oshape_one:num_oriented_element_shapes(mesh)
     max_sides = max(max_sides, num_side_faces_for_shape(os, mesh))
   end
   max_sides
