@@ -1386,7 +1386,7 @@ Since the mesh interfaces and implentatiions do not consider at all the
 \end_inset
 
 , together with functions to interrogate the basis to determine the supporting
- finite element, face and monomial for any given basis element by its sequence
+ finite element faces and monomial for any given basis element by its sequence
  number in the enumeration.
 \end_layout
 
@@ -1436,7 +1436,7 @@ We'll first compute the number of basis elements needed, and then assign
 \uwave off
 \noun off
 \color none
-There are 
+Generally there are 
 \begin_inset Formula $\mbox{\tbinom{d+l-1}{l}}$
 \end_inset
 
@@ -1457,21 +1457,64 @@ There are
 \end_inset
 
 .
- Thus we need 
+ For interiors we therefore need 
 \begin_inset Formula $\nu_{1}=\mbox{\sum_{l=0}^{k}\tbinom{d+l-1}{l}}$
 \end_inset
 
- monomial basis elements supported on each interior to span polynomials
- of degree 
+ monomial basis elements supported on each interior to span the space of
+ polynomials of degree 
+\begin_inset Formula $\le$
+\end_inset
+
+ 
 \begin_inset Formula $k$
 \end_inset
 
- defined there, and likewise 
-\begin_inset Formula $\mbox{\nu_{2}=\sum_{l=0}^{k}\tbinom{d+l-2}{l-1}}$
+ defined there.
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+For any given side, we must choose some coordinate of our space which is
+ affine dependent on the other coordinates over the side, and then require
+ the corresponding monomial variable to have exponent of 0 in all basis
+ monomials supported on the side.
+ This will ensure that the monomials on the side are not linearly dependent.
+ These monomials will clearly still span the required polynomial space,
+ because the omitted variable in the monomials is an affine function of
+ the others.
+ This gives us 
+\begin_inset Formula $\mbox{\nu_{2}=\sum_{l=0}^{k-1}\tbinom{d+l-2}{l}}$
 \end_inset
 
  monomials supported on each side.
- Let 
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+Let 
 \begin_inset Formula $m_{fe}$
 \end_inset
 
@@ -1518,7 +1561,7 @@ num_nb_sides
 \begin_inset Formula 
 \begin{eqnarray*}
 b_{int} & =m_{fe}\,\nu_{1} & =m_{fe}\sum_{l=0}^{k}\tbinom{d+l-1}{l}\\
-b_{s} & =m_{s}\,\nu_{2} & =m_{s}\sum_{l=0}^{k}\tbinom{d+l-2}{l-1}\\
+b_{s} & =m_{s}\,\nu_{2} & =m_{s}\sum_{l=0}^{k-1}\tbinom{d+l-2}{l}\\
 b_{tot} & =b_{int}+b_{s}
 \end{eqnarray*}
 
@@ -1550,8 +1593,9 @@ We assign numbers to our basis elements as sugested by the two terms above,
  to interior numbers and side numbers respectively as defined by the mesh.
  Within a block of basis elements allocated to a particular interior or
  side, the monomials representing the basis element values on the face are
- arranged first in blocks by increasing degree, then within a degree block
- lexicographically by increasing exponent, so e.g.
+ ordered lexicographically by increasing exponent, with exponents of lower
+ axis number variables more significant than those of higher axis numbers,
+ so e.g.
  x^0 y^2 appears prior to x^1 y^1.
  Together with the mesh which determines the number and meaning of enumerated
  interiors and sides, these rules completely order our basis elements.

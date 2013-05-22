@@ -53,7 +53,7 @@ nbsidenum(i::Integer) = if i > typemax(NBSideNum) || i <= 0 error("nb side numbe
 typealias FEFaceNum Uint8
 fefacenum(i::Integer) = if i >= typemax(FEFaceNum) || i < 0 error("fe face number out of range") else convert(FEFaceNum, i) end
 const interior_face = fefacenum(0)
-const feface_one = fefacenum(1)
+const feface_one = fefacenum(1) # first side face
 const no_face = typemax(FEFaceNum)
 
 typealias OShapeNum Uint16

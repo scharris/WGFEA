@@ -3,11 +3,8 @@ Commit Notes
 
 TODO
 ----
-Make a mesh generator, which generates and records vertices, fe numbers, nb side numbers, boundary side #'s as it generates.
-  Construction
-    - Number of shapes
-    - Region test function, pt -> Bool
-    - Function current state, shape, position -> state including newly attached shapes
+Will have to abandon the idea of using physical regions or elementary geometric element tags to identify reference oshapes. Instead, when trying to determine the oshape for an element, just put the nodes in a standard order (sort by x then y), then lookup the offsets vector (n2-n1, n3-n1) in a dictionary (R,R) -> oshape.  Experiment with precision necessary to recognize same oshapes.
+
 
 Accept simple gmsh mesh files for triangles.
      $MeshFormat
@@ -43,19 +40,6 @@ Accept simple gmsh mesh files for triangles.
      $EndElements
 ...
 
-typealias Point (R,R)
-
-RefTri
-  # implicit first vertex at (0,0)
-  vert_2::Point
-  vert_3::Point
-  side_dep_dims::Array{Dim, 1}  # if abs(delta x) < abs(delta y) then 1 else 2
-
-ElTri
-  oshape::OShapeNum
-  # offset to apply to vertexes of the ref triangle (including an implicit (0,0) vertex) to obtain this element triangle
-  origin::Point
-
 local
 -----
 pts::Array{Point, 1}
@@ -64,7 +48,7 @@ side_incls::Dict{(PointNum, PointNum), Array{(FENum, FEFaceNum), 1}} # TODO: How
 fields
 ------
 oshapenums_by_physreg::Array{OShapeNum,1}
-oshape_ref_tris::Array{RefTri,1} # indexed by oshape #
+ref_tris_by_oshape::Array{RefTri,1} # indexed by oshape #
 fes::Array{ElTri, 1}
 nb_side_incls::Array{NBSideInclusions, 1} # by nb side num
 nbsidenums_by_feface::Dict{(FENum, FEFaceNum), NBSideNum}
@@ -73,13 +57,12 @@ num_b_sides
 
 method
 ------
-Read number of points, allocate pts array.
-Read and store points into pts array.
-
-Create empty oshapenums_by_physreg.
-Create empty oshape_ref_tris.
-Create empty side_incls (size hint to # fes * 3/2).
-Read number of elements, allocate fes array.
+x Read number of points, allocate pts array.
+x Read and store points into pts array.
+x Create empty oshapenums_by_physreg.
+x Create empty ref_tris_by_oshape.
+x Create empty side_incls (size hint to # fes * 3/2).
+x Read number of elements, allocate fes array.
 num_nb_sides = 0
 num_b_sides = 0
 Read elements, for each element:
@@ -88,9 +71,9 @@ Read elements, for each element:
     create a new RefTri, push onto shape_ref_tris
     if phys region was provided (triangle not unique), add phys region to oshapenums_by_physreg
 
-  Create new RefTri and oshape # (= length(oshape_ref_tris) + 1) if phys region attribute is not yet in oshapes_by_physprop (in which case add it)
+  Create new RefTri and oshape # (= length(ref_tris_by_oshape) + 1) if phys region attribute is not yet in oshapes_by_physprop (in which case add it)
   Create ElTri with first vertex coords and oshape #, add to fes.
-  For each side, add to fe_side_incls an entry
+  For each side, add to side_fe_incls an entry
     (lesser pt#, greater pt#) -> [(fe, rface)]
     if rhs has length 1 after adding, bump num_b_sides.
     if rhs has length 2 after adding, bump num_nb_sides, decrement num_b_sides.
@@ -100,7 +83,7 @@ nbsidenum = 0
 For each entry in side_incls
   if value has two fe inclusions
     ++nbsidenum
-    create NBSideInclusions, store at nb_side_incls[nbsidenum].
+    create NBSideInclusions, store at nbsidenum.
     add both (fe, feface) values to nbsidenums_by_feface
 
 
