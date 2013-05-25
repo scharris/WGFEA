@@ -1,194 +1,347 @@
 #module TMesh
 #export TMesh
 
+# require("TMesh"); ios = open("meshes/one_subdivided_triangle_mesh.msh"); tmsh = TriMesh(ios, 100)
+
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
-       Mesh.NBSideInclusions, Mesh.fefacenum
+       Mesh.NBSideInclusions, Mesh.fefacenum, Mesh.fenum, Mesh.oshapenum, Mesh.nbsidenum
 import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
-typealias Point Vec2
-typealias PointNum Uint
-typealias ElTag Uint32
+# vector type for representing relative node offsets and points in the mesh
+immutable Vec
+  _1::R
+  _2::R
+end
+typealias Point Vec
 
-# Element line format:
-# elm-number elm-type number-of-tags < tag > ... vert-number-list
-const TOKN_ELTYPE = 2
-const TOKN_NUMTAGS = 3
+# Gmsh element type code
+typealias ElTypeNum Uint8
+eltypenum(i::Integer) = convert(ElTypeNum, i)
+eltypenum(s::String) = convert(ElTypeNum, int(s))
 
-# Gmsh-defined triangle type codes
-const ELTYPE_3_NODE_TRIANGLE = 2
-const ELTYPE_6_NODE_TRIANGLE = 9 # 3 vertex nodes and 3 on on edges
-
-# Numbering the Sides of a Triangle
-# In order to enumerate the sides of a triangle, we first provide a consistent way
-# of ordering its vertex nodes. Vertex nodes are numbered by ordering the coordinate
-# components of the nodes lexicographically in ascending order, ie. by first
-# components most significantly then by second components for equal first components.
-#
-# Sides are then numbered as follows:
-#     side 1: vertex 1 to vertex 2
-#     side 2: vertex 1 to vertex 3
-#     side 3: vertex 2 to vertex 3
-#
-#       O-v2                  O-v3
-#   s1-   -s3          s2-    -s3
-#  v1-O   O-v3              O-v2
-#       ^s2        v1-O  ^s1
-#
-# sij Directed Side Notation
-# Using the same vertex numbering, we will also use the notation sij to indicate the
-# vector from vertex i to vertex j.
-
+# reference triangle
 immutable RefTri
-  el_type::Uint8
-  s12::Vec2,
-  s13::Vec2,
+  el_type::ElTypeNum
+  v12::Vec
+  v13::Vec
   dep_dims_by_sidenum::Array{Dim, 1}
-  outward_normals_by_sidenum::Array{Vec2, 1}
+  outward_normals_by_sidenum::Array{Vec, 1}
 end
 
+# finite element triangle
 immutable ElTri
   oshape::OShapeNum
   vertex_1::Point
 end
 
-
+# The oriented shape store associates reference triangles with oriented shape numbers, and oriented shape
+# numbers with triangle characteristics.  This enables an element's oriented shape and reference triangle
+# to be retrieved when given its nodes.
 type OShapeStore
-  oshapenums_by_vertex_offsets::Dict{(Vec2,Vec2), OShapeNum}
   ref_tris_by_oshapenum::Array{RefTri,1}
-
-  function OShapeStore(exp_num_oshapes::Int)
-    const ref_tris = Array(RefTri,0)
-    sizehint(ref_tris, exp_num_oshapes)
-
-    const oshapenums_by_vertex_offsets = Dict{(Vec2,Vec2), OShapeNum}()
-    sizehint(oshapenums_by_vertex_offsets, exp_num_oshapes)
-
+  oshapenums_by_vertex_offsets::Dict{(Vec,Vec,ElTypeNum), OShapeNum}
+  function OShapeStore(exp_num_oshapes::Integer)
+    const ref_tris = sizehint(Array(RefTri,0), exp_num_oshapes)
+    const oshapenums_by_vertex_offsets = sizehint(Dict{(Vec,Vec,ElTypeNum), OShapeNum}(), exp_num_oshapes)
     new(ref_tris, oshapenums_by_vertex_offsets)
   end
 end
 
 
-function find_or_create_oshape(pts::Array{Point,1}, el_tags::Array{AsciiString,1}, oshape_store::OShapeStore)
-  const s12 = pts[2]-pts[1]
-  const s13 = pts[3]-pts[1]
-  # TODO: How to best do this?  Side vectors probably won't often be found exactly.
-  #       Probably should mark as physical regions the initial mesh triangles
-  #       within gmsh, via a new script which converts a .msh to .geo with the
-  #       physical regions declared.  Then can progressively refine this .geo
-  #       by splitting.  Each physical region should then only contain two kinds
-  #       of triangles, one an inversion of the other.
-  # Or, could just try looking for the point +- 0,1,2 eps in each coordinate of the
-  # key pair, ie. do multiple hash lookups.
-  const existing_oshapenum = get(oshapenums_by_vertex_offsets, (s12, s13), nothing)
-  if existing_oshapenum != nothing
-    existing_oshapenum::OShapeNum
-  else
-    const s23 = pts[3]-pts[2]
-    const ref_tri = RefTri(el_type,
-                           s12,
-                           s13,
-                           side_dep_dims(s12, s13, s23),
-                           outward_normals(s12, s13, s23))
-     # TODO
-  end
-end
+immutable TriMesh <: AbstractMesh
 
-
-immutable TriMesh
-
+  # finite elements
   fes::Array{ElTri,1}
 
-  nbsideincls_by_nbsidenum::Array{NBSideInclusions,1}
+  # reference elements
+  refs::Array{RefTri,1}
+
+  # non-boundary side numbers by fe face.
   nbsidenums_by_feface::Dict{(FENum, FEFaceNum), NBSideNum}
 
+  # inclusions of non-boundary sides in fe's, indexed by non-boundary side number
+  nbsideincls_by_nbsidenum::Array{NBSideInclusions,1}
+
+  # number of boundary sides
   num_b_sides::Int64
 
+  # mesh construction from input stream
   function TriMesh(ios::IOStream, est_ref_tris::Int)
+    const oshape_store = OShapeStore(est_ref_tris)
 
-    const pts_by_ptnum = read_points(ios)
+    const pts_by_nodenum = read_points(ios)
 
-    if !read_through_line(ios, "\$Elements\n")
-      error("Could not find beginning of elements section in mesh file.")
+    if !read_through_line(ios, "\$Elements\n") error("Could not find beginning of elements section in mesh file.") end
+
+    # Read to first triangle, estimating number of elements from that declared and number of lower order elements skipped.
+    const decl_num_els = int(readline(ios)) # can include unwanted lower order elements in the count
+    line, lines_read = read_until(ios, is_triangle_el_or_endmarker)
+    const est_num_fes = decl_num_els - (lines_read - 1)
+    println("Estimated $est_num_fes elements, $(lines_read - 1) lower order elements skipped.")
+
+    const fes = sizehint(Array(ElTri, 0), est_num_fes)
+    const side_endpoints_fe_incls = sizehint(Dict{(Point, Point), Array{(FENum, FEFaceNum),1}}(), uint64(est_num_fes * 3/2)) # 3+ sides per triangle, most included in 2 fes
+    const verts = Array(Point, 3)
+    num_nb_sides = 0
+    num_b_sides = 0
+
+    while line != "\$EndElements\n" && line != ""
+      const toks = split(line, ' ')
+      const el_type = eltypenum(toks[TOKN_ELLINE_ELTYPE])
+      if is_lower_order_el_type(el_type) continue end
+      if !is_triangle_el_type(el_type) error("Element type $el_type is not supported.") end
+      const el_tags = toks[TOKN_ELLINE_NUMTAGS+1 : TOKN_ELLINE_NUMTAGS+int(toks[TOKN_ELLINE_NUMTAGS])]
+
+      println("Filling vertexes for line $line.")
+
+      # Get vertexes. Remaining points are not read because they are determined by the element type and vertexes.
+      fill_verts_left_lower_first(toks, pts_by_nodenum, verts)
+
+      println("Filled vertexes")
+
+      const oshape = find_or_create_oshape(el_type, el_tags, verts, oshape_store)
+
+      const el_tri = ElTri(oshape, verts[1])
+      push!(fes, el_tri)
+      const fe_num = fenum(length(fes))
+
+      const nb_delta, b_delta = register_fe_faces_by_side_endpoints(fe_num, el_type, verts, side_endpoints_fe_incls)
+      num_nb_sides += nb_delta
+      num_b_sides += b_delta
+
+      line = readline(ios)
+    end # element line reading loop
+
+    if line != "\$EndElements\n" error("Missing end of elements marker in mesh file.") end
+
+    const nbsidenums_by_feface, nbsideincls_by_nbsidenum =
+      create_nb_sides_data(side_endpoints_fe_incls, num_nb_sides_hint=num_nb_sides)
+
+    new(fes,
+        oshape_store.ref_tris_by_oshapenum,
+        nbsidenums_by_feface,
+        nbsideincls_by_nbsidenum,
+        num_b_sides)
+  end
+end
+
+# Fill the passed buffer with vertex points.  The vertexes are filled with the left-lower-most vertex first,
+# otherwise matching (cyclically) the order in the mesh file.
+function fill_verts_left_lower_first(toks::Array{String,1},
+                                     pts_by_nodenum::Array{Point,1},
+                                     verts_buf::Array{Point,1})
+  const last_tag_tokn = TOKN_ELLINE_NUMTAGS + int(toks[TOKN_ELLINE_NUMTAGS])
+  for i=1:3
+    verts_buf[i] = pts_by_nodenum[uint64(toks[last_tag_tokn + i])]
+  end
+
+  # Rearrange the vertexes if necessary to make the first point the least lexicographically.
+  if isless(verts_buf[2],verts_buf[1]) && isless(verts_buf[2],verts_buf[3])
+    const pt_1 = verts_buf[1]
+    verts_buf[1] = verts_buf[2]
+    verts_buf[2] = verts_buf[3]
+    verts_buf[3] = pt_1
+  elseif isless(verts_buf[3],verts_buf[1]) && isless(verts_buf[3],verts_buf[2])
+    const pt_3 = verts_buf[3]
+    verts_buf[3] = verts_buf[2]
+    verts_buf[2] = verts_buf[1]
+    verts_buf[1] = pt_3
+  end
+end
+
+# Register the finite element's side faces by their endpoints in the passed registry.
+function register_fe_faces_by_side_endpoints(fe_num::FENum,
+                                             el_type::ElTypeNum,
+                                             verts::Array{Point,1},
+                                             side_endpoints_fe_incls::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}})
+  const side_endpoint_pairs = sideface_endpoint_pairs(el_type, verts, lesser_endpoints_first=true)
+  nb_sides_delta = 0
+  b_sides_delta = 0
+
+  # Record the side faces included by this element.
+  for sf=fefacenum(1):fefacenum(length(side_endpoint_pairs))
+    const side_endpoints_stdord = side_endpoint_pairs[sf]
+    const existing_side_incls = get(side_endpoints_fe_incls, side_endpoints_stdord, nothing)
+    if existing_side_incls != nothing
+      push!(existing_side_incls, (fe_num, sf))
+      b_sides_delta -= 1
+      nb_sides_delta += 1
     else
-      # Estimate the number of finite elements.
-      const decl_num_els = int(readline(ios)) # can include unwanted lower order elements in the count
-      # Skip non-triangle elements which are assumed to be lower order, subtract skipped elements from declared number of elements from the file.
-      line, lines_read = read_until(ios, is_triangle_el_or_endmarker)
-      const est_num_fes = decl_num_els - (lines_read - 1)
-
-      const fes = Array(ElTri, 0)
-      sizehint(fes, est_num_fes)
-
-      const side_fe_incls = Dict{(PointNum, PointNum), Array{(FENum, FEFaceNum),1}}()
-      sizehint(side_fe_incls, est_num_fes * 3/2)
-
-      const oshape_store = OShapeStore(est_ref_tris)
-
-      num_nb_sides = 0
-      num_b_sides = 0
-
-      while line != "\$EndElements" && line != ""
-        const toks = split(line, ' ')
-        const el_type = int(toks[TOKN_ELTYPE])
-
-        if el_type == ELTYPE_6_NODE_TRIANGLE
-          error("6 node triangles are not yet supported.")
-
-        elseif el_type == ELTYPE_3_NODE_TRIANGLE
-          const el_pts = sort(map(ptnum_str -> pts_by_ptnum[int(ptnum_str)],
-                                  toks[TOKN_NUMTAGS+int(toks[TOKN_NUMTAGS])+1:]))
-
-          # Lookup or create the oriented shape for this element.
-          const oshape = let el_tags = toks[TOKN_NUMTAGS+1 : TOKN_NUMTAGS+int(toks[TOKN_NUMTAGS])]
-            find_or_create_oshape(el_pts, el_tags)
-          end
-
-          const el_tri = ElTri(oshape, el_pts[1])
-          fes.push!(el_tri)
-          const fenum = length(fes)
-
-          # TODO
-          # For each side, add to side_fe_incls an entry
-          #   (lesser pt#, greater pt#) -> [(fe, rface)]
-          #   if rhs has length 1 after adding, bump num_b_sides.
-          #   if rhs has length 2 after adding, bump num_nb_sides, decrement num_b_sides.
-        end
-
-        line = readline(ios)
-      end # line reading loop
-
-      if line == ""
-        error("Missing end of elements marker in mesh file.")
-      end
-
-      # TODO: Process side_incls, build nb sides data structures
-      # nbsideincls_by_nbsidenum::Array{NBSideInclusions,1}
-      # nbsidenums_by_feface::Dict{(FENum, FEFaceNum), NBSideNum}
-
-      "TODO"
+      side_endpoints_fe_incls[side_endpoints_stdord] = [(fe_num, sf)]
+      b_sides_delta += 1
+    end
   end
+  nb_sides_delta, b_sides_delta
+end
+
+# Return the pair consisting of
+#   1) nb side numbers by (fe,face) :: Dict{(FENum, FEFaceNum), NBSideNum},
+#   2) an array of NBSideInclusions indexed by nb side number.
+function create_nb_sides_data(side_endpoints_fe_incls::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}};
+                              num_nb_sides_hint::Integer=0)
+  const nbsidenums_by_feface = sizehint(Dict{(FENum, FEFaceNum), NBSideNum}(), 2*num_nb_sides_hint)
+  const nbsideincls_by_nbsidenum = sizehint(Array(NBSideInclusions, 0), num_nb_sides_hint)
+
+  for side_endpoints in keys(side_endpoints_fe_incls)
+    const fe_faces = side_endpoints_fe_incls[side_endpoints]
+    const num_fe_incls = length(fe_faces)
+    if num_fe_incls == 2
+      sort!(fe_faces)
+      const (fe_1, side_face_1) = fe_faces[1]
+      const (fe_2, side_face_2) = fe_faces[2]
+
+      # Assign a new non-boundary side number.
+      const nb_side_num = nbsidenum(length(nbsideincls_by_nbsidenum) + 1)
+
+      # Add nb side inclusions structure for this nb side number.
+      push!(nbsideincls_by_nbsidenum,
+            NBSideInclusions(nb_side_num,
+                             fe_1, side_face_1,
+                             fe_2, side_face_2))
+
+      # Map the two fe/face pairs to this nb side number.
+      nbsidenums_by_feface[fe_faces[1]] = nb_side_num
+      nbsidenums_by_feface[fe_faces[2]] = nb_side_num
+    elseif num_fe_incls > 2
+      error("Invalid mesh: side encountered with more than two including finite elements.")
+    end
+  end
+
+  nbsidenums_by_feface, nbsideincls_by_nbsidenum
+end
+
+function side_dep_dims(el_type::ElTypeNum, verts::Array{Point,1})
+  const sfs_btw_verts = num_side_faces_between_any_two_vertexes(el_type)
+  const dep_dims = sizehint(Array(Dim, 0), 3*sfs_btw_verts)
+  for vp=1:3  # vertex pairs
+    const v1 = verts[vp]
+    const v2 = verts[mod(vp,3)+1]
+    const dep_dim = abs(v2._1-v1._1) > abs(v2._2-v1._2) ? dim(2) : dim(1)
+    for sf=1:sfs_btw_verts
+      push!(dep_dims, dep_dim)
+    end
+  end
+  dep_dims
+end
+
+# Computing Outward Normals for Side Faces
+# The outward normal for an inter-vertex vector w (extended to R^3 via 0 third component) is
+#   n = (w x (0,0,cc)) / |w|
+#     = cc (w[2], -w[1], 0) / |w|.
+# where cc = 1 if w is part of a clockwise traversal of the triangle, and -1 otherwise.
+# For any pair of successive inter-vertex vectors w_1 and w_2, cc can be computed as:
+#   cc = sgn(z(w_1 x w_2)), where z is projection of component 3.
+function outward_normals(el_type::ElTypeNum, verts::Array{Point,1})
+  const sfs_btw_verts = num_side_faces_between_any_two_vertexes(el_type)
+  const normals = sizehint(Array(Vec, 0), 3*sfs_btw_verts)
+  # inter-vertex vectors
+  const v12 = verts[2]-verts[1]
+  const v23 = verts[3]-verts[2]
+  const v31 = verts[1]-verts[3]
+  const cc = counterclockwise(v12, v23) ? 1. : -1.
+  for ivv in (v12, v23, v31)
+    const len = norm(ivv)
+    const n = Vec(cc * ivv._2/len, -cc * ivv._1/len)
+    for sf=1:sfs_btw_verts
+      push!(normals, n)
+    end
+  end
+  normals
+end
+
+
+# oriented shape storage operations
+
+function find_or_create_oshape(el_type::ElTypeNum,
+                               el_tags::Array{String,1},
+                               verts::Array{Point,1},
+                               oshape_store::OShapeStore)
+  # The reference oriented shape is determined by the vectors from node 1 to the other nodes, taken
+  # as a pair in counterclockwise orientation, together with the mesh's element type code (which
+  # determines how many additional nodes may be on each triangle side).
+  const v12 = verts[2]-verts[1]
+  const v13 = verts[3]-verts[1]
+  const oshape_key = counterclockwise(v12, v13) ? (v12, v13, el_type) : (v13, v12, el_type)
+
+  # TODO: This simple lookup is likely to often fail because of small floating point differences, so
+  #       should try looking for the point +- 0,1,2 eps in each coordinate of the key pair, ie. do multiple hash lookups.
+  const existing_oshape = get(oshape_store.oshapenums_by_vertex_offsets, oshape_key, nothing)
+
+  if existing_oshape != nothing
+    existing_oshape
+  else
+    const ref_tri = RefTri(el_type,
+                           v12,
+                           v13,
+                           side_dep_dims(el_type, verts),
+                           outward_normals(el_type, verts))
+
+    push!(oshape_store.ref_tris_by_oshapenum, ref_tri)
+    const oshape = oshapenum(length(oshape_store.ref_tris_by_oshapenum))
+    oshape_store.oshapenums_by_vertex_offsets[oshape_key] = oshape
+    oshape
   end
 end
 
-function side_dep_dims(side_1::Vec2, side_2::Vec2, side_3::Vec2)
-  const dep_dims = Array(Dim, 0)
-  for sv in (side_1, side_2, side_3)
-    dep_dims.push(abs(sv[1]) > abs(sv[2]) ? dim(2) : dim(1))
+# element types
+
+
+# Gmsh triangle type codes
+const ELTYPE_3_NODE_TRIANGLE = eltypenum(2)
+const ELTYPE_6_NODE_TRIANGLE = eltypenum(9) # 3 vertex nodes and 3 on on edges
+# lower order elements, which can be ignored
+const ELTYPE_POINT = eltypenum(15)
+const ELTYPE_2_NODE_LINE = eltypenum(1)
+const ELTYPE_3_NODE_LINE = eltypenum(8)
+const ELTYPE_4_NODE_LINE = eltypenum(26)
+const ELTYPE_5_NODE_LINE = eltypenum(27)
+const ELTYPE_6_NODE_LINE = eltypenum(28)
+
+
+function is_triangle_el_type(el_type::ElTypeNum)
+  el_type == ELTYPE_3_NODE_TRIANGLE || el_type == ELTYPE_6_NODE_TRIANGLE
+end
+
+function is_lower_order_el_type(el_type::ElTypeNum)
+  el_type == ELTYPE_POINT ||
+  el_type == ELTYPE_2_NODE_LINE ||
+  el_type == ELTYPE_3_NODE_LINE ||
+  el_type == ELTYPE_4_NODE_LINE ||
+  el_type == ELTYPE_5_NODE_LINE ||
+  el_type == ELTYPE_6_NODE_LINE
+end
+
+# This function defines the side faces enumeration for a finite element of given vertexes and mesh
+# element type. Side faces are returned as an array of side endpoint pairs indexed by side face
+# number. If lesser_endpoints_first is true, then each endpoint pair endpoint will have the lesser
+# point (compared lexicographically) in the first component of the pair.
+function sideface_endpoint_pairs(el_type::ElTypeNum, verts::Array{Point,1}; lesser_endpoints_first::Bool=false)
+  const mk_pair = if lesser_endpoints_first; (pt1::Point, pt2::Point) -> isless(pt1,pt2) ? (pt1, pt2) : (pt2, pt1)
+                  else (pt1::Point, pt2::Point) -> (pt1, pt2) end
+  if el_type == ELTYPE_3_NODE_TRIANGLE
+    [mk_pair(verts[1],verts[2]), mk_pair(verts[2],verts[3]), mk_pair(verts[3],verts[1])]
+  elseif el_type == ELTYPE_6_NODE_TRIANGLE
+    error("6 node triangles not yet supported.")
+  else
+    error("Unsupported element type $el_type.")
   end
 end
 
-# Computing Outward Normals
-# Let s be the z component of s12 x s13 (cross product).
-# Then the outward normals are
-#  side 1:  s12 x (0,0,s)
-#  side 2: -s13 x (0,0,s)
-#  side 3:  s23 x (0,0,s)
-function outward_normals(s12::Vec2, s13::Vec2, s23::Vec2)
-  # TODO
+pair_lesser_fst(pt1::Point, pt2::Point) = if isless(pt1,pt2) (pt1, pt2) else (pt2, pt1) end
+
+function num_side_faces_between_any_two_vertexes(el_type::ElTypeNum)
+  if el_type == ELTYPE_3_NODE_TRIANGLE
+    1
+  elseif el_type == ELTYPE_6_NODE_TRIANGLE
+    2
+  else
+    error("Unsupported element type $el_type.")
+  end
 end
 
+# file reading utilities
 
 function read_points(ios::IOStream)
   if !read_through_line(ios, "\$Nodes\n")
@@ -200,15 +353,24 @@ function read_points(ios::IOStream)
     l = strip(readline(ios))
     while l != "\$EndNodes" && l != ""
       const toks = split(l, ' ')
-      const pt = (convert(R, float64(toks[2])), convert(R, float64(toks[3])))
-      if length(toks) >= 4 && toks[4] != "0" && toks[4] != "0.0"
+      const pt = Point(convert(R, float64(toks[TOKN_NODELINE_POINT1])), convert(R, float64(toks[TOKN_NODELINE_POINT2])))
+      if length(toks) >= TOKN_NODELINE_POINT3 && toks[TOKN_NODELINE_POINT3] != "0" && toks[TOKN_NODELINE_POINT3] != "0.0"
         error("Nodes with non-zero third coordinates are not supported in this 2D mesh reader.")
       end
-      pts[int(toks[1])] = pt
+      pts[uint64(toks[TOKN_NODELINE_ELNUM])] = pt
       l = strip(readline(ios))
     end
     if l == "" error("End of nodes section not found in mesh file.") end
     pts
+  end
+end
+
+function is_triangle_el_or_endmarker(line::ASCIIString)
+  if line == "\$EndElements"
+    true
+  else
+    const toks = split(line, ' ')
+    is_triangle_el_type(eltypenum(toks[TOKN_ELLINE_ELTYPE]))
   end
 end
 
@@ -220,8 +382,8 @@ function read_through_line(io::IOStream, line::ASCIIString)
   l != ""
 end
 
-# Read the stream until the line condition function returns true or the stream is exhausted.
-# Return either the line passing the condition, or "" if the stream was exhausted, and (in either case)
+# Read the stream until the line condition function returns true or the stream is exhausted, returning
+# either the line passing the condition, or "" if the stream was exhausted, and (in either case)
 # the number of lines read including the successful line if any.
 function read_until(io::IOStream, line_cond_fn::Function)
   l = readline(io)
@@ -233,29 +395,38 @@ function read_until(io::IOStream, line_cond_fn::Function)
   l, lines_read
 end
 
-function is_triangle_el_or_endmarker(line::ASCIIString)
-  if line == "\$EndElements"
-    true
-  else
-    const toks = split(line, ' ')
-    const el_type = int(toks[TOKN_ELTYPE])
-    el_type == ELTYPE_3_NODE_TRIANGLE || el_type == ELTYPE_6_NODE_TRIANGLE
-  end
-end
 
+# vector operations
 
-immutable Vec2
-  x::R,
-  y::R
-end
+import Base.getindex
+getindex(v::Vec, i::Integer) = if i == 1 v._1 elseif i == 2 v._2 else throw(BoundsError()) end
 
 import Base.(+)
-+(v1::Vec2, v2::Vec2) = Vec2(v1.x + v2.x, v1.y + v2.y)
++(v::Vec, w::Vec) = Vec(v._1 + w._1, v._2 + w._2)
 
 import Base.(-)
--(v1::Vec2, v2::Vec2) = Vec2(v1.x - v2.x, v1.y - v2.y)
+-(v::Vec, w::Vec) = Vec(v._1 - w._1, v._2 - w._2)
 
 import Base.norm
-norm(v::Vec2) = sqrt(v1.x*v1.x + v1.y*v1.y)
+norm(v::Vec) = hypot(v._1, v._2)
+
+import Base.isless
+isless(v::Vec, w::Vec) = v._1 < w._1 || v._1 == w._1 && v._2 < w._2
+
+counterclockwise(u::Vec, v::Vec) =
+  u._1*v._2 - u._2*v._1 > 0
+
+
+# constants related to the Gmsh format
+
+const TOKN_NODELINE_ELNUM = 1
+const TOKN_NODELINE_POINT1 = 2
+const TOKN_NODELINE_POINT2 = 3
+const TOKN_NODELINE_POINT3 = 4
+
+# Gmsh element line format:
+# elm-number elm-type number-of-tags < tag > ... vert-number-list
+const TOKN_ELLINE_ELTYPE = 2
+const TOKN_ELLINE_NUMTAGS = 3
 
 #end # end of module

@@ -1,90 +1,19 @@
 Commit Notes
 ------------
 
+
 TODO
 ----
+Writeup const let problem
+  y = 1
+  let
+    const y = 1 (rebinds y from outer context)
+  end
+Also suggest "in" keyword, which would prevent accidentally leaving off a comma which totally changes the binding behavior.
+And allow dependencies between bindings.
+
+
 Will have to abandon the idea of using physical regions or elementary geometric element tags to identify reference oshapes. Instead, when trying to determine the oshape for an element, just put the nodes in a standard order (sort by x then y), then lookup the offsets vector (n2-n1, n3-n1) in a dictionary (R,R) -> oshape.  Experiment with precision necessary to recognize same oshapes.
-
-
-Accept simple gmsh mesh files for triangles.
-     $MeshFormat
-     2.2 0 8
-     $EndMeshFormat
-     $Nodes
-     6                      six mesh nodes:
-     1 0.0 0.0 0.0            node #1: coordinates (0.0, 0.0, 0.0)
-     2 1.0 0.0 0.0            node #2: coordinates (1.0, 0.0, 0.0)
-     3 1.0 1.0 0.0            etc.
-     4 0.0 1.0 0.0
-     5 2.0 0.0 0.0
-     6 2.0 1.0 0.0
-     $EndNodes
-     $Elements
-     2                      two elements:
-     1 3 2 99 2 1 2 3 4       quad #1: type 3, physical 99, elementary 2, nodes 1 2 3 4
-     2 3 2 99 2 2 5 6 3       quad #2: type 3, physical 99, elementary 2, nodes 2 5 6 3
-     $EndElements
-# General Format:
-     $MeshFormat
-     version-number file-type data-size
-     $EndMeshFormat
-     $Nodes
-     number-of-nodes
-     node-number x-coord y-coord z-coord
-     ...
-     $EndNodes
-     $Elements
-     number-of-elements
-     elm-number elm-type number-of-tags < tag > ... node-number-list
-     ...
-     $EndElements
-...
-
-local
------
-pts::Array{Point, 1}
-side_incls::Dict{(PointNum, PointNum), Array{(FENum, FEFaceNum), 1}} # TODO: How to assign RelFace in standard way?
-
-fields
-------
-oshapenums_by_physreg::Array{OShapeNum,1}
-ref_tris_by_oshape::Array{RefTri,1} # indexed by oshape #
-fes::Array{ElTri, 1}
-nb_side_incls::Array{NBSideInclusions, 1} # by nb side num
-nbsidenums_by_feface::Dict{(FENum, FEFaceNum), NBSideNum}
-num_nb_sides
-num_b_sides
-
-method
-------
-x Read number of points, allocate pts array.
-x Read and store points into pts array.
-x Create empty oshapenums_by_physreg.
-x Create empty ref_tris_by_oshape.
-x Create empty side_incls (size hint to # fes * 3/2).
-x Read number of elements, allocate fes array.
-num_nb_sides = 0
-num_b_sides = 0
-Read elements, for each element:
-  Parse el #, physical region, pt1, pt2, pt3
-  If phys region is not in oshapenums_by_physreg or not provided, then
-    create a new RefTri, push onto shape_ref_tris
-    if phys region was provided (triangle not unique), add phys region to oshapenums_by_physreg
-
-  Create new RefTri and oshape # (= length(ref_tris_by_oshape) + 1) if phys region attribute is not yet in oshapes_by_physprop (in which case add it)
-  Create ElTri with first vertex coords and oshape #, add to fes.
-  For each side, add to side_fe_incls an entry
-    (lesser pt#, greater pt#) -> [(fe, rface)]
-    if rhs has length 1 after adding, bump num_b_sides.
-    if rhs has length 2 after adding, bump num_nb_sides, decrement num_b_sides.
-
-Create nb_side_incls, of length num_nb_sides.
-nbsidenum = 0
-For each entry in side_incls
-  if value has two fe inclusions
-    ++nbsidenum
-    create NBSideInclusions, store at nbsidenum.
-    add both (fe, feface) values to nbsidenums_by_feface
 
 
 Mesh functions
