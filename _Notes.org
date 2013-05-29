@@ -1,9 +1,6 @@
-Commit Notes
-------------
-
-
 TODO
 ----
+
 Writeup const let problem
   y = 1
   let
@@ -11,9 +8,6 @@ Writeup const let problem
   end
 Also suggest "in" keyword, which would prevent accidentally leaving off a comma which totally changes the binding behavior.
 And allow dependencies between bindings.
-
-
-Will have to abandon the idea of using physical regions or elementary geometric element tags to identify reference oshapes. Instead, when trying to determine the oshape for an element, just put the nodes in a standard order (sort by x then y), then lookup the offsets vector (n2-n1, n3-n1) in a dictionary (R,R) -> oshape.  Experiment with precision necessary to recognize same oshapes.
 
 
 Mesh functions

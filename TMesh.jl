@@ -1,5 +1,5 @@
-#module TMesh
-#export TMesh
+module TMesh
+export TMesh
 
 # require("TMesh"); ios = open("meshes/one_subdivided_triangle_mesh.msh"); tmsh = TriMesh(ios, 100)
 
@@ -16,176 +16,345 @@ immutable Vec
 end
 typealias Point Vec
 
-# Gmsh element type code
-typealias ElTypeNum Uint8
-eltypenum(i::Integer) = convert(ElTypeNum, i)
-eltypenum(s::String) = convert(ElTypeNum, int(s))
-
 # reference triangle
 immutable RefTri
-  el_type::ElTypeNum
   v12::Vec
   v13::Vec
-  dep_dims_by_sidenum::Array{Dim, 1}
-  outward_normals_by_sidenum::Array{Vec, 1}
+  nums_faces_between_vertexes::(Int,Int,Int) # v1v2, v2v3, v3v1
+  outward_normals_by_sideface::Array{Vec,1}
+  diameter_inv::R
 end
 
 # finite element triangle
 immutable ElTri
   oshape::OShapeNum
-  vertex_1::Point
+  v1::Point
 end
-
-# The oriented shape store associates reference triangles with oriented shape numbers, and oriented shape
-# numbers with triangle characteristics.  This enables an element's oriented shape and reference triangle
-# to be retrieved when given its nodes.
-type OShapeStore
-  ref_tris_by_oshapenum::Array{RefTri,1}
-  oshapenums_by_vertex_offsets::Dict{(Vec,Vec,ElTypeNum), OShapeNum}
-  function OShapeStore(exp_num_oshapes::Integer)
-    const ref_tris = sizehint(Array(RefTri,0), exp_num_oshapes)
-    const oshapenums_by_vertex_offsets = sizehint(Dict{(Vec,Vec,ElTypeNum), OShapeNum}(), exp_num_oshapes)
-    new(ref_tris, oshapenums_by_vertex_offsets)
-  end
-end
-
 
 immutable TriMesh <: AbstractMesh
-
-  # finite elements
+  # finite elements, indexed by finite element number
   fes::Array{ElTri,1}
 
-  # reference elements
-  refs::Array{RefTri,1}
+  # reference triangles, indexed by oriented shape number
+  oshapes::Array{RefTri,1}
 
   # non-boundary side numbers by fe face.
-  nbsidenums_by_feface::Dict{(FENum, FEFaceNum), NBSideNum}
+  nbsidenums_by_feface::Dict{(FENum,FEFaceNum), NBSideNum}
 
   # inclusions of non-boundary sides in fe's, indexed by non-boundary side number
   nbsideincls_by_nbsidenum::Array{NBSideInclusions,1}
 
+  # dependent dimensions for nb sides
+  # For a given non-boundary side, this is a coordinate that is a function of the others over the side.
+  dep_dims_by_nbsidenum::Array{Dim,1}
+
   # number of boundary sides
   num_b_sides::Int64
+end
 
-  # mesh construction from input stream
-  function TriMesh(ios::IOStream, est_ref_tris::Int)
-    const oshape_store = OShapeStore(est_ref_tris)
 
-    const pts_by_nodenum = read_points(ios)
+# Construct from Gmsh .msh formatted input stream, and number of subdivision operations to perform within each
+# mesh element from the stream.  Some elements may have additional iterations specified via Gmsh tags.
+function TriMesh(ios::IOStream, base_subdiv_iters::Integer)
+  const base_subdiv_iters = subdiv_iters >= 0 ? uint(subdiv_iters) : throw(ArgumentError("Number of iterations must be non-negative."))
 
-    if !read_through_line(ios, "\$Elements\n") error("Could not find beginning of elements section in mesh file.") end
+  # Read the points from the input mesh, storing by mesh node number.  The elements section of the input
+  # stream will refer to these node numbers.
+  const mesh_pts_by_nodenum = read_points(ios)
 
-    # Read to first triangle, estimating number of elements from that declared and number of lower order elements skipped.
-    const decl_num_els = int(readline(ios)) # can include unwanted lower order elements in the count
-    line, lines_read = read_until(ios, is_triangle_el_or_endmarker)
-    const est_num_fes = decl_num_els - (lines_read - 1)
-    println("Estimated $est_num_fes elements, $(lines_read - 1) lower order elements skipped.")
+  # Read to the beginning of the elements section.
+  if !read_through_line(ios, "\$Elements\n") error("Could not find beginning of elements section in mesh file.") end
 
-    const fes = sizehint(Array(ElTri, 0), est_num_fes)
-    const side_endpoints_fe_incls = sizehint(Dict{(Point, Point), Array{(FENum, FEFaceNum),1}}(), uint64(est_num_fes * 3/2)) # 3+ sides per triangle, most included in 2 fes
-    const verts = Array(Point, 3)
-    num_nb_sides = 0
-    num_b_sides = 0
+  # Skip point and line elements, estimating number of input mesh triangles from the number of elements declared.
+  const decl_num_els = uint64(readline(ios)) # This count can include unwanted lower order elements.
+  line, lines_read = read_until(ios, is_polytope_or_endmarker)
+  const est_mesh_tris = decl_num_els - (lines_read - 1)
 
-    while line != "\$EndElements\n" && line != ""
-      const toks = split(line, ' ')
-      const el_type = eltypenum(toks[TOKN_ELLINE_ELTYPE])
-      if is_lower_order_el_type(el_type) continue end
-      if !is_triangle_el_type(el_type) error("Element type $el_type is not supported.") end
-      const el_tags = toks[TOKN_ELLINE_NUMTAGS+1 : TOKN_ELLINE_NUMTAGS+int(toks[TOKN_ELLINE_NUMTAGS])]
+  # Make estimates of the number of finite elements and reference triangles for storage allocation.
+  # This estimate ignores optional additional subdivisions that may be specified for some input elements.
+  const est_fes = est_mesh_tris * 4^base_subdiv_iters
+  # We'll estimate 2 reference triangles for each mesh element if we are subdividing, 1 if not. We ignore
+  # for this estimate any additional reference triangles for hanging node support.
+  const est_ref_tris = (base_subdiv_iters > 0 ? 2 : 1) * est_mesh_tris
 
-      println("Filling vertexes for line $line.")
+  # Data to be updated as input element lines are processed.
+  const oshapes = sizehint(Array(RefTri,0), est_ref_tris)
+  const fes = sizehint(Array(ElTri, 0), est_fes)
+  const fe_faces_by_endpoints = sizehint(Dict{(Point,Point), Array{(FENum,FEFaceNum),1}}(), uint64(est_fes * 3/2)) # 3+ sides per triangle, most included in 2 fes
+  num_nb_sides = 0
+  num_b_sides = 0
 
-      # Get vertexes. Remaining points are not read because they are determined by the element type and vertexes.
-      fill_verts_left_lower_first(toks, pts_by_nodenum, verts)
+  # Function via which all finite elements will be created during the processing of input element lines.
+  const fe_maker = function(oshapenum::OShapeNum, v1::Point, v2::Point, v3::Point)
+     push!(fes, ElTri(oshapenum, v1))
+     const fe_num = fenum(length(fes))
+     const nums_faces_btw_verts = oshapes[oshapenum].nums_faces_between_vertexes
+     const nb_delta, b_delta = register_fe_faces_by_endpoints(fe_num, v1,v2,v3, nums_faces_btw_verts, fe_faces_by_endpoints)
+     num_nb_sides += nb_delta
+     num_b_sides += b_delta
+  end
 
-      println("Filled vertexes")
+  # process input mesh elements
+  while line != "\$EndElements\n" && line != ""
+    process_el_line(line, mesh_pts_by_nodenum, base_subdiv_iters, fe_maker, oshapes)
+    line = readline(ios)
+  end
 
-      const oshape = find_or_create_oshape(el_type, el_tags, verts, oshape_store)
+  if line != "\$EndElements\n" error("Missing end of elements marker in mesh file.") end
 
-      const el_tri = ElTri(oshape, verts[1])
-      push!(fes, el_tri)
-      const fe_num = fenum(length(fes))
+  # Create the final non-boundary sides data structures based on the mapping of side endpoints to fe faces.
+  const nbsidenums_by_feface, nbsideincls_by_nbsidenum, dep_dims_by_nbsidenum =
+    create_nb_sides_data(fe_faces_by_endpoints, num_nb_sides_hint=num_nb_sides)
 
-      const nb_delta, b_delta = register_fe_faces_by_side_endpoints(fe_num, el_type, verts, side_endpoints_fe_incls)
-      num_nb_sides += nb_delta
-      num_b_sides += b_delta
+  TriMesh(fes,
+          ref_tris,
+          nbsidenums_by_feface,
+          nbsideincls_by_nbsidenum,
+          dep_dims_by_nbsidenum,
+          num_b_sides)
+end
 
-      line = readline(ios)
-    end # element line reading loop
 
-    if line != "\$EndElements\n" error("Missing end of elements marker in mesh file.") end
+function process_el_line(line::String,
+                         mesh_pts_by_nodenum::Array{Point,1},
+                         base_subdiv_iters::Uint,
+                         fe_maker::Function,
+                         oshapes::Array{RefTri,1}) # will be appended to
+  const toks = split(line, ' ')
 
-    const nbsidenums_by_feface, nbsideincls_by_nbsidenum =
-      create_nb_sides_data(side_endpoints_fe_incls, num_nb_sides_hint=num_nb_sides)
+  const el_type = eltypenum(toks[TOKN_ELLINE_ELTYPE])
+  if is_lower_order_el_type(el_type) continue end
+  if !is_3_node_triangle_el_type(el_type) error("Element type $el_type is not supported.") end
 
-    new(fes,
-        oshape_store.ref_tris_by_oshapenum,
-        nbsidenums_by_feface,
-        nbsideincls_by_nbsidenum,
-        num_b_sides)
+  const el_tags = toks[TOKN_ELLINE_NUMTAGS+1 : TOKN_ELLINE_NUMTAGS+int(toks[TOKN_ELLINE_NUMTAGS])]
+
+  const v1,v2,v3 = lookup_vertexes(toks, mesh_pts_by_nodenum)
+
+  # Add any extra subdivision iterations to be done in this element.
+  const subdiv_iters = base_subdiv_iters + extra_subdiv_iters(v1,v2,v3, el_tags)
+
+  # For each of the three sides of this mesh element to be subdivided, the generated subdivision
+  # elements can be made to have more than one face between vertexes lying on the side.  This is
+  # used to support "hanging" nodes where a finer subdivision is adjacent to this one.  The triplet
+  # returned represents the number of faces between element vertex pairs embedded in the input mesh
+  # element sides from v1 to v2, v2 to v3, and v3 to v1, respectively.
+  const nums_faces_btw_verts = nums_faces_between_vertexes(v1,v2,v3, el_tags)
+
+  # Register the primary reference triangles for our mesh element's subdivisions.
+  const pri_oshapenums_by_nums_faces_btw_verts = register_primary_ref_tris(v1,v2,v3, nums_faces_btw_verts, subdiv_iters, oshapes)
+
+  if subdiv_iters > 0
+    # Register the secondary reference triangle.
+    push!(oshapes, secondary_ref_tri(v1,v2,v3, subdiv_iters))
+    const sec_oshapenum = oshapenum(length(oshapes))
+
+    # Do the subdivisions.
+    subdivide_primary(v1,v2,v3,
+                      subdiv_iters,
+                      nums_faces_btw_verts,
+                      pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      fe_maker)
+  else # no subdivision to be done
+    # The mesh element itself is our finite element, with its own reference triangle (added in register_primary_ref_tris above).
+    const oshapenum = pri_oshapenums_by_nums_faces_btw_verts(nums_faces_btw_verts)
+    fe_maker(oshapenum, v1,v2,v3)
+  end
+end # process_el_line
+
+
+# Create primary reference triangles for the given triangle to be subdivided. These reference triangles
+# are rescaled translations of the original undivided triangle. If nums_faces_btw_verts is other than
+# (1,1,1), then multiple reference triangles will be generated, differing in the number of side faces
+# between their vertexes for support of "hanging" nodes.  The function returns a function mapping the
+# numbers of side faces between vertexes to the newly registered reference triangle (oshape) number.
+function register_primary_ref_tris(v1::Point, v2::Point, v3::Point,
+                                   nums_faces_btw_verts::(Int,Int,Int),
+                                   subdiv_iters::Integer,
+                                   oshapes::Array{RefTri,1})
+  num_added = 0
+  for nsf1 in subdiv_iters == 0 || nums_faces_btw_verts[1] == 1 ? nums_faces_btw_verts[1] : (1, nums_faces_btw_verts[1]),
+      nsf2 in subdiv_iters == 0 || nums_faces_btw_verts[2] == 1 ? nums_faces_btw_verts[2] : (1, nums_faces_btw_verts[2]),
+      nsf3 in subdiv_iters == 0 || nums_faces_btw_verts[3] == 1 ? nums_faces_btw_verts[3] : (1, nums_faces_btw_verts[3])
+    push!(oshapes, primary_ref_tri(v1,v2,v3, (nsf1,nsf2,nsf3), subdiv_iters))
+    num_added += 1
+  end
+
+  # Return a lookup function for these new primary oshape numbers by numbers of side faces between vertexes.
+  const first_new_oshapenum = length(oshapes)-(num_added-1)
+  const last_new_oshapenum = length(oshapes)
+  function(nums_faces_btw_verts::(Int,Int,Int))
+    for os=first_new_oshapenum:last_new_oshapenum
+      if oshapes[os].nums_faces_between_vertexes == nums_faces_btw_verts
+        return oshapenum(os)
+      end
+    end
+    error("Reference triangle not found by numbers of side faces between vertexes: $nums_faces_btw_verts.")
   end
 end
 
-# Fill the passed buffer with vertex points.  The vertexes are filled with the left-lower-most vertex first,
-# otherwise matching (cyclically) the order in the mesh file.
-function fill_verts_left_lower_first(toks::Array{String,1},
-                                     pts_by_nodenum::Array{Point,1},
-                                     verts_buf::Array{Point,1})
+function primary_ref_tri(v1::Point, v2::Point, v3::Point,
+                         nums_faces_btw_verts::(Int,Int,Int),
+                         subdiv_iters::Integer)
+  const scale = 1./2^subdiv_iters
+  const scaled_v12 = scale*(v2-v1)
+  const scaled_v13 = scale*(v3-v1)
+  const norm_scaled_v23 = scale * norm(v3-v2)
+  const diameter_inv = 1./max(norm(scaled_v12), norm(scaled_v13), norm_scaled_v23)
+  RefTri(scaled_v12,
+         scaled_v13,
+         outward_normals(v1,v2,v3, nums_faces_btw_verts),
+         diameter_inv)
+end
+
+# Returns the reference element for the secondary, less numerous, inverted triangles which
+# form in the middle positions after triangle subdivisions. Note that passed vertexes represent
+# those of an outermost triangle to be subdivided, and hence describe a triangle of the primary,
+# not secondary, oriented shape.
+function secondary_ref_tri(pri_v1::Point, pri_v2::Point, pri_v3::Point, # vertexes of the undivided, *primary* shape
+                           subdiv_iters::Integer)
+  if subdiv_iters == 0 error("Secondary reference triangle requires non-zero number of iterations.") end
+  const v1,v2,v3 = .5(pri_v1+pri_v2), .5(pri_v2+pri_v3), .5(pri_v3+pri_v1)
+  const scale = 1./2^(subdiv_iters-1) # v1,v2,v3 already represents one subdivision
+  const scaled_v12 = scale*(v2-v1)
+  const scaled_v13 = scale*(v3-v1)
+  const norm_scaled_v23 = scale * norm(v3-v2)
+  const diameter_inv = 1./max(norm(scaled_v12), norm(scaled_v13), norm_scaled_v23)
+  RefTri(scaled_v12,
+         scaled_v13,
+         outward_normals(v1,v2,v3),
+         diameter_inv)
+end
+
+
+function subdivide_primary(v1::Point, v2::Point, v3::Point,
+                           iters::Uint,
+                           nums_faces_btw_verts::(Int,Int,Int),
+                           pri_oshapenums_by_nums_faces_btw_verts::Function, sec_oshapenum::OShapeNum),
+                           fe_maker::Function)
+  if iters == 0
+    const oshapenum = pri_oshapenums_by_nums_faces_btw_verts(nums_faces_btw_verts)
+    fe_maker(oshapenum, v1,v2,v3)
+  else
+    const midpt_12 = 0.5(v1+v2)
+    const midpt_13 = 0.5(v1+v3)
+    const midpt_23 = 0.5(v2+v3)
+
+    # The sub-triangle including v1 has its first and last vertex pairs embedded in the original triangle's first and
+    # third sides, and so inherit the corresponding numbers of faces between vertexes from nums_faces_btw_verts.
+    # The middle vertex pair (midpt_12 to midpt_13) of this sub-triangle does not lie along an original side, so has
+    # only one face between these vertexes.  Similar arguments apply for the remaining sub-triangles.
+    const st1_nums_faces_btw_verts = (nums_faces_btw_verts[1], 1, nums_faces_btw_verts[3])
+    subdivide_primary(v1, midpt_12, midpt_13,
+                      iters-1,
+                      st1_nums_faces_btw_verts,
+                      pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      fe_maker)
+
+    const st2_nums_faces_btw_verts = (nums_faces_btw_verts[1], nums_faces_btw_verts[2], 1)
+    subdivide_primary(midpt_12, v2, midpt_23,
+                      iters-1,
+                      st2_nums_faces_btw_verts,
+                      pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      fe_maker)
+
+    const st3_nums_faces_btw_verts = (1, nums_faces_btw_verts[2], nums_faces_btw_verts[3])
+    subdivide_primary(midpt_13, midpt_23, v3,
+                      iters-1,
+                      st3_nums_faces_btw_verts,
+                      pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      fe_maker)
+
+    # secondary sub-triangle
+    subdivide_secondary(midpt_12, midpt_23, midpt_13,
+                        iters-1,
+                        pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        fe_maker)
+  end
+end
+
+const ONE_FACE_BETWEEN_VERTEX_PAIRS = (1,1,1)
+
+function subdivide_secondary(v1::Point, v2::Point, v3::Point,
+                             iters::Uint,
+                             pri_oshapenums_by_nums_faces_btw_verts::Function, sec_oshapenum::OShapeNum,
+                             fe_maker::Function)
+  if iters == 0
+    fe_maker(sec_oshapenum, v1,v2,v3)
+  else
+    const midpt_12 = 0.5(v1+v2)
+    const midpt_13 = 0.5(v1+v3)
+    const midpt_23 = 0.5(v2+v3)
+
+    subdivide_secondary(v1, midpt_12, midpt_13,
+                        iters-1,
+                        pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        fe_maker)
+
+    subdivide_secondary(midpt_12, v2, midpt_23,
+                        iters-1,
+                        pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        fe_maker)
+
+    subdivide_secondary(midpt_13, midpt_23, v3,
+                        iters-1,
+                        pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        fe_maker)
+
+    # secondary sub-triangle
+    subdivide_primary(midpt_13, midpt_12, midpt_23,
+                      iters-1,
+                      ONE_FACE_BETWEEN_VERTEX_PAIRS,
+                      pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      fe_maker)
+  end
+end
+
+
+function lookup_vertexes(toks::Array{String,1}, mesh_pts_by_nodenum::Array{Point,1})
   const last_tag_tokn = TOKN_ELLINE_NUMTAGS + int(toks[TOKN_ELLINE_NUMTAGS])
-  for i=1:3
-    verts_buf[i] = pts_by_nodenum[uint64(toks[last_tag_tokn + i])]
-  end
-
-  # Rearrange the vertexes if necessary to make the first point the least lexicographically.
-  if isless(verts_buf[2],verts_buf[1]) && isless(verts_buf[2],verts_buf[3])
-    const pt_1 = verts_buf[1]
-    verts_buf[1] = verts_buf[2]
-    verts_buf[2] = verts_buf[3]
-    verts_buf[3] = pt_1
-  elseif isless(verts_buf[3],verts_buf[1]) && isless(verts_buf[3],verts_buf[2])
-    const pt_3 = verts_buf[3]
-    verts_buf[3] = verts_buf[2]
-    verts_buf[2] = verts_buf[1]
-    verts_buf[1] = pt_3
-  end
+  mesh_pts_by_nodenum[uint64(toks[last_tag_tokn + 1])],
+  mesh_pts_by_nodenum[uint64(toks[last_tag_tokn + 2])],
+  mesh_pts_by_nodenum[uint64(toks[last_tag_tokn + 3])]
 end
+
 
 # Register the finite element's side faces by their endpoints in the passed registry.
-function register_fe_faces_by_side_endpoints(fe_num::FENum,
-                                             el_type::ElTypeNum,
-                                             verts::Array{Point,1},
-                                             side_endpoints_fe_incls::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}})
-  const side_endpoint_pairs = sideface_endpoint_pairs(el_type, verts, lesser_endpoints_first=true)
+function register_fe_faces_by_endpoints(fe_num::FENum,
+                                        v1::Point, v2::Point, v3::Point,
+                                        nums_faces_btw_verts::(Int,Int,Int),
+                                        fe_faces_by_endpoints::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}})
+  const sf_endpt_pairs = sideface_endpoint_pairs(v1,v2,v3, nums_faces_btw_verts, lesser_endpts_first=true)
   nb_sides_delta = 0
   b_sides_delta = 0
 
-  # Record the side faces included by this element.
-  for sf=fefacenum(1):fefacenum(length(side_endpoint_pairs))
-    const side_endpoints_stdord = side_endpoint_pairs[sf]
-    const existing_side_incls = get(side_endpoints_fe_incls, side_endpoints_stdord, nothing)
+  # Record the side faces included by this elementsment.
+  for sf=fefacenum(1):fefacenum(length(sf_endpt_pairs))
+    const sf_endpts = sf_endpt_pairs[sf]
+    const existing_side_incls = get(fe_faces_by_endpoints, sf_endpts, nothing)
     if existing_side_incls != nothing
       push!(existing_side_incls, (fe_num, sf))
       b_sides_delta -= 1
       nb_sides_delta += 1
     else
-      side_endpoints_fe_incls[side_endpoints_stdord] = [(fe_num, sf)]
+      fe_faces_by_endpoints[sf_endpts] = [(fe_num, sf)]
       b_sides_delta += 1
     end
   end
   nb_sides_delta, b_sides_delta
 end
 
-# Return the pair consisting of
+# Return the triplet consisting of
 #   1) nb side numbers by (fe,face) :: Dict{(FENum, FEFaceNum), NBSideNum},
 #   2) an array of NBSideInclusions indexed by nb side number.
-function create_nb_sides_data(side_endpoints_fe_incls::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}};
+#   3) an array of side dependent dimension by nb side number
+function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}};
                               num_nb_sides_hint::Integer=0)
   const nbsidenums_by_feface = sizehint(Dict{(FENum, FEFaceNum), NBSideNum}(), 2*num_nb_sides_hint)
   const nbsideincls_by_nbsidenum = sizehint(Array(NBSideInclusions, 0), num_nb_sides_hint)
+  const dep_dims_by_nbsidenum = sizehint(Array(Dim, 0), num_nb_sides_hint)
 
-  for side_endpoints in keys(side_endpoints_fe_incls)
-    const fe_faces = side_endpoints_fe_incls[side_endpoints]
+  for side_endpoints in keys(fe_faces_by_endpoints)
+    const fe_faces = fe_faces_by_endpoints[side_endpoints]
     const num_fe_incls = length(fe_faces)
     if num_fe_incls == 2
       sort!(fe_faces)
@@ -204,26 +373,17 @@ function create_nb_sides_data(side_endpoints_fe_incls::Dict{(Point, Point), Arra
       # Map the two fe/face pairs to this nb side number.
       nbsidenums_by_feface[fe_faces[1]] = nb_side_num
       nbsidenums_by_feface[fe_faces[2]] = nb_side_num
+
+      const dep_dim = let ep1, ep2 = side_endpoints
+                        abs(ep2[1]-ep1[1]) >= abs(ep2[2]-ep1[2]) ? dim(2) : dim(1)
+                      end
+      push!(dep_dims_by_nbsidenum, dep_dim)
     elseif num_fe_incls > 2
       error("Invalid mesh: side encountered with more than two including finite elements.")
     end
   end
 
-  nbsidenums_by_feface, nbsideincls_by_nbsidenum
-end
-
-function side_dep_dims(el_type::ElTypeNum, verts::Array{Point,1})
-  const sfs_btw_verts = num_side_faces_between_any_two_vertexes(el_type)
-  const dep_dims = sizehint(Array(Dim, 0), 3*sfs_btw_verts)
-  for vp=1:3  # vertex pairs
-    const v1 = verts[vp]
-    const v2 = verts[mod(vp,3)+1]
-    const dep_dim = abs(v2._1-v1._1) > abs(v2._2-v1._2) ? dim(2) : dim(1)
-    for sf=1:sfs_btw_verts
-      push!(dep_dims, dep_dim)
-    end
-  end
-  dep_dims
+  nbsidenums_by_feface, nbsideincls_by_nbsidenum, dep_dims_by_nbsidenum
 end
 
 # Computing Outward Normals for Side Faces
@@ -233,18 +393,19 @@ end
 # where cc = 1 if w is part of a clockwise traversal of the triangle, and -1 otherwise.
 # For any pair of successive inter-vertex vectors w_1 and w_2, cc can be computed as:
 #   cc = sgn(z(w_1 x w_2)), where z is projection of component 3.
-function outward_normals(el_type::ElTypeNum, verts::Array{Point,1})
-  const sfs_btw_verts = num_side_faces_between_any_two_vertexes(el_type)
-  const normals = sizehint(Array(Vec, 0), 3*sfs_btw_verts)
+function outward_normals(v1::Point, v2::Point, v3::Point, nums_faces_btw_verts::(Int,Int,Int)=(1,1,1))
+  const normals = sizehint(Array(Vec, 0), sum(nums_faces_btw_verts))
   # inter-vertex vectors
-  const v12 = verts[2]-verts[1]
-  const v23 = verts[3]-verts[2]
-  const v31 = verts[1]-verts[3]
+  const v12 = v2-v1
+  const v23 = v3-v2
+  const v31 = v1-v3
   const cc = counterclockwise(v12, v23) ? 1. : -1.
-  for ivv in (v12, v23, v31)
+  for ivv, num_faces_btw_verts in ((v12, num_faces_btw_verts[1]),
+                                   (v23, num_faces_btw_verts[2]),
+                                   (v31, num_faces_btw_verts[3]))
     const len = norm(ivv)
     const n = Vec(cc * ivv._2/len, -cc * ivv._1/len)
-    for sf=1:sfs_btw_verts
+    for sf=1:num_faces_btw_verts
       push!(normals, n)
     end
   end
@@ -252,93 +413,50 @@ function outward_normals(el_type::ElTypeNum, verts::Array{Point,1})
 end
 
 
-# oriented shape storage operations
-
-function find_or_create_oshape(el_type::ElTypeNum,
-                               el_tags::Array{String,1},
-                               verts::Array{Point,1},
-                               oshape_store::OShapeStore)
-  # The reference oriented shape is determined by the vectors from node 1 to the other nodes, taken
-  # as a pair in counterclockwise orientation, together with the mesh's element type code (which
-  # determines how many additional nodes may be on each triangle side).
-  const v12 = verts[2]-verts[1]
-  const v13 = verts[3]-verts[1]
-  const oshape_key = counterclockwise(v12, v13) ? (v12, v13, el_type) : (v13, v12, el_type)
-
-  # TODO: This simple lookup is likely to often fail because of small floating point differences, so
-  #       should try looking for the point +- 0,1,2 eps in each coordinate of the key pair, ie. do multiple hash lookups.
-  const existing_oshape = get(oshape_store.oshapenums_by_vertex_offsets, oshape_key, nothing)
-
-  if existing_oshape != nothing
-    existing_oshape
-  else
-    const ref_tri = RefTri(el_type,
-                           v12,
-                           v13,
-                           side_dep_dims(el_type, verts),
-                           outward_normals(el_type, verts))
-
-    push!(oshape_store.ref_tris_by_oshapenum, ref_tri)
-    const oshape = oshapenum(length(oshape_store.ref_tris_by_oshapenum))
-    oshape_store.oshapenums_by_vertex_offsets[oshape_key] = oshape
-    oshape
+# This function defines the side faces enumeration for a finite element of given vertexes and numbers
+# of faces between vertexes. Side faces are returned as an array of side endpoint pairs indexed by
+# side face number. If lesser_endpts_first is true, then each endpoint pair endpoint will have
+# the lesser point (compared lexicographically) in the first component of the pair.
+function sideface_endpoint_pairs(v1::Point, v2::Point, v3::Point,
+                                 nums_faces_btw_verts::(Int,Int,Int);
+                                 lesser_endpts_first::Bool=false)
+  const num_side_faces = sum(nums_faces_btw_verts)
+  const sf_endpt_pairs = sizehint(Array(Point,0), num_side_faces)
+  const vert_pairs = ((v1,v2), (v2,v3), (v3,v1))
+  for i=1:3
+    const va,vb = vert_pairs[i]
+    const faces_btw_va_vb = nums_faces_btw_verts[i]
+    if num_faces_btw_va_vb == 1
+      push!(sf_endpt_pairs, mk_endpoint_pair(va, vb, lesser_endpts_first))
+    elseif num_faces_btw_va_vb == 2
+      const midpt = 0.5(va+vb)
+      push!(sf_endpt_pairs, mk_endpoint_pair(va, midpt, lesser_endpts_first))
+      push!(sf_endpt_pairs, mk_endpoint_pair(midpt, vb, lesser_endpts_first))
+    else
+      error("Only 1 or 2 faces between triangle vertexes are currently supported.")
+    end
   end
+  sf_endpt_pairs
 end
 
-# element types
-
-
-# Gmsh triangle type codes
-const ELTYPE_3_NODE_TRIANGLE = eltypenum(2)
-const ELTYPE_6_NODE_TRIANGLE = eltypenum(9) # 3 vertex nodes and 3 on on edges
-# lower order elements, which can be ignored
-const ELTYPE_POINT = eltypenum(15)
-const ELTYPE_2_NODE_LINE = eltypenum(1)
-const ELTYPE_3_NODE_LINE = eltypenum(8)
-const ELTYPE_4_NODE_LINE = eltypenum(26)
-const ELTYPE_5_NODE_LINE = eltypenum(27)
-const ELTYPE_6_NODE_LINE = eltypenum(28)
-
-
-function is_triangle_el_type(el_type::ElTypeNum)
-  el_type == ELTYPE_3_NODE_TRIANGLE || el_type == ELTYPE_6_NODE_TRIANGLE
+function mk_endpoint_pair(pt1::Point, pt2::Point, lesser_pt_first::Bool)
+  if lesser_pt_first isless(pt1, pt2) ? (pt1, pt2) : (pt2, pt1)
+  else (pt1, pt2) end
 end
 
-function is_lower_order_el_type(el_type::ElTypeNum)
-  el_type == ELTYPE_POINT ||
-  el_type == ELTYPE_2_NODE_LINE ||
-  el_type == ELTYPE_3_NODE_LINE ||
-  el_type == ELTYPE_4_NODE_LINE ||
-  el_type == ELTYPE_5_NODE_LINE ||
-  el_type == ELTYPE_6_NODE_LINE
+
+function extra_subdiv_iters(v1::Point, v2::Point, v3::Point, el_tags::Array{String,1})
+  # TODO: Allow specifying extra iterations by tagging a mesh element.
+  0
 end
 
-# This function defines the side faces enumeration for a finite element of given vertexes and mesh
-# element type. Side faces are returned as an array of side endpoint pairs indexed by side face
-# number. If lesser_endpoints_first is true, then each endpoint pair endpoint will have the lesser
-# point (compared lexicographically) in the first component of the pair.
-function sideface_endpoint_pairs(el_type::ElTypeNum, verts::Array{Point,1}; lesser_endpoints_first::Bool=false)
-  const mk_pair = if lesser_endpoints_first; (pt1::Point, pt2::Point) -> isless(pt1,pt2) ? (pt1, pt2) : (pt2, pt1)
-                  else (pt1::Point, pt2::Point) -> (pt1, pt2) end
-  if el_type == ELTYPE_3_NODE_TRIANGLE
-    [mk_pair(verts[1],verts[2]), mk_pair(verts[2],verts[3]), mk_pair(verts[3],verts[1])]
-  elseif el_type == ELTYPE_6_NODE_TRIANGLE
-    error("6 node triangles not yet supported.")
-  else
-    error("Unsupported element type $el_type.")
-  end
-end
-
-pair_lesser_fst(pt1::Point, pt2::Point) = if isless(pt1,pt2) (pt1, pt2) else (pt2, pt1) end
-
-function num_side_faces_between_any_two_vertexes(el_type::ElTypeNum)
-  if el_type == ELTYPE_3_NODE_TRIANGLE
-    1
-  elseif el_type == ELTYPE_6_NODE_TRIANGLE
-    2
-  else
-    error("Unsupported element type $el_type.")
-  end
+# For each of the three sides of the indicated mesh element to be subdivided, we can specify here the
+# number of faces that the generated subtriangles should have between their vertexes which lie on this side.
+# This allows these subdivision elements to meet those of a finer subdivision in a mesh element adjacent
+# to this element ("hanging nodes").  The numbers are returned as a triplet of integers, corresponding to
+# the face counts to be generated for elements' sides within sides v1v2, v2v3, and v3v1.
+function nums_faces_between_vertexes(v1::Point, v2::Point, v3::Point, el_tags::Array{String,1})
+  ONE_FACE_BETWEEN_VERTEX_PAIRS
 end
 
 # file reading utilities
@@ -365,12 +483,12 @@ function read_points(ios::IOStream)
   end
 end
 
-function is_triangle_el_or_endmarker(line::ASCIIString)
+function is_polytope_or_endmarker(line::ASCIIString)
   if line == "\$EndElements"
     true
   else
     const toks = split(line, ' ')
-    is_triangle_el_type(eltypenum(toks[TOKN_ELLINE_ELTYPE]))
+    !is_lower_order_el_type(eltypenum(toks[TOKN_ELLINE_ELTYPE]))
   end
 end
 
@@ -398,14 +516,17 @@ end
 
 # vector operations
 
-import Base.getindex
-getindex(v::Vec, i::Integer) = if i == 1 v._1 elseif i == 2 v._2 else throw(BoundsError()) end
+#import Base.getindex
+#getindex(v::Vec, i::Integer) = if i == 1 v._1 elseif i == 2 v._2 else throw(BoundsError()) end
 
 import Base.(+)
 +(v::Vec, w::Vec) = Vec(v._1 + w._1, v._2 + w._2)
 
 import Base.(-)
 -(v::Vec, w::Vec) = Vec(v._1 - w._1, v._2 - w._2)
+
+import Base.(*)
+*(r::Real, v::Vec) = Vec(r*v._1, r*v._2)
 
 import Base.norm
 norm(v::Vec) = hypot(v._1, v._2)
@@ -417,7 +538,35 @@ counterclockwise(u::Vec, v::Vec) =
   u._1*v._2 - u._2*v._1 > 0
 
 
-# constants related to the Gmsh format
+# definitions related to the Gmsh format
+
+typealias ElTypeNum Uint8
+eltypenum(i::Integer) = if i>=1 && i<=19 convert(ElTypeNum, i) else error("invalid element type: $i") end
+
+
+
+# Gmsh triangle type codes
+const ELTYPE_3_NODE_TRIANGLE = eltypenum(2)
+# lower order elements, which can be ignored
+const ELTYPE_POINT = eltypenum(15)
+const ELTYPE_2_NODE_LINE = eltypenum(1)
+const ELTYPE_3_NODE_LINE = eltypenum(8)
+const ELTYPE_4_NODE_LINE = eltypenum(26)
+const ELTYPE_5_NODE_LINE = eltypenum(27)
+const ELTYPE_6_NODE_LINE = eltypenum(28)
+
+function is_3_node_triangle_el_type(el_type::ElTypeNum)
+  el_type == ELTYPE_3_NODE_TRIANGLE
+end
+
+function is_lower_order_el_type(el_type::ElTypeNum)
+  el_type == ELTYPE_POINT ||
+  el_type == ELTYPE_2_NODE_LINE ||
+  el_type == ELTYPE_3_NODE_LINE ||
+  el_type == ELTYPE_4_NODE_LINE ||
+  el_type == ELTYPE_5_NODE_LINE ||
+  el_type == ELTYPE_6_NODE_LINE
+end
 
 const TOKN_NODELINE_ELNUM = 1
 const TOKN_NODELINE_POINT1 = 2
@@ -429,4 +578,4 @@ const TOKN_NODELINE_POINT3 = 4
 const TOKN_ELLINE_ELTYPE = 2
 const TOKN_ELLINE_NUMTAGS = 3
 
-#end # end of module
+end # end of module
