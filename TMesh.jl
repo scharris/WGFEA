@@ -20,14 +20,34 @@ typealias Point Vec
 immutable RefTri
   v12::Vec
   v13::Vec
-  nums_faces_between_vertexes::(Int,Int,Int) # v1v2, v2v3, v3v1
+  nums_faces_between_vertexes::(Int,Int,Int) # v1 v2, v2 v3, v3 v1
+  # derived data
   outward_normals_by_sideface::Array{Vec,1}
+  dep_dims_by_sideface::Array{Dim,1}
   diameter_inv::R
+  num_side_faces::FEFaceNum
+
+  function RefTri(v1::Vec, v2::Vec, v3::Vec, scale::R, nums_faces_btw_verts::(Int,Int,Int))
+    const scaled_v12 = scale*(v2-v1)
+    const scaled_v13 = scale*(v3-v1)
+    const norm_scaled_v23 = scale * norm(v3-v2)
+    const normals = outward_normals(v1,v2,v3, nums_faces_btw_verts)
+    const dep_dims_by_sideface = sideface_dep_dims(v1,v2,v3, nums_faces_btw_verts)
+    const diameter_inv = 1./max(norm(scaled_v12), norm(scaled_v13), norm_scaled_v23)
+    const num_side_faces = sum(nums_faces_btw_verts)
+    new(scaled_v12,
+        scaled_v13,
+        nums_faces_btw_verts,
+        normals,
+        dep_dims_by_sideface,
+        diameter_inv,
+        num_side_faces)
+  end
 end
 
 # finite element triangle
 immutable ElTri
-  oshape::OShapeNum
+  oshapenum::OShapeNum
   v1::Point
 end
 
@@ -44,14 +64,103 @@ immutable TriMesh <: AbstractMesh
   # inclusions of non-boundary sides in fe's, indexed by non-boundary side number
   nbsideincls_by_nbsidenum::Array{NBSideInclusions,1}
 
-  # dependent dimensions for nb sides
-  # For a given non-boundary side, this is a coordinate that is a function of the others over the side.
-  dep_dims_by_nbsidenum::Array{Dim,1}
-
   # number of boundary sides
   num_b_sides::Int64
+
+  # cached items / computations / conversions
+  space_dim::Dim
+  one_mon::Monomial
+  num_fes::FENum
+  num_nb_sides::NBSideNum
+  num_oshapes::OShapeNum
+
 end
 
+
+####################################################################
+# implementations of required AbstractMesh functions
+
+space_dim(mesh::TriMesh) = mesh.space_dim
+
+one_mon(mesh::TriMesh) = mesh.one_mon
+
+num_fes(mesh::TriMesh) = mesh.num_fes
+
+num_nb_sides(mesh::TriMesh) = mesh.num_nb_sides
+
+num_oriented_element_shapes(mesh::TriMesh) = mesh.num_oshapes
+
+oriented_shape_for_fe(fe::FENum, mesh::TriMesh) = mesh.fes[fe].oshapenum
+
+num_side_faces_for_fe(fe::FENum, mesh::TriMesh) = ref_tri(fe, mesh).num_side_faces
+
+num_side_faces_for_shape(oshapenum::OShapeNum, mesh::TriMesh) = mesh.oshapes[oshapenum].num_side_faces
+
+dependent_dim_for_oshape_side(oshapenum::OShapeNum, sf::FEFaceNum, mesh::TriMesh) =
+  mesh.oshapes[oshapenum].dep_dims_by_sideface[sf]
+
+fe_inclusions_of_nb_side(nbsn::NBSideNum, mesh::TriMesh) = mesh.nbsideincls_by_nbsidenum[nbsn]
+
+nb_side_num_for_fe_side(fe::FENum, sf::FEFaceNum, mesh::TriMesh) = mesh.nbsidenums_by_feface[(fe, sf)]
+
+is_boundary_side(fe::FENum, face::FEFaceNum, mesh::TriMesh) = !haskey(mesh.nbsidenums_by_feface, (fe,face))
+
+num_boundary_sides(mesh::TriMesh) = mesh.num_b_sides
+
+shape_diameter_inv(oshapenum::OShapeNum, mesh::TriMesh) = mesh.oshapes[oshapenum].diameter_inv
+
+max_fe_diameter(mesh::TriMesh) = mapreduce(t -> 1./t.diameter_inv, max, mesh.oshapes)
+
+function fe_interior_origin!(fe::FENum, point_to_fill::Vector{R}, mesh::TriMesh)
+  const el_tri = mesh.fes[fe]
+  point_to_fill[1] = el_tri.v1._1
+  point_to_fill[2] = el_tri.v1._2
+end
+
+# Integration Functions
+
+# Integrate a monomial on the indicated face of a finite element of given oriented
+# shape, with the monomial interpreted locally on the face (local, mesh-determined
+# origin for the face).
+function integral_face_rel_on_oshape_face(m::Monomial,
+                                          oshapenum::OShapeNum, face::FEFaceNum,
+                                          mesh::TriMesh)
+  if face == Mesh.interior_face
+    #TODO
+  else
+    #TODO
+  end
+end
+
+# Integrate a global function f on the indicated finite element face, multiplied against
+# a monomial interpreted locally on the face.
+integral_global_x_face_rel_on_fe_face(f::Function,
+                                      mon::Monomial,
+                                      fe::FENum, face::FEFaceNum,
+                                      mesh::TriMesh) =
+  error("not implemented, mesh implementation is incomplete")
+
+# Integrate a side-local monomial vs. a vector monomial interpreted relative to the
+# entire finite element, dot multiplied with the outward normal for the side.
+integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(v::Monomial,
+                                                            q::VectorMonomial,
+                                                            oshapenum::OShapeNum, sf::FEFaceNum,
+                                                            mesh::TriMesh) =
+  error("not implemented, mesh implementation is incomplete")
+
+# Integrate a finite element relative monomial vs. a side relative monomial.
+integral_fe_rel_x_side_rel_on_oshape_side(mon1::Monomial,
+                                          mon2::Monomial,
+                                          oshapenum::OShapeNum, sf::FEFaceNum,
+                                          mesh::TriMesh) =
+  error("not implemented, mesh implementation is incomplete")
+
+# required AbstractMesh functions
+####################################################################
+
+
+####################################################################
+# Mesh Construction
 
 # Construct from Gmsh .msh formatted input stream, and number of subdivision operations to perform within each
 # mesh element from the stream.  Some elements may have additional iterations specified via Gmsh tags.
@@ -104,15 +213,18 @@ function TriMesh(ios::IO, base_subdiv_iters::Integer)
   if line != "\$EndElements\n" error("Missing end of elements marker in mesh file.") end
 
   # Create the final non-boundary sides data structures based on the mapping of side endpoints to fe faces.
-  const nbsidenums_by_feface, nbsideincls_by_nbsidenum, dep_dims_by_nbsidenum =
-    create_nb_sides_data(fe_faces_by_endpoints, num_nb_sides_hint=num_nb_sides)
+  const nbsidenums_by_feface, nbsideincls_by_nbsidenum  = create_nb_sides_data(fe_faces_by_endpoints, num_nb_sides_hint=num_nb_sides)
 
   TriMesh(fes,
           oshapes,
           nbsidenums_by_feface,
           nbsideincls_by_nbsidenum,
-          dep_dims_by_nbsidenum,
-          num_b_sides)
+          num_b_sides,
+          dim(2),
+          Monomial(zeros(Deg,2)),
+          fenum(length(fes)),
+          nbsidenum(length(nbsideincls_by_nbsidenum)),
+          Mesh.oshapenum(length(oshapes)))
 end
 
 
@@ -168,25 +280,64 @@ end # process_el_line
 # (1,1,1), then multiple reference triangles will be generated, differing in the number of side faces
 # between their vertexes for support of "hanging" nodes.  The function returns a function mapping the
 # numbers of side faces between vertexes to the newly registered reference triangle (oshape) number.
+# Pains are taken to not create more reference triangles than are actually used, so that some global
+# mesh properties such as maximum element diameter can be determined from only the reference elements.
 function register_primary_ref_tris(v1::Point, v2::Point, v3::Point,
                                    nums_faces_btw_verts::(Int,Int,Int),
                                    subdiv_iters::Integer,
                                    oshapes::Array{RefTri,1})
-  num_added = 0
-  for nsf1 in subdiv_iters == 0 || nums_faces_btw_verts[1] == 1 ? nums_faces_btw_verts[1] : (1, nums_faces_btw_verts[1]),
-      nsf2 in subdiv_iters == 0 || nums_faces_btw_verts[2] == 1 ? nums_faces_btw_verts[2] : (1, nums_faces_btw_verts[2]),
-      nsf3 in subdiv_iters == 0 || nums_faces_btw_verts[3] == 1 ? nums_faces_btw_verts[3] : (1, nums_faces_btw_verts[3])
-    push!(oshapes, primary_ref_tri(v1,v2,v3, (nsf1,nsf2,nsf3), subdiv_iters))
-    num_added += 1
+  const orig_num_oshapes = length(oshapes)
+
+  if subdiv_iters == 0
+    # Not subdividing, just add the passed triangle itself as the only reference triangle.
+    push!(oshapes, primary_ref_tri(v1,v2,v3, nums_faces_btw_verts, 0))
+
+  else # at least one subdivision
+    # We need to add a separate primary reference triangle for each triplet of number of faces between
+    # vertexes that may occur in primary triangles in the subdivision. We use the set of triplets below
+    # to record the various numbers of faces per side required for the reference triangles prior to
+    # creating them.
+    const nums_sides_btw_verts_triplets = Set{(Int,Int,Int)}()
+
+    # To support the corner elements, we need primary reference triangles which get 2 of their 3 numbers
+    # of faces between vertex pairs from nums_faces_btw_verts, because they have two sides on the original
+    # undivided triangle's sides. Note that if we're just doing one subdivision then each of the three
+    # primary triangles produced are corner triangles so we're done.
+    for i=1:3
+      const j = mod1(i+1,3) # next vertex pair number, cyclically
+      add!(nums_sides_btw_verts_triplets,
+           (i==1||j==1 ? nums_faces_btw_verts[1] : 1,
+            i==2||j==2 ? nums_faces_btw_verts[2] : 1,
+            i==3||j==3 ? nums_faces_btw_verts[3] : 1))
+    end
+
+    # If subdividing more than once, then we also need:
+    #   1) a primary reference triangle with only one face between each vertex pair (always present within
+    #      the secondary triangle produced in the first subdivision), and
+    #   2) primary reference triangles for each choice of one number of faces from nums_faces_btw_verts for
+    #      some pair of vertexes, and just one face between the other two vertex pairs.
+    if subdiv_iters >= 2
+      add!(nums_sides_btw_verts_triplets, ONE_FACE_BETWEEN_VERTEX_PAIRS)
+      for i=1:3
+        add!(nums_sides_btw_verts_triplets,
+             (i==1 ? nums_faces_btw_verts[1] : 1,
+              i==2 ? nums_faces_btw_verts[2] : 1,
+              i==3 ? nums_faces_btw_verts[3] : 1))
+      end
+    end
+
+    for faces_per_vert_pair in nums_sides_btw_verts_triplets
+      push!(oshapes, primary_ref_tri(v1,v2,v3, faces_per_vert_pair, subdiv_iters))
+    end
   end
 
   # Return a lookup function for these new primary oshape numbers by numbers of side faces between vertexes.
-  const first_new_oshapenum = length(oshapes)-(num_added-1)
-  const last_new_oshapenum = length(oshapes)
+  const first_new_oshapenum = Mesh.oshapenum(orig_num_oshapes + 1)
+  const last_new_oshapenum = Mesh.oshapenum(length(oshapes))
   function(nums_faces_btw_verts::(Int,Int,Int))
-    for os=first_new_oshapenum:last_new_oshapenum
-      if oshapes[os].nums_faces_between_vertexes == nums_faces_btw_verts
-        return Mesh.oshapenum(os)
+    for osn=first_new_oshapenum:last_new_oshapenum
+      if oshapes[osn].nums_faces_between_vertexes == nums_faces_btw_verts
+        return osn
       end
     end
     error("Reference triangle not found by numbers of side faces between vertexes: $nums_faces_btw_verts.")
@@ -197,15 +348,7 @@ function primary_ref_tri(v1::Point, v2::Point, v3::Point,
                          nums_faces_btw_verts::(Int,Int,Int),
                          subdiv_iters::Integer)
   const scale = 1./2^subdiv_iters
-  const scaled_v12 = scale*(v2-v1)
-  const scaled_v13 = scale*(v3-v1)
-  const norm_scaled_v23 = scale * norm(v3-v2)
-  const diameter_inv = 1./max(norm(scaled_v12), norm(scaled_v13), norm_scaled_v23)
-  RefTri(scaled_v12,
-         scaled_v13,
-         nums_faces_btw_verts,
-         outward_normals(v1,v2,v3, nums_faces_btw_verts),
-         diameter_inv)
+  RefTri(v1,v2,v3, scale, nums_faces_btw_verts)
 end
 
 # Returns the reference element for the secondary, less numerous, inverted triangles which
@@ -217,15 +360,7 @@ function secondary_ref_tri(pri_v1::Point, pri_v2::Point, pri_v3::Point, # vertex
   if subdiv_iters == 0 error("Secondary reference triangle requires non-zero number of iterations.") end
   const v1,v2,v3 = .5(pri_v1+pri_v2), .5(pri_v2+pri_v3), .5(pri_v3+pri_v1)
   const scale = 1./2^(subdiv_iters-1) # v1,v2,v3 already represents one subdivision
-  const scaled_v12 = scale*(v2-v1)
-  const scaled_v13 = scale*(v3-v1)
-  const norm_scaled_v23 = scale * norm(v3-v2)
-  const diameter_inv = 1./max(norm(scaled_v12), norm(scaled_v13), norm_scaled_v23)
-  RefTri(scaled_v12,
-         scaled_v13,
-         ONE_FACE_BETWEEN_VERTEX_PAIRS,
-         outward_normals(v1,v2,v3),
-         diameter_inv)
+  RefTri(v1,v2,v3, scale, ONE_FACE_BETWEEN_VERTEX_PAIRS)
 end
 
 
@@ -275,7 +410,6 @@ function subdivide_primary(v1::Point, v2::Point, v3::Point,
   end
 end
 
-const ONE_FACE_BETWEEN_VERTEX_PAIRS = (1,1,1)
 
 function subdivide_secondary(v1::Point, v2::Point, v3::Point,
                              iters::Uint,
@@ -354,15 +488,14 @@ function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{
                               num_nb_sides_hint::Integer=0)
   const nbsidenums_by_feface = sizehint(Dict{(FENum, FEFaceNum), NBSideNum}(), 2*num_nb_sides_hint)
   const nbsideincls_by_nbsidenum = sizehint(Array(NBSideInclusions, 0), num_nb_sides_hint)
-  const dep_dims_by_nbsidenum = sizehint(Array(Dim, 0), num_nb_sides_hint)
 
   for side_endpoints in keys(fe_faces_by_endpoints)
     const fe_faces = fe_faces_by_endpoints[side_endpoints]
     const num_fe_incls = length(fe_faces)
     if num_fe_incls == 2
       sort!(fe_faces)
-      const (fe_1, side_face_1) = fe_faces[1]
-      const (fe_2, side_face_2) = fe_faces[2]
+      const (fe_1, sf_1) = fe_faces[1]
+      const (fe_2, sf_2) = fe_faces[2]
 
       # Assign a new non-boundary side number.
       const nb_side_num = nbsidenum(length(nbsideincls_by_nbsidenum) + 1)
@@ -370,24 +503,18 @@ function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{
       # Add nb side inclusions structure for this nb side number.
       push!(nbsideincls_by_nbsidenum,
             NBSideInclusions(nb_side_num,
-                             fe_1, side_face_1,
-                             fe_2, side_face_2))
+                             fe_1, sf_1,
+                             fe_2, sf_2))
 
       # Map the two fe/face pairs to this nb side number.
       nbsidenums_by_feface[fe_faces[1]] = nb_side_num
       nbsidenums_by_feface[fe_faces[2]] = nb_side_num
-
-      const dep_dim = let
-                        const ep1,ep2 = side_endpoints
-                        abs(ep2._1-ep1._1) >= abs(ep2._2-ep1._2) ? dim(2) : dim(1)
-                      end
-      push!(dep_dims_by_nbsidenum, dep_dim)
     elseif num_fe_incls > 2
       error("Invalid mesh: side encountered with more than two including finite elements.")
     end
   end
 
-  nbsidenums_by_feface, nbsideincls_by_nbsidenum, dep_dims_by_nbsidenum
+  nbsidenums_by_feface, nbsideincls_by_nbsidenum
 end
 
 # Computing Outward Normals for Side Faces
@@ -449,6 +576,23 @@ function mk_endpoint_pair(pt1::Point, pt2::Point, lesser_pt_first::Bool)
 end
 
 
+function sideface_dep_dims(v1::Point, v2::Point, v3::Point, nums_faces_btw_verts::(Int,Int,Int))
+  const dep_dims = sizehint(Array(Dim,0), sum(nums_faces_btw_verts))
+  const vert_pairs = ((v1,v2), (v2,v3), (v3,v1))
+  for i=1:3
+    const va,vb = vert_pairs[i]
+    const ddim = side_dep_dim(va, vb)
+    for i=1:nums_faces_btw_verts[i]
+      push!(dep_dims, ddim)
+    end
+  end
+  dep_dims
+end
+
+# Return a dependent dimension for the given side endpoints.
+side_dep_dim(ep1::Point, ep2::Point) = abs(ep2._1-ep1._1) >= abs(ep2._2-ep1._2) ? dim(2) : dim(1)
+
+
 function extra_subdiv_iters(v1::Point, v2::Point, v3::Point, el_tags::Array{String,1})
   # TODO: Allow specifying extra iterations by tagging a mesh element.
   0
@@ -460,6 +604,7 @@ end
 # to this element ("hanging nodes").  The numbers are returned as a triplet of integers, corresponding to
 # the face counts to be generated for elements' sides within sides v1v2, v2v3, and v3v1.
 function nums_faces_between_vertexes(v1::Point, v2::Point, v3::Point, el_tags::Array{String,1})
+  # TODO: Allow specifying somewhere such as in mesh element tags.
   ONE_FACE_BETWEEN_VERTEX_PAIRS
 end
 
@@ -518,32 +663,6 @@ function read_until(io::IO, line_cond_fn::Function)
 end
 
 
-# vector operations
-
-#import Base.getindex
-#getindex(v::Vec, i::Integer) = if i == 1 v._1 elseif i == 2 v._2 else throw(BoundsError()) end
-
-import Base.(+)
-+(v::Vec, w::Vec) = Vec(v._1 + w._1, v._2 + w._2)
-
-import Base.(-)
--(v::Vec, w::Vec) = Vec(v._1 - w._1, v._2 - w._2)
-
-import Base.(*)
-*(r::Real, v::Vec) = Vec(r*v._1, r*v._2)
-
-import Base.norm
-norm(v::Vec) = hypot(v._1, v._2)
-
-import Base.isless
-isless(v::Vec, w::Vec) = v._1 < w._1 || v._1 == w._1 && v._2 < w._2
-
-import Base.dot
-dot(v::Vec, w::Vec) = v._1 * w._1 + v._2 * w._2
-
-counterclockwise(u::Vec, v::Vec) =
-  u._1*v._2 - u._2*v._1 > 0
-
 
 # definitions related to the Gmsh format
 
@@ -584,11 +703,46 @@ const TOKN_NODELINE_POINT3 = 4
 const TOKN_ELLINE_ELTYPE = 2
 const TOKN_ELLINE_NUMTAGS = 3
 
+# Mesh Construction
+####################################################################
 
-# String Representations
+
+###############
+# Etc
+
+const ONE_FACE_BETWEEN_VERTEX_PAIRS = (1,1,1)
+
+# Reference triangle for a finite element.
+ref_tri(fe::FENum, mesh::TriMesh) = mesh.oshapes[mesh.fes[fe].oshapenum]
+
+
+# vector operations
+
+import Base.(+)
++(v::Vec, w::Vec) = Vec(v._1 + w._1, v._2 + w._2)
+
+import Base.(-)
+-(v::Vec, w::Vec) = Vec(v._1 - w._1, v._2 - w._2)
+
+import Base.(*)
+*(r::Real, v::Vec) = Vec(r*v._1, r*v._2)
+
+import Base.norm
+norm(v::Vec) = hypot(v._1, v._2)
+
+import Base.isless
+isless(v::Vec, w::Vec) = v._1 < w._1 || v._1 == w._1 && v._2 < w._2
+
+import Base.dot
+dot(v::Vec, w::Vec) = v._1 * w._1 + v._2 * w._2
+
+counterclockwise(u::Vec, v::Vec) =
+  u._1*v._2 - u._2*v._1 > 0
+
+
+# string representations
 import Base.string, Base.show, Base.print
 
-# string representation for monomials
 function string(m::TriMesh)
   "TriMesh: $(length(m.fes)) elements, $(length(m.oshapes)) reference elements, $(length(m.nbsideincls_by_nbsidenum)) non-boundary sides, $(m.num_b_sides) boundary sides"
 end

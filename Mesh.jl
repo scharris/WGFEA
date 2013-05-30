@@ -19,7 +19,6 @@ export FENum, fenum, no_fe,
        num_side_faces_for_fe,
        num_side_faces_for_shape,
        max_num_shape_sides,
-       dependent_dim_for_nb_side,
        dependent_dim_for_oshape_side,
        fe_inclusions_of_nb_side,
        nb_side_num_for_fe_side,
@@ -105,22 +104,19 @@ num_side_faces_for_shape(fe_oshape::OShapeNum, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 
-# The dependent_dim* functions provide, for a given side, the dimension j which is
-# affine-dependent on the other dimensions on the side. That is, the function
+# The dependent dim is, for a given side, the dimension j which is affine-
+# dependent on the other dimensions on the side. That is, the function
 # returns a j for which c_0,...,c_d exist such that
 #             x_j = c_0 + sum_{i=1..d} c_i x_i for all (x_1,...,x_d) in the side.
 # There may be more than one such coordinate number, in which case any one of
 # these is returned.
-dependent_dim_for_nb_side(i::NBSideNum, mesh::AbstractMesh) =
-  error("not implemented, mesh implementation is incomplete")
-
 dependent_dim_for_oshape_side(fe_oshape::OShapeNum, side_face::FEFaceNum, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
 fe_inclusions_of_nb_side(side_num::NBSideNum, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 
-# Return non-boundary side number of the indicated fe relative side, or 0 if the side is a boundary side.
+# Return non-boundary side number of the indicated fe relative side.
 nb_side_num_for_fe_side(fe::FENum, side_face::FEFaceNum, mesh::AbstractMesh) =
   error("not implemented, mesh implementation is incomplete")
 

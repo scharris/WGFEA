@@ -6,6 +6,16 @@ import RMesh, RMesh.mesh_coord
 import Poly, Poly.Monomial
 import WGrad, WGrad.WGradSolver
 
+function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
+  if is_interior_supported(i, basis)
+    [support_interior_num(i, basis)]
+  else
+    const fe_incls = fe_inclusions_of_side_support(i, basis)
+    [fe_incls.fe1, fe_incls.fe2]
+  end
+end
+
+
 # 2 x 3 mesh, k = 2
 #  ----------
 #  |  |  |  |
@@ -173,9 +183,6 @@ rshape = oshapenum(1)
 @test WGBasis.side_mon_bel_num(fenum(1), right_face, monnum(1), basis) == 37
 @test WGBasis.side_mon_bel_num(fenum(2), left_face, monnum(1), basis) == 37
 
-@test side_mon(belnum(37), basis) == one
-@test side_mon(belnum(38), basis) == y
-
 @test side_mon_num(belnum(37), basis) == 1
 @test side_mon_num(belnum(38), basis) == 2
 
@@ -188,33 +195,18 @@ rshape = oshapenum(1)
 @test WGBasis.side_mon_bel_num(fenum(2), right_face, monnum(1), basis) == 39
 @test WGBasis.side_mon_bel_num(fenum(3), left_face, monnum(1), basis) == 39
 
-@test side_mon(belnum(39), basis) == one
-@test side_mon(belnum(40), basis) == y
-
 # monomials on vertical side between finite elements 5 and 6
 @test WGBasis.side_mon_bel_num(fenum(5), right_face, monnum(1), basis) == 43
 @test WGBasis.side_mon_bel_num(fenum(6), left_face, monnum(1), basis) == 43
-@test side_mon(belnum(43), basis) == one
-@test side_mon(belnum(44), basis) == y
 
 # monomials on horizontal side between finite elements 1 and 4
 @test WGBasis.side_mon_bel_num(fenum(1), top_face, monnum(1), basis) == 45
 @test WGBasis.side_mon_bel_num(fenum(4), bottom_face, monnum(1), basis) == 45
-@test side_mon(belnum(45), basis) == one
-@test side_mon(belnum(46), basis) == x
 
 @test side_mons_for_oshape_side(rshape, top_face, basis)[1] == side_mons_for_oshape_side(rshape, bottom_face, basis)[1] == one
 @test side_mons_for_oshape_side(rshape, top_face, basis)[2] == side_mons_for_oshape_side(rshape, bottom_face, basis)[2] == x
 @test side_mons_for_fe_side(fenum(1), top_face, basis) == side_mons_for_fe_side(fenum(1), bottom_face, basis) == [one, x]
 @test_fails side_mons_for_oshape_side(rshape, bottom_face, basis)[3]
-
-# monomials on horizontal side between finite elements 2 and 5
-@test side_mon(belnum(47), basis) == one
-@test side_mon(belnum(48), basis) == x
-
-# monomials on horizontal side between finite elements 3 and 6
-@test side_mon(belnum(49), basis) == one
-@test side_mon(belnum(50), basis) == x
 
 
 # test weak gradients of basis elements

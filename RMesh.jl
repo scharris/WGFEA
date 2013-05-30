@@ -196,8 +196,8 @@ num_side_faces_for_fe(fe::FENum, mesh::RectMesh) = mesh.num_side_faces_per_fe
 import Mesh.num_side_faces_for_shape
 num_side_faces_for_shape(oshape::OShapeNum, mesh::RectMesh) = mesh.num_side_faces_per_fe
 
-import Mesh.dependent_dim_for_nb_side
-dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh) = perp_axis_for_nb_side(i, mesh)
+#import Mesh.dependent_dim_for_nb_side
+#dependent_dim_for_nb_side(i::NBSideNum, mesh::RectMesh) = perp_axis_for_nb_side(i, mesh)
 
 import Mesh.dependent_dim_for_oshape_side
 dependent_dim_for_oshape_side(fe_oshape::OShapeNum, side_face::FEFaceNum, mesh::RectMesh) =

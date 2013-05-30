@@ -18,7 +18,6 @@ export WeakFunsPolyBasis,
        side_mons_for_fe_side,
        side_mons_for_oshape_side,
        side_mon_num,
-       side_mon,
        side_mon_bel_num,
        fe_side_poly_coefs,
        wgrad_interior_mon,
@@ -391,12 +390,12 @@ function side_mon_num(mon::Monomial, fe_oshape::OShapeNum, side_face::FEFaceNum,
 end
 
 
-function side_mon(i::BElNum, basis::WeakFunsPolyBasis)
-  const nb_side_num = support_nb_side_num(i, basis)
-  const side_dep_dim = Mesh.dependent_dim_for_nb_side(nb_side_num, basis.mesh)
-  const mon_num = side_mon_num(i, basis)
-  basis.side_mons_by_dep_dim[side_dep_dim][mon_num]
-end
+# function side_mon(i::BElNum, basis::WeakFunsPolyBasis)
+#   const nb_side_num = support_nb_side_num(i, basis)
+#   const side_dep_dim = Mesh.dependent_dim_for_nb_side(nb_side_num, basis.mesh)
+#   const mon_num = side_mon_num(i, basis)
+#   basis.side_mons_by_dep_dim[side_dep_dim][mon_num]
+# end
 
 function side_mon_bel_num(fe::FENum, side_face::FEFaceNum, monn::MonNum, basis::WeakFunsPolyBasis)
   const nb_side_num = Mesh.nb_side_num_for_fe_side(fe, side_face, basis.mesh)
@@ -439,47 +438,5 @@ function ips_oshape_side_mons(fe_oshape::OShapeNum, side_face::FEFaceNum, basis:
     basis.ips_side_mons[fe_oshape][side_face]
   end
 end
-
-# ============================================
-# testing and debugging aids
-
-immutable BElSummary
-  beln::BElNum
-  support_type::String
-  support
-  mon::Monomial
-end
-
-function bel_summary(i::BElNum, basis::WeakFunsPolyBasis)
-  suppt,supp,mon =
-    if is_interior_supported(i, basis)
-      "interior", support_interior_num(i,basis), interior_mon(i, basis)
-    else
-      "side", fe_inclusions_of_side_support(i, basis), side_mon(i, basis)
-    end
-  BElSummary(i, suppt, supp, mon)
-end
-
-function bel_summaries_supported_on_fe(fe::FENum, basis::WeakFunsPolyBasis)
-  bsums = Array(BElSummary,0)
-  for i=1:basis.total_bels
-    bsum = bel_summary(belnum(i), basis)
-    if bsum.support.fe1 == fe || bsum.support.fe2 == fe
-        push!(bsums, bsum)
-    end
-  end
-  bsums
-end
-
-function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
-  if is_interior_supported(i, basis)
-    [support_interior_num(i, basis)]
-  else
-    const fe_incls = fe_inclusions_of_side_support(i, basis)
-    [fe_incls.fe1, fe_incls.fe2]
-  end
-end
-
-
 
 end # end of module

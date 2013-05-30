@@ -26,19 +26,6 @@ one_tri_mesh =
     \$EndElements
     """
 
-
-tmsh0 = TriMesh(IOString(one_tri_mesh), 0)
-@test tmsh0.fes == [ElTri(oshapenum(1), Vec(0.,0.))]
-@test tmsh0.oshapes[1].v12 == Vec(4.,0.)
-@test tmsh0.oshapes[1].v13 == Vec(0.,3.)
-@test tmsh0.oshapes[1].nums_faces_between_vertexes == (1,1,1)
-@test tmsh0.oshapes[1].outward_normals_by_sideface == [Vec(0.,-1.), Vec(3/5,4/5), Vec(-1.,-0.)]
-@test tmsh0.oshapes[1].diameter_inv == 1/5
-
-@test length(tmsh0.nbsidenums_by_feface) == 0
-@test tmsh0.dep_dims_by_nbsidenum == []
-@test tmsh0.num_b_sides == 3
-
 tmsh1 = TriMesh(IOString(one_tri_mesh), 1)
 # 3 primary subtriangles
 @test tmsh1.fes[1] == ElTri(oshapenum(1),Vec(0.0,0.0))
@@ -51,12 +38,18 @@ tmsh1 = TriMesh(IOString(one_tri_mesh), 1)
 @test tmsh1.oshapes[1].v13 == Vec(0.,1.5)
 @test tmsh1.oshapes[1].outward_normals_by_sideface == [Vec(0.,-1.), Vec(3/5,4/5), Vec(-1.,-0.)]
 @test tmsh1.oshapes[1].diameter_inv == 1/2.5
+@test tmsh1.oshapes[1].dep_dims_by_sideface[1] == dim(2)
+@test tmsh1.oshapes[1].dep_dims_by_sideface[2] == dim(2)
+@test tmsh1.oshapes[1].dep_dims_by_sideface[3] == dim(1)
 # secondary reference triangle
 @test tmsh1.oshapes[2].v12 == Vec(0.,1.5)
 @test tmsh1.oshapes[2].v13 == Vec(-2.,1.5)
 @test tmsh1.oshapes[2].outward_normals_by_sideface == [Vec(1.,-0.), Vec(0.,1.), Vec(-3/5,-4/5)]
 @test tmsh1.oshapes[2].diameter_inv == 1/2.5
-
+@test tmsh1.oshapes[2].dep_dims_by_sideface[1] == dim(1)
+@test tmsh1.oshapes[2].dep_dims_by_sideface[2] == dim(2)
+@test tmsh1.oshapes[2].dep_dims_by_sideface[3] == dim(2)
+#
 @test tmsh1.num_b_sides == 6
 
 # Check non-boundary side inclusions in finite elements.
@@ -73,11 +66,6 @@ fe3face1_nbsidenum = tmsh1.nbsidenums_by_feface[(fenum(3),fefacenum(1))]
 @test tmsh1.nbsidenums_by_feface[(fenum(4),fefacenum(2))] == fe3face1_nbsidenum
 @test tmsh1.nbsideincls_by_nbsidenum[fe3face1_nbsidenum] ==
       NBSideInclusions(fe3face1_nbsidenum, fenum(3), fefacenum(1), fenum(4), fefacenum(2))
-
-# Check dependent dimensions for non-boundary sides.
-@test tmsh1.dep_dims_by_nbsidenum[fe1face2_nbsidenum] == dim(2)
-@test tmsh1.dep_dims_by_nbsidenum[fe2face3_nbsidenum] == dim(1)
-@test tmsh1.dep_dims_by_nbsidenum[fe3face1_nbsidenum] == dim(2)
 
 
 # Check outward normals with number of faces between vertexes varying.
