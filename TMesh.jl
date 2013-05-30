@@ -1,11 +1,11 @@
 module TMesh
-export TMesh
+export TriMesh, Vec, RefTri, ElTri
 
-# require("TMesh"); ios = open("meshes/one_subdivided_triangle_mesh.msh"); tmsh = TriMesh(ios, 100)
+# using TMesh; ios = open("meshes/one_subdivided_triangle_mesh.msh"); tmsh = TriMesh(ios, 100)
 
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
-       Mesh.NBSideInclusions, Mesh.fefacenum, Mesh.fenum, Mesh.oshapenum, Mesh.nbsidenum
+       Mesh.NBSideInclusions, Mesh.fefacenum, Mesh.fenum, Mesh.nbsidenum
 import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
@@ -55,8 +55,8 @@ end
 
 # Construct from Gmsh .msh formatted input stream, and number of subdivision operations to perform within each
 # mesh element from the stream.  Some elements may have additional iterations specified via Gmsh tags.
-function TriMesh(ios::IOStream, base_subdiv_iters::Integer)
-  const base_subdiv_iters = subdiv_iters >= 0 ? uint(subdiv_iters) : throw(ArgumentError("Number of iterations must be non-negative."))
+function TriMesh(ios::IO, base_subdiv_iters::Integer)
+  const base_subdiv_iters = base_subdiv_iters >= 0 ? uint(base_subdiv_iters) : throw(ArgumentError("Number of iterations must be non-negative."))
 
   # Read the points from the input mesh, storing by mesh node number.  The elements section of the input
   # stream will refer to these node numbers.
@@ -76,11 +76,12 @@ function TriMesh(ios::IOStream, base_subdiv_iters::Integer)
   # We'll estimate 2 reference triangles for each mesh element if we are subdividing, 1 if not. We ignore
   # for this estimate any additional reference triangles for hanging node support.
   const est_ref_tris = (base_subdiv_iters > 0 ? 2 : 1) * est_mesh_tris
+  println("Estimating $(int(est_fes)) finite elements, $(int(est_ref_tris)) reference triangles.")
 
   # Data to be updated as input element lines are processed.
   const oshapes = sizehint(Array(RefTri,0), est_ref_tris)
   const fes = sizehint(Array(ElTri, 0), est_fes)
-  const fe_faces_by_endpoints = sizehint(Dict{(Point,Point), Array{(FENum,FEFaceNum),1}}(), uint64(est_fes * 3/2)) # 3+ sides per triangle, most included in 2 fes
+  const fe_faces_by_endpoints = sizehint(Dict{(Point,Point), Array{(FENum,FEFaceNum),1}}(), uint64(est_fes * 3/2)) # estimate assumes most fes have 3 sides, each in 2 fes
   num_nb_sides = 0
   num_b_sides = 0
 
@@ -107,7 +108,7 @@ function TriMesh(ios::IOStream, base_subdiv_iters::Integer)
     create_nb_sides_data(fe_faces_by_endpoints, num_nb_sides_hint=num_nb_sides)
 
   TriMesh(fes,
-          ref_tris,
+          oshapes,
           nbsidenums_by_feface,
           nbsideincls_by_nbsidenum,
           dep_dims_by_nbsidenum,
@@ -123,7 +124,7 @@ function process_el_line(line::String,
   const toks = split(line, ' ')
 
   const el_type = eltypenum(toks[TOKN_ELLINE_ELTYPE])
-  if is_lower_order_el_type(el_type) continue end
+  if is_lower_order_el_type(el_type) return end
   if !is_3_node_triangle_el_type(el_type) error("Element type $el_type is not supported.") end
 
   const el_tags = toks[TOKN_ELLINE_NUMTAGS+1 : TOKN_ELLINE_NUMTAGS+int(toks[TOKN_ELLINE_NUMTAGS])]
@@ -146,7 +147,7 @@ function process_el_line(line::String,
   if subdiv_iters > 0
     # Register the secondary reference triangle.
     push!(oshapes, secondary_ref_tri(v1,v2,v3, subdiv_iters))
-    const sec_oshapenum = oshapenum(length(oshapes))
+    const sec_oshapenum = Mesh.oshapenum(length(oshapes))
 
     # Do the subdivisions.
     subdivide_primary(v1,v2,v3,
@@ -185,7 +186,7 @@ function register_primary_ref_tris(v1::Point, v2::Point, v3::Point,
   function(nums_faces_btw_verts::(Int,Int,Int))
     for os=first_new_oshapenum:last_new_oshapenum
       if oshapes[os].nums_faces_between_vertexes == nums_faces_btw_verts
-        return oshapenum(os)
+        return Mesh.oshapenum(os)
       end
     end
     error("Reference triangle not found by numbers of side faces between vertexes: $nums_faces_btw_verts.")
@@ -202,6 +203,7 @@ function primary_ref_tri(v1::Point, v2::Point, v3::Point,
   const diameter_inv = 1./max(norm(scaled_v12), norm(scaled_v13), norm_scaled_v23)
   RefTri(scaled_v12,
          scaled_v13,
+         nums_faces_btw_verts,
          outward_normals(v1,v2,v3, nums_faces_btw_verts),
          diameter_inv)
 end
@@ -221,6 +223,7 @@ function secondary_ref_tri(pri_v1::Point, pri_v2::Point, pri_v3::Point, # vertex
   const diameter_inv = 1./max(norm(scaled_v12), norm(scaled_v13), norm_scaled_v23)
   RefTri(scaled_v12,
          scaled_v13,
+         ONE_FACE_BETWEEN_VERTEX_PAIRS,
          outward_normals(v1,v2,v3),
          diameter_inv)
 end
@@ -229,7 +232,7 @@ end
 function subdivide_primary(v1::Point, v2::Point, v3::Point,
                            iters::Uint,
                            nums_faces_btw_verts::(Int,Int,Int),
-                           pri_oshapenums_by_nums_faces_btw_verts::Function, sec_oshapenum::OShapeNum),
+                           pri_oshapenums_by_nums_faces_btw_verts::Function, sec_oshapenum::OShapeNum,
                            fe_maker::Function)
   if iters == 0
     const oshapenum = pri_oshapenums_by_nums_faces_btw_verts(nums_faces_btw_verts)
@@ -374,8 +377,9 @@ function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{
       nbsidenums_by_feface[fe_faces[1]] = nb_side_num
       nbsidenums_by_feface[fe_faces[2]] = nb_side_num
 
-      const dep_dim = let ep1, ep2 = side_endpoints
-                        abs(ep2[1]-ep1[1]) >= abs(ep2[2]-ep1[2]) ? dim(2) : dim(1)
+      const dep_dim = let
+                        const ep1,ep2 = side_endpoints
+                        abs(ep2._1-ep1._1) >= abs(ep2._2-ep1._2) ? dim(2) : dim(1)
                       end
       push!(dep_dims_by_nbsidenum, dep_dim)
     elseif num_fe_incls > 2
@@ -400,9 +404,9 @@ function outward_normals(v1::Point, v2::Point, v3::Point, nums_faces_btw_verts::
   const v23 = v3-v2
   const v31 = v1-v3
   const cc = counterclockwise(v12, v23) ? 1. : -1.
-  for ivv, num_faces_btw_verts in ((v12, num_faces_btw_verts[1]),
-                                   (v23, num_faces_btw_verts[2]),
-                                   (v31, num_faces_btw_verts[3]))
+  for (ivv, num_faces_btw_verts) in ((v12, nums_faces_btw_verts[1]),
+                                     (v23, nums_faces_btw_verts[2]),
+                                     (v31, nums_faces_btw_verts[3]))
     const len = norm(ivv)
     const n = Vec(cc * ivv._2/len, -cc * ivv._1/len)
     for sf=1:num_faces_btw_verts
@@ -421,11 +425,11 @@ function sideface_endpoint_pairs(v1::Point, v2::Point, v3::Point,
                                  nums_faces_btw_verts::(Int,Int,Int);
                                  lesser_endpts_first::Bool=false)
   const num_side_faces = sum(nums_faces_btw_verts)
-  const sf_endpt_pairs = sizehint(Array(Point,0), num_side_faces)
+  const sf_endpt_pairs = sizehint(Array((Point,Point),0), num_side_faces)
   const vert_pairs = ((v1,v2), (v2,v3), (v3,v1))
   for i=1:3
     const va,vb = vert_pairs[i]
-    const faces_btw_va_vb = nums_faces_btw_verts[i]
+    const num_faces_btw_va_vb = nums_faces_btw_verts[i]
     if num_faces_btw_va_vb == 1
       push!(sf_endpt_pairs, mk_endpoint_pair(va, vb, lesser_endpts_first))
     elseif num_faces_btw_va_vb == 2
@@ -461,7 +465,7 @@ end
 
 # file reading utilities
 
-function read_points(ios::IOStream)
+function read_points(ios::IO)
   if !read_through_line(ios, "\$Nodes\n")
     error("Nodes section not found in mesh input file.")
   else
@@ -492,7 +496,7 @@ function is_polytope_or_endmarker(line::ASCIIString)
   end
 end
 
-function read_through_line(io::IOStream, line::ASCIIString)
+function read_through_line(io::IO, line::ASCIIString)
   l = readline(io)
   while l != "" && l != line
     l = readline(io)
@@ -503,7 +507,7 @@ end
 # Read the stream until the line condition function returns true or the stream is exhausted, returning
 # either the line passing the condition, or "" if the stream was exhausted, and (in either case)
 # the number of lines read including the successful line if any.
-function read_until(io::IOStream, line_cond_fn::Function)
+function read_until(io::IO, line_cond_fn::Function)
   l = readline(io)
   lines_read = 1
   while l != "" && !line_cond_fn(l)
@@ -534,6 +538,9 @@ norm(v::Vec) = hypot(v._1, v._2)
 import Base.isless
 isless(v::Vec, w::Vec) = v._1 < w._1 || v._1 == w._1 && v._2 < w._2
 
+import Base.dot
+dot(v::Vec, w::Vec) = v._1 * w._1 + v._2 * w._2
+
 counterclockwise(u::Vec, v::Vec) =
   u._1*v._2 - u._2*v._1 > 0
 
@@ -541,9 +548,8 @@ counterclockwise(u::Vec, v::Vec) =
 # definitions related to the Gmsh format
 
 typealias ElTypeNum Uint8
-eltypenum(i::Integer) = if i>=1 && i<=19 convert(ElTypeNum, i) else error("invalid element type: $i") end
-
-
+eltypenum(i::Integer) = if i>=1 && i<=typemax(ElTypeNum) convert(ElTypeNum, i) else error("invalid element type: $i") end
+eltypenum(s::String) = eltypenum(int(s))
 
 # Gmsh triangle type codes
 const ELTYPE_3_NODE_TRIANGLE = eltypenum(2)
@@ -577,5 +583,16 @@ const TOKN_NODELINE_POINT3 = 4
 # elm-number elm-type number-of-tags < tag > ... vert-number-list
 const TOKN_ELLINE_ELTYPE = 2
 const TOKN_ELLINE_NUMTAGS = 3
+
+
+# String Representations
+import Base.string, Base.show, Base.print
+
+# string representation for monomials
+function string(m::TriMesh)
+  "TriMesh: $(length(m.fes)) elements, $(length(m.oshapes)) reference elements, $(length(m.nbsideincls_by_nbsidenum)) non-boundary sides, $(m.num_b_sides) boundary sides"
+end
+print(io::IO, m::TriMesh) = print(io, string(m))
+show(io::IO, m::TriMesh) = print(io, m)
 
 end # end of module
