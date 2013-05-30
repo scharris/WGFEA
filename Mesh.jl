@@ -296,12 +296,4 @@ function max_num_shape_sides(mesh::AbstractMesh)
   max_sides
 end
 
-import Base.isequal
-isequal(incls1::NBSideInclusions, incls2::NBSideInclusions) =
-  incls1.fe1 == incls2.fe1 && incls1.face_in_fe1 == incls2.face_in_fe1 &&
-  incls1.fe2 == incls2.fe2 && incls1.face_in_fe2 == incls2.face_in_fe2
-import Base.hash
-hash(incls::NBSideInclusions) =
-  fe1 + 3*face_in_fe1 + 5 * fe2 + 7*face_in_fe2
-
 end # end of module
