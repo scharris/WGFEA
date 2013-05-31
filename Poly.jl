@@ -20,6 +20,7 @@ export Monomial,
        vector_mons_of_deg_le,
        reduce_dim_by_fixing,
        partial,
+       antiderivative,
        divergence,
        integral_on_rect_at_origin,
        drop_coefs_lt,
@@ -376,9 +377,10 @@ function partial(n::Dim, m::Monomial)
   if m.exps[n] == 0
     Polynomial([one_mon(domain_dim(m))], [zeroR])
   else
-    local exps = copy(m.exps), orig_exp_n = m.exps[n]
+    const exps = copy(m.exps)
+    const orig_exp_n = m.exps[n]
     exps[n] = orig_exp_n - 1
-    Polynomial([Monomial(exps)], [convert(R,orig_exp_n)])
+    Polynomial([Monomial(exps)], [convert(R, orig_exp_n)])
   end
 end
 
@@ -409,6 +411,14 @@ function integral_on_rect_at_origin(p::Polynomial, rect_dims::Array{R,1})
   sum
 end
 
+# Returns the polynomial function whose partial derivative in the nth input is the given monomial,
+# and which has value 0 at 0.
+function antiderivative(n::Dim, m::Monomial)
+  const exps = copy(m.exps)
+  const new_exp_n = m.exps[n] + 1
+  exps[n] = new_exp_n
+  Polynomial([Monomial(exps)], [convert(R, 1./new_exp_n)])
+end
 
 # Counting and listing of monomials at or not exceeding a certain degree
 
