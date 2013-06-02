@@ -35,10 +35,11 @@ test_poly_vals_eq((y+x)^2, y^2 + 2(x*y) + x^2)
 @test partial(dim(2), x^2*y) == as_poly(x^2)
 @test partial(dim(2), x^2) == zero_poly(dim(2))
 
-@test antiderivative(dim(1), x) == .5x^2
-@test antiderivative(dim(2), x) == 1.0x*y
-@test antiderivative(dim(2), y) == .5y^2
-@test antiderivative(dim(1), y) == 1.0x*y
+@test antideriv(dim(1), x) == .5x^2
+@test antideriv(dim(2), x) == 1.0x*y
+@test antideriv(dim(2), y) == .5y^2
+@test antideriv(dim(1), y) == 1.0x*y
+@test antideriv(dim(1), 1x^2 + 2x) == x^2 + 1/3 * x^3
 
 vm1 = VectorMonomial(x^2*y, dim(2))
 div_vm1 = divergence(vm1)
@@ -101,6 +102,16 @@ x3 = Monomial(0,0,1)
 # dimension reduction by fixing an input value in one dimension
 @test reduce_dim_by_fixing(dim(2), 2.0, x^2 + -2x*y + y^2) == let x = Monomial(1); x^2 + -4x + 4 end
 @test reduce_dim_by_fixing(dim(1), 2.0, x^2 + -2x*y + y^2) == let x = Monomial(1); -4x + 4.0 + x^2 end
+
+t = Monomial(1)
+@test reduce_dim_by_subst(dim(2), t^2 + 1, x*y) == t + t^3
+@test reduce_dim_by_subst(dim(1), t^2-2t, x^2*y) == (t^2 - 4t + 4)*t^2*t
+
+poly_path = [t + 1, t^2 - 2t]
+@test precompose_with_poly_path(x*y^2, poly_path) == (t+1) * (t^2 - 2t)^2
+
+poly_path = [t + 1, t^2 - 2t, t-3.]
+@test precompose_with_poly_path(x1*x2^2*x3^3, poly_path) == (t+1) * (t^2 - 2t)^2 * (t-3)^3
 
 # unary minus
 @test -x == -1.0 * x

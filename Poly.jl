@@ -19,8 +19,10 @@ export Monomial,
        mons_of_deg_le_with_const_dim,
        vector_mons_of_deg_le,
        reduce_dim_by_fixing,
+       reduce_dim_by_subst,
+       precompose_with_poly_path,
        partial,
-       antiderivative,
+       antideriv,
        divergence,
        integral_on_rect_at_origin,
        drop_coefs_lt,
@@ -278,7 +280,20 @@ import Base.(-)
 -(p::Polynomial) = (-oneR) * p
 -(vm::VectorMonomial) = (-oneR) * vm
 -(pv::PolynomialVector) = (-oneR) * pv
+-(m::Monomial, c::Real) = m + (-c)
+-(c::Real, m::Monomial) = c + (-m)
+-(p::Polynomial, c::Real) = p + (-c)
+-(c::Real, p::Polynomial) = c + (-p)
 
+function poly_pwr(p::Polynomial, n::Deg)
+  if n == 0
+    one_poly(n)
+  elseif n == 1
+    p
+  else
+    p^n
+  end
+end
 
 import Base.ref
 ref(vm::VectorMonomial, i::Integer) = if i == vm.mon_pos vm.mon else zeroR end::MonOrConst
@@ -361,16 +376,61 @@ end
 without_dim{T}(i::Integer, a::Array{T,1}) = vcat(a[1:i-1],a[i+1:])
 
 function reduce_dim_by_fixing(dim::Dim, val::R, p::Polynomial)
-  sum([p.coefs[i] * reduce_dim_by_fixing(dim, val, p.mons[i]) for i in 1:length(p.coefs)])
+  sum = zeroR
+  for i=1:length(p.coefs)
+    sum += p.coefs[i] * reduce_dim_by_fixing(dim, val, p.mons[i])
+  end
+  sum
 end
 
 function reduce_dim_by_fixing(dim::Dim, val::R, m::Monomial)
-  c = val^(m.exps[dim])
-  new_exps = without_dim(dim, m.exps)
+  const c = val^(m.exps[dim])
+  const new_exps = without_dim(dim, m.exps)
   Polynomial([Monomial(new_exps)],[c])
 end
 
+# Substitute p in place of variable number n in monomial in_mon, yielding a new polynomial.
+# The polynomial p should have one less dimension than the monomial in which it is substituted.
+function reduce_dim_by_subst(n::Dim, p::Polynomial, in_mon::Monomial)
+  const nth_exp = in_mon.exps[n]
+  const p_to_nth_exp = poly_pwr(p, nth_exp)
+  const rest_of_mon = reduce_dim_by_fixing(n, oneR, in_mon)
+  p_to_nth_exp * rest_of_mon
+end
 
+# Substitute p in place of variable number n in polynomial in_poly, yielding a new polynomial.
+# The polynomial p should have one less dimension than the polynomial in which is is substituted.
+function reduce_dim_by_subst(n::Dim, p::Polynomial, in_poly::Polynomial)
+  sum = in_poly.coefs[1] * reduce_dim_by_subst(n, p, in_poly.mons[1])
+  for i=2:length(in_poly.coefs)
+    sum += in_poly.coefs[i] * reduce_dim_by_subst(n, p, in_poly.mons[i])
+  end
+  sum
+end
+
+
+# Precompose the given monomial with the path through its domain space having the passed component
+# polynomial functions.  The component polynomials should all be of one variable, and the number of
+# components should equal the domain space dimension of the monomial.
+function precompose_with_poly_path(mon::Monomial, path_comps::Array{Polynomial,1})
+  const mon_dom_dim = domain_dim(mon)
+  assert(mon_dom_dim == length(path_comps))
+
+  prod = poly_pwr(path_comps[1], mon.exps[1])
+  for i=2:length(path_comps)
+    prod *= poly_pwr(path_comps[i], mon.exps[i])
+  end
+  prod
+end
+
+
+function precompose_with_poly_path(p::Polynomial, path_comps::Array{Polynomial,1})
+  sum = p.coefs[1] * precompose_with_path(p.mons[1], path_comps)
+  for i=2:length(p.coefs)
+    sum += p.coefs[i] * precompose_with_path(p.mons[i], path_comps)
+  end
+  sum
+end
 
 # Partial derivative of a monomial.
 function partial(n::Dim, m::Monomial)
@@ -413,11 +473,19 @@ end
 
 # Returns the polynomial function whose partial derivative in the nth input is the given monomial,
 # and which has value 0 at 0.
-function antiderivative(n::Dim, m::Monomial)
+function antideriv(n::Dim, m::Monomial)
   const exps = copy(m.exps)
   const new_exp_n = m.exps[n] + 1
   exps[n] = new_exp_n
   Polynomial([Monomial(exps)], [convert(R, 1./new_exp_n)])
+end
+
+function antideriv(n::Dim, p::Polynomial)
+  sum = p.coefs[1] * antideriv(n, p.mons[1])
+  for i=2:length(p.coefs)
+    sum += p.coefs[i] * antideriv(n, p.mons[i])
+  end
+  sum
 end
 
 # Counting and listing of monomials at or not exceeding a certain degree
@@ -482,7 +550,7 @@ import Base.string, Base.show, Base.print
 
 # string representation for monomials
 function string(m::Monomial)
-  local ddim = domain_dim(m)
+  const ddim = domain_dim(m)
   if ddim == 1
     "x^$(int(m.exps[1]))"
   elseif ddim == 2
@@ -583,9 +651,54 @@ function coefs_closer_than(eps::R, pv1::PolynomialVector, pv2::PolynomialVector)
   true
 end
 
-one_mon(dom_dim::Dim) = Monomial(zeros(Deg, dom_dim))
-zero_poly(dom_dim::Dim) = Polynomial([one_mon(dom_dim)],[zeroR])
-zero_poly_vec(dom_dim::Dim) = let zerop = zero_poly(dom_dim); PolynomialVector([zerop for i=1:dom_dim]) end
+const one_mon_1d = Monomial(0)
+const one_mon_2d = Monomial(0,0)
+const one_mon_3d = Monomial(0,0,0)
+const one_mon_4d = Monomial(0,0,0,0)
+one_mon(dom_dim::Dim) =
+  if     dom_dim == 1 one_mon_1d
+  elseif dom_dim == 2 one_mon_2d
+  elseif dom_dim == 3 one_mon_3d
+  elseif dom_dim == 4 one_mon_4d
+  else Monomial(zeros(Deg, dom_dim))
+  end
+
+const one_poly_1d = Polynomial([one_mon_1d], [oneR])
+const one_poly_2d = Polynomial([one_mon_2d], [oneR])
+const one_poly_3d = Polynomial([one_mon_3d], [oneR])
+const one_poly_4d = Polynomial([one_mon_4d], [oneR])
+one_poly(dom_dim::Dim) =
+  if     dom_dim == 1 one_poly_1d
+  elseif dom_dim == 2 one_poly_2d
+  elseif dom_dim == 3 one_poly_3d
+  elseif dom_dim == 4 one_poly_4d
+  else Polynomial([one_mon(dom_dim)], [oneR])
+  end
+
+const zero_poly_1d = Polynomial([one_mon_1d], [zeroR])
+const zero_poly_2d = Polynomial([one_mon_2d], [zeroR])
+const zero_poly_3d = Polynomial([one_mon_3d], [zeroR])
+const zero_poly_4d = Polynomial([one_mon_4d], [zeroR])
+zero_poly(dom_dim::Dim) =
+  if     dom_dim == 1 zero_poly_1d
+  elseif dom_dim == 2 zero_poly_2d
+  elseif dom_dim == 3 zero_poly_3d
+  elseif dom_dim == 4 zero_poly_4d
+  else Polynomial([one_mon(dom_dim)], [zeroR])
+  end
+
+const zero_polyvec_1d = PolynomialVector([zero_poly_1d])
+const zero_polyvec_2d = PolynomialVector([zero_poly_2d for i=1:2])
+const zero_polyvec_3d = PolynomialVector([zero_poly_3d for i=1:3])
+const zero_polyvec_4d = PolynomialVector([zero_poly_4d for i=1:4])
+zero_poly_vec(dom_dim::Dim) =
+  if     dom_dim == 1 zero_polyvec_1d
+  elseif dom_dim == 2 zero_polyvec_2d
+  elseif dom_dim == 3 zero_polyvec_3d
+  elseif dom_dim == 4 zero_polyvec_4d
+  else
+    let zerop = zero_poly(dom_dim); PolynomialVector([zerop for i=1:dom_dim]) end
+  end
 
 flatten(arrays) = vcat(arrays...)
 
