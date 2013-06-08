@@ -169,10 +169,14 @@ end
 # real multiplication of polynomials
 *(a::R, p::Polynomial) = Polynomial(p.mons, a .* p.coefs)
 *(a::Real, p::Polynomial) = convert(R,a) * p
+*(p::Polynomial, a::R) = a * p
+*(p::Polynomial, a::Real) = convert(R,a) * p
 
 # real multiplication of monomials
 *(a::R, m::Monomial) = Polynomial([m],[a])
 *(a::Real, m::Monomial) = convert(R,a) * m
+*(m::Monomial, a::R) = a * m
+*(m::Monomial, a::Real) = convert(R,a) * m
 
 # real multiplication of PolynomialVectors
 *(a::R, pv::PolynomialVector) = begin
@@ -287,7 +291,7 @@ import Base.(-)
 
 function poly_pwr(p::Polynomial, n::Deg)
   if n == 0
-    one_poly(n)
+    one_poly(domain_dim(p))
   elseif n == 1
     p
   else
