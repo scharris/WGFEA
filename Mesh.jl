@@ -269,7 +269,7 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(p::Polynomi
 end
 
 function fe_interior_origin(fe::FENum, mesh::AbstractMesh)
-  const d = mesh.space_dim
+  const d = space_dim(mesh)
   const coords = Array(R, d)
   fe_interior_origin!(fe, coords, mesh)
   coords
