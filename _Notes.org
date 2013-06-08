@@ -1,35 +1,6 @@
 TODO
 ----
 
-Writeup const let problem
-  y = 1
-  let
-    const y = 1 (rebinds y from outer context)
-  end
-Also suggest "in" keyword, which would prevent accidentally leaving off a comma which totally changes the binding behavior.
-And allow dependencies between bindings.
-
-
-Mesh functions
---------------
-dependent_dim_for_nb_side(i::NBSideNum, mesh::AbstractMesh)
-  Lookup oshaope, defer to fn below.
-dependent_dim_for_oshape_side(fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh) =
-  Find dim that has least abs diff between the two points.
-fe_inclusions_of_nb_side(side_num::NBSideNum, mesh::AbstractMesh) =
-  Stored directly in array produced above.
-nb_side_num_for_fe_side(fe::FENum, side_face::RelFace, mesh::AbstractMesh) =
-
-is_boundary_side(fe::FENum, face::RelFace, mesh::AbstractMesh) =
-num_boundary_sides(mesh::AbstractMesh) =
-shape_diameter_inv(oshape::OrientedShape, mesh::AbstractMesh) =
-max_fe_diameter(mesh::AbstractMesh) =
-fe_interior_origin!(fe::FENum, fill::Vector{R}, mesh::AbstractMesh) =
-integral_face_rel_on_face(m::Monomial, fe_oshape::OrientedShape, face::RelFace, mesh::AbstractMesh) =
-integral_global_x_face_rel_on_fe_face(f::Function, mon::Monomial, fe::FENum, face::RelFace, mesh::AbstractMesh) =
-integral_fe_rel_x_side_rel_on_side(mon1::Monomial, mon2::Monomial, fe_oshape::OrientedShape, side_face::RelFace, mesh::AbstractMesh)
-
-
 
 
 Documentation Changes
