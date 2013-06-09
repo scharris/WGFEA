@@ -173,7 +173,7 @@ function boundary_projections(g::FunctionOrConst, basis::WeakFunsPolyBasis)
   for fe=fenum(1):Mesh.num_fes(mesh),
       sf=feface_one:Mesh.num_side_faces_for_fe(fe, mesh)
     if Mesh.is_boundary_side(fe, sf, mesh)
-      projs[(fe,sf)] = Proj.project_onto_fe_face(g, fe, sf, basis)
+      projs[(fe,sf)] = Proj.project_onto_fe_face_supported_approx_subspace(g, fe, sf, basis)
     end
   end
 

@@ -31,13 +31,13 @@ rect_oshape = oshapenum(1)
 f = (x::Vector{R}) -> 2(x[1] - mesh_mins[1])^2 * (x[2] - mesh_mins[2]) - 3(x[3] - mesh_mins[3])
 @test Poly.coefs_closer_than(10e-7,
   2x^2 * y - 3z,
-  Polynomial(basis.interior_mons, project_onto_fe_face(f, fenum(1), Mesh.interior_face, basis))
+  Polynomial(basis.interior_mons, project_onto_fe_face_supported_approx_subspace(f, fenum(1), Mesh.interior_face, basis))
 )
 
 
 # constant projection
 @test Poly.coefs_closer_than(10e-7,
-  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), left_face, basis), project_onto_fe_face(2.3, fenum(1), left_face, basis)),
+  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), left_face, basis), project_onto_fe_face_supported_approx_subspace(2.3, fenum(1), left_face, basis)),
   2.3*Mesh.one_mon(rmesh3x4x5)
 )
 
@@ -46,7 +46,7 @@ f = (x::Vector{R}) -> 2(x[1] - mesh_mins[1])^2 * (x[2] - mesh_mins[2]) - 3(x[3] 
 f = x::Vector{R} -> 2(x[2] - mesh_mins[2])^3 - 3.2(x[3] - mesh_mins[3])^2 +
                     (x[1] - mesh_mins[1])^3 # (this term should vanish on the side)
 @test Poly.coefs_closer_than(10e-7,
-  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), left_face, basis), project_onto_fe_face(f, fenum(1), left_face, basis)),
+  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), left_face, basis), project_onto_fe_face_supported_approx_subspace(f, fenum(1), left_face, basis)),
   2y^3 - 3.2z^2
 )
 
@@ -55,7 +55,7 @@ f = x::Vector{R} -> 2(x[2] - mesh_mins[2])^3 - 3.2(x[3] - mesh_mins[3])^2 +
 f = x::Vector{R} -> (x[2] - mesh_mins[2])^2 - 3(x[3] - mesh_mins[3]) +
                     (x[1] - (mesh_mins[1]+1))^3 # (this term should vanish on the side)
 @test Poly.coefs_closer_than(10e-7,
-  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), right_face, basis), project_onto_fe_face(f, fenum(1), right_face, basis)),
+  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), right_face, basis), project_onto_fe_face_supported_approx_subspace(f, fenum(1), right_face, basis)),
   y^2 - 3z
 )
 
@@ -64,7 +64,7 @@ f = x::Vector{R} -> (x[2] - mesh_mins[2])^2 - 3(x[3] - mesh_mins[3]) +
 f = x::Vector{R} -> (x[1] - mesh_mins[1])^3 - 3(x[3] - mesh_mins[3])^3 +
                     (x[2] - mesh_mins[2])^5 # (this term should vanish on the side)
 @test Poly.coefs_closer_than(10e-7,
-  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), bottom_face, basis), project_onto_fe_face(f, fenum(1), bottom_face, basis)),
+  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), bottom_face, basis), project_onto_fe_face_supported_approx_subspace(f, fenum(1), bottom_face, basis)),
   x^3 - 3z^3
 )
 
@@ -73,43 +73,43 @@ f = x::Vector{R} -> (x[1] - mesh_mins[1])^3 - 3(x[3] - mesh_mins[3])^3 +
 f = x::Vector{R} -> 2(x[1] - mesh_mins[1])^2 - 3(x[3] - mesh_mins[3])^3 + 12 +
                     (x[2] - (mesh_mins[2]+1))^5 # (this term should vanish on the side)
 @test Poly.coefs_closer_than(10e-7,
-  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), top_face, basis), project_onto_fe_face(f, fenum(1), top_face, basis)),
+  Polynomial(WGBasis.side_mons_for_fe_side(fenum(1), top_face, basis), project_onto_fe_face_supported_approx_subspace(f, fenum(1), top_face, basis)),
   2x^2 - 3z^3 + 12
 )
 
 @test Poly.coefs_closer_than(10e-7,
   Polynomial(WGBasis.side_mons_for_oshape_side(rect_oshape, right_face, basis),
-             project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, right_face, basis)),
+             project_interior_mon_onto_oshape_side_supported_approx_subspace(x * y^2 * z, rect_oshape, right_face, basis)),
   1y^2 * z
 )
 
 @test Poly.coefs_closer_than(10e-7,
   Polynomial(WGBasis.side_mons_for_oshape_side(rect_oshape, left_face, basis),
-             project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, left_face, basis)),
+             project_interior_mon_onto_oshape_side_supported_approx_subspace(x * y^2 * z, rect_oshape, left_face, basis)),
   0*x
 )
 
 @test Poly.coefs_closer_than(10e-7,
   Polynomial(WGBasis.side_mons_for_oshape_side(rect_oshape, left_face, basis),
-             project_interior_mon_onto_oshape_side(y^2 * z, rect_oshape, left_face, basis)),
+             project_interior_mon_onto_oshape_side_supported_approx_subspace(y^2 * z, rect_oshape, left_face, basis)),
   1y^2 * z
 )
 
 @test Poly.coefs_closer_than(10e-7,
   Polynomial(WGBasis.side_mons_for_oshape_side(rect_oshape, top_face, basis),
-             project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, top_face, basis)),
+             project_interior_mon_onto_oshape_side_supported_approx_subspace(x * y^2 * z, rect_oshape, top_face, basis)),
   1(x * z)
 )
 
 @test Poly.coefs_closer_than(10e-7,
   Polynomial(WGBasis.side_mons_for_oshape_side(rect_oshape, bottom_face, basis),
-             project_interior_mon_onto_oshape_side(x * y^2 * z, rect_oshape, bottom_face, basis)),
+             project_interior_mon_onto_oshape_side_supported_approx_subspace(x * y^2 * z, rect_oshape, bottom_face, basis)),
   0*x
 )
 
 @test Poly.coefs_closer_than(10e-7,
   Polynomial(WGBasis.side_mons_for_oshape_side(rect_oshape, bottom_face, basis),
-             project_interior_mon_onto_oshape_side(x * z, rect_oshape, bottom_face, basis)),
+             project_interior_mon_onto_oshape_side_supported_approx_subspace(x * z, rect_oshape, bottom_face, basis)),
   1x*z
 )
 

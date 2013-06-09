@@ -138,19 +138,12 @@ function poly_on_face_vs_poly_on_face(fe_oshape::OShapeNum,
 end
 
 
-
 function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
   # data arrays for construction of the sparse matrix
   const interacting_bel_pairs_ub = WGBasis.ub_estimate_num_bel_bel_common_support_fe_triplets(basis)
   const row_nums = Array(Int, interacting_bel_pairs_ub)
   const col_nums = Array(Int, interacting_bel_pairs_ub)
   const nonzeros = Array(R, interacting_bel_pairs_ub)
-
-  println("Computing vbf bel vs bel matrix, with $(int64(basis.total_bels)) basis elements.")
-  println("Mesh has $(int(basis.mesh.num_fes)) finite elements, and $(int(basis.mesh.num_nb_sides)) nb sides.")
-  println("Basis has $(int(basis.mons_per_fe_interior)) monomials per interior, $(int(basis.mons_per_fe_side)) monomials per side.")
-  println("Data arrays for non-zeros are of initial (upper bound) size $(int64(interacting_bel_pairs_ub)).")
-  flush(STDOUT)
 
   const mesh = basis.mesh
   const num_int_mons = WGBasis.mons_per_fe_interior(basis)
@@ -232,9 +225,6 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
       end # first side mons
     end end # first nb side faces
   end # fes
-
-  println("Done computing vbf bel vs bel matrix")
-  flush(STDOUT)
 
   sparse(row_nums[1:nnz],
          col_nums[1:nnz],

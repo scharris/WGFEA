@@ -126,9 +126,7 @@ function err_vs_proj_L2_norm(exact_sol::Function, wg_sol::WGSolution)
 
   sum_fe_diff_norm_sqs = zeroR
   for fe=fenum(1):Mesh.num_fes(mesh)
-    const proj_poly = Proj.project_onto_fe_face_as_poly(exact_sol,
-                                                        fe, Mesh.interior_face,
-                                                        basis)
+    const proj_poly = Proj.project_onto_fe_face_supported_approx_subspace_as_poly(exact_sol, fe, Mesh.interior_face, basis)
     const wg_sol_poly = wg_sol_interior_poly(fe, wg_sol)
     const diff = proj_poly - wg_sol_poly
     const diff_sq = diff * diff
@@ -198,12 +196,10 @@ function err_vs_proj_vbf_seminorm(exact_sol::Function, wg_sol::WGSolution, vbf::
     end
 
     # Compute exact solution projection minus wg solution for all faces.
-    const int_diff = Proj.project_onto_fe_face(exact_sol,
-                                               fe, Mesh.interior_face,
-                                               basis) -
+    const int_diff = Proj.project_onto_fe_face_supported_approx_subspace(exact_sol, fe, Mesh.interior_face, basis) -
                      wg_sol_interior_coefs(fe, wg_sol)
     for sf=feface_one:num_sides if is_nb_side[sf]
-      diff = Proj.project_onto_fe_face(exact_sol, fe, sf, basis)
+      diff = Proj.project_onto_fe_face_supported_approx_subspace(exact_sol, fe, sf, basis)
       diff -= wg_sol_side_coefs(fe, sf, wg_sol)
       side_diffs[sf] = diff
     end end
