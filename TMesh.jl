@@ -5,8 +5,6 @@ export TriMesh,
        RefTri,
        ElTri
 
-# using TMesh; ios = open("meshes/one_subdivided_triangle_mesh.msh"); tmsh = TriMesh(ios, 100)
-
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
        Mesh.NBSideInclusions, Mesh.fefacenum, Mesh.fenum, Mesh.nbsidenum
