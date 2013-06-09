@@ -6,12 +6,36 @@ using WG
 using Common
 import Mesh, Mesh.fenum
 import RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_ldims, RMesh.mesh_ldim
+import TMesh, TMesh.TriMesh
 import WGBasis.WeakFunsPolyBasis
 import VBF.AbstractVariationalBilinearForm
 import VBF_a_s.a_s
 import WGSol, WGSol.WGSolution
 import Cubature.hcubature
 
+function simple_2d_test_trimesh()
+  u(x::Vector{R}) = x[1]*(1-x[1])*x[2]*(1-x[2])
+  grad_u(x::Vector{R}) = [(1-2x[1])*x[2]*(1-x[2]), x[1]*(1-x[1])*(1-2x[2])]
+  f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
+  g = 0.0
+
+  ios = open("meshes/one_tri.msh")
+  mesh = TriMesh(ios, 3)
+
+  basis = WeakFunsPolyBasis(deg(3), deg(2), mesh)
+  vbf = a_s(basis)
+  wg = WGSolver(vbf, basis)
+
+  wg_sol = solve(f, g, wg)
+
+  # print_sample_points(wg_sol, u, grad_u)
+
+  println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, wg_sol))")
+  println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
+  #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
+  #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
+  flush(OUTPUT_STREAM)
+end
 
 function simple_2d_test()
   u(x::Vector{R}) = x[1]*(1-x[1])*x[2]*(1-x[2])
@@ -19,8 +43,8 @@ function simple_2d_test()
   f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
   g = 0.0
 
-  mesh = RectMesh([0.,0.], [1.,1.], mesh_ldims(25,25))
-  basis = WeakFunsPolyBasis(deg(3), deg(2), mesh)
+  mesh = RectMesh([0.,0.], [1.,1.], mesh_ldims(3,3))
+  basis = WeakFunsPolyBasis(deg(2), deg(1), mesh)
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
 
@@ -194,6 +218,7 @@ err_vs_proj_vbf_seminorm(u::Function, wg_sol::WGSolution, vbf::AbstractVariation
   WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf)
 
 simple_2d_test()
+#simple_2d_test_trimesh()
 
 #trig_Rd_test(mesh_ldims(5,5,5,5), deg(3), deg(2))
 
