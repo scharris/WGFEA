@@ -62,7 +62,7 @@ immutable TriMesh <: AbstractMesh
   oshapes::Array{RefTri,1}
 
   # non-boundary side numbers by fe face.
-  nbsidenums_by_feface::Dict{(FENum,FEFaceNum), NBSideNum}
+  nbsidenums_by_feface::Array{NBSideNum,2}
 
   # inclusions of non-boundary sides in fe's, indexed by non-boundary side number
   nbsideincls_by_nbsidenum::Array{NBSideInclusions,1}
@@ -71,7 +71,6 @@ immutable TriMesh <: AbstractMesh
   num_b_sides::Int64
 
   # cached items / computations / conversions
-  space_dim::Dim
   one_mon::Monomial
   num_fes::FENum
   num_nb_sides::NBSideNum
@@ -83,365 +82,6 @@ immutable TriMesh <: AbstractMesh
   space_dim_ones::Vector{R}
   integration_rel_err::R
   integration_abs_err::R
-end
-
-const zeroPt = Point(0.,0.)
-const singleZero = [zeroR]
-const singleOne = [oneR]
-
-####################################################################
-# implementations of required AbstractMesh functions
-import Mesh.space_dim
-space_dim(mesh::TriMesh) = mesh.space_dim
-
-import Mesh.one_mon
-one_mon(mesh::TriMesh) = mesh.one_mon
-
-import Mesh.num_fes
-num_fes(mesh::TriMesh) = mesh.num_fes
-
-import Mesh.num_nb_sides
-num_nb_sides(mesh::TriMesh) = mesh.num_nb_sides
-
-import Mesh.num_oriented_element_shapes
-num_oriented_element_shapes(mesh::TriMesh) = mesh.num_oshapes
-
-import Mesh.oriented_shape_for_fe
-oriented_shape_for_fe(fe::FENum, mesh::TriMesh) = mesh.fes[fe].oshapenum
-
-import Mesh.num_side_faces_for_fe
-num_side_faces_for_fe(fe::FENum, mesh::TriMesh) = ref_tri_for_fe(fe, mesh).num_side_faces
-
-import Mesh.num_side_faces_for_shape
-num_side_faces_for_shape(oshapenum::OShapeNum, mesh::TriMesh) = mesh.oshapes[oshapenum].num_side_faces
-
-import Mesh.dependent_dim_for_oshape_side
-dependent_dim_for_oshape_side(oshapenum::OShapeNum, sf::FEFaceNum, mesh::TriMesh) =
-  mesh.oshapes[oshapenum].dep_dims_by_sideface[sf]
-
-import Mesh.fe_inclusions_of_nb_side
-fe_inclusions_of_nb_side(nbsn::NBSideNum, mesh::TriMesh) = mesh.nbsideincls_by_nbsidenum[nbsn]
-
-import Mesh.nb_side_num_for_fe_side
-nb_side_num_for_fe_side(fe::FENum, sf::FEFaceNum, mesh::TriMesh) = mesh.nbsidenums_by_feface[(fe, sf)]
-
-import Mesh.is_boundary_side
-is_boundary_side(fe::FENum, face::FEFaceNum, mesh::TriMesh) = !haskey(mesh.nbsidenums_by_feface, (fe,face))
-
-import Mesh.num_boundary_sides
-num_boundary_sides(mesh::TriMesh) = mesh.num_b_sides
-
-import Mesh.shape_diameter_inv
-shape_diameter_inv(oshapenum::OShapeNum, mesh::TriMesh) = mesh.oshapes[oshapenum].diameter_inv
-
-import Mesh.max_fe_diameter
-max_fe_diameter(mesh::TriMesh) = mapreduce(rt -> 1./rt.diameter_inv, max, mesh.oshapes)
-
-import Mesh.fe_interior_origin!
-function fe_interior_origin!(fe::FENum, fill::Vector{R}, mesh::TriMesh)
-  const el_tri = mesh.fes[fe]
-  fill[1] = el_tri.v1._1
-  fill[2] = el_tri.v1._2
-end
-
-
-# Integration Functions
-
-# Integrate a monomial on the indicated face of a finite element of given oriented
-# shape, with the monomial interpreted locally on the face.
-import Mesh.integral_face_rel_on_oshape_face
-function integral_face_rel_on_oshape_face(mon::Monomial,
-                                          oshapenum::OShapeNum, face::FEFaceNum,
-                                          mesh::TriMesh)
-  const ref_tri = mesh.oshapes[oshapenum]
-
-  if face == Mesh.interior_face
-    # Order the interior-relative vertex points by their first coordinate values.
-    const pts = sort!([zeroPt, ref_tri.v12, ref_tri.v13])
-    const slope_12, slope_13 = slope_between(pts[1], pts[2]), slope_between(pts[1], pts[3])
-
-    if pts[1]._1 == pts[2]._1 # vertical side on left between points 1 and 2
-      # Integrate over the area bounded above and below by the lines between points 1 and 3 and 2 and 3,
-      # and horizontally between the vertical left side formed by points 1 and 2, and point 3 on the right
-      # where the upper and lower bounding lines meet.
-      const slope_23 = slope_between(pts[2], pts[3])
-      integral_mon_between_lines_meeting_at_point_and_vert_line(mon, pts[3], slope_13, slope_23, pts[1]._1)
-    else
-      # Points 1 and 2 do not form a vertical line. Integrate between points 1 and 2, and between points 2 and 3 if
-      # points 2 and 3 don't lie on a vertical line.
-      const fst_seg = integral_mon_between_lines_meeting_at_point_and_vert_line(mon, pts[1], slope_12, slope_13, pts[2]._1)
-      const snd_seg =
-        if pts[2]._1 == pts[3]._1 # vertical right side, no second segment
-          zeroR
-        else
-          const slope_23 = slope_between(pts[3], pts[2])
-          integral_mon_between_lines_meeting_at_point_and_vert_line(mon, pts[3], slope_13, slope_23, pts[2]._1)
-        end
-      fst_seg + snd_seg
-    end
-  else # line integral along side face
-    # We want to compute int_{t=0..1} mon(p(t)-o) |p'(t)| dt, where p:[0,1] -> R^2
-    # is a bijection traversing the side face smoothly, p(0) and p(1) being the side
-    # endpoints, and o is the local origin for the side, which is the side's midpoint.
-    const a,b = sideface_endpoint_pair(face,
-                                       zeroPt, ref_tri.v12, ref_tri.v13,
-                                       ref_tri.nums_faces_between_vertexes,
-                                       false) # lesser endpoints first => false
-    # The local origin of each side face is the midpoint.
-    const o = 1/2*(a + b)
-    # Path traversing the side from a to b, in local coordinates, relative to the side's local origin.
-    const path_orel = let t = MON_VAR_1D
-      [a._1 + (b._1 - a._1)*t - o._1,
-       a._2 + (b._2 - a._2)*t - o._2]
-    end
-    const pullback_poly_1d = Poly.precompose_with_poly_path(mon, path_orel) * norm(b-a)
-    const pullback_antider = Poly.antideriv(dim(1), pullback_poly_1d)
-    Poly.value_at(pullback_antider, oneR) - Poly.value_at(pullback_antider, zeroR)
-  end
-end
-
-
-# Integrate a global function f on the indicated finite element face, multiplied against
-# a monomial interpreted locally on the face.
-import Mesh.integral_global_x_face_rel_on_fe_face
-function integral_global_x_face_rel_on_fe_face(f::Function,
-                                               mon::Monomial,
-                                               fe::FENum, face::FEFaceNum,
-                                               mesh::TriMesh)
-  const ref_tri = ref_tri_for_fe(fe, mesh)
-  const fe_v1 = mesh.fes[fe].v1
-
-  if face == Mesh.interior_face
-
-    function f_x_mon(int_rel_x::Vector{R})
-      const irel_1, irel_2 = int_rel_x[1], int_rel_x[2]
-      const mon_val = Poly.value_at(mon, int_rel_x)
-      try
-        const x = int_rel_x # temporarily reuse storage of int_rel_x for global x
-        # vertex 1 is the local origin for the interior
-        x[1] += fe_v1._1
-        x[2] += fe_v1._2
-        f(x) * mon_val
-      finally
-        # restore int_rel_x to original contents
-        int_rel_x[1] = irel_1; int_rel_x[2] = irel_2
-      end
-    end
-
-    # Order the interior-relative vertex points by their first coordinate values.
-    const pts = sort!([zeroPt, ref_tri.v12, ref_tri.v13])
-    const slope_12, slope_13 = slope_between(pts[1], pts[2]), slope_between(pts[1], pts[3])
-
-    if pts[1]._1 == pts[2]._1 # vertical side on left between points 1 and 2
-      # Integrate over the area bounded above and below by the lines between points 1 and 3 and 2 and 3,
-      # and horizontally between the vertical left side formed by points 1 and 2, and point 3 on the right
-      # where the upper and lower bounding lines meet.
-      const slope_23 = slope_between(pts[2], pts[3])
-      integral_fn_between_lines_meeting_at_point_and_vert_line(f_x_mon, pts[3], slope_13, slope_23, pts[1]._1, mesh)
-    else
-      # Points 1 and 2 do not form a vertical line. Integrate between points 1 and 2, and between points 2 and 3 if
-      # points 2 and 3 don't lie on a vertical line.
-      const fst_seg = integral_fn_between_lines_meeting_at_point_and_vert_line(f_x_mon, pts[1], slope_12, slope_13, pts[2]._1, mesh)
-      const snd_seg =
-        if pts[2]._1 == pts[3]._1 # vertical right side, no second segment
-          zeroR
-        else
-          const slope_23 = slope_between(pts[3], pts[2])
-          integral_fn_between_lines_meeting_at_point_and_vert_line(f_x_mon, pts[3], slope_13, slope_23, pts[2]._1, mesh)
-        end
-      fst_seg + snd_seg
-    end
-  else # side face
-    # We want to compute int_{t=0..1} f(p(t)) mon(p(t)-o) |p'(t)| dt, where p:[0,1] -> R^2
-    # is a bijection traversing the side face smoothly, p(0) and p(1) being the side
-    # endpoints, and o is the local origin for the side, which is the side's midpoint.
-    const a,b = sideface_endpoint_pair(face,
-                                       fe_v1, fe_v1 + ref_tri.v12, fe_v1 + ref_tri.v13,
-                                       ref_tri.nums_faces_between_vertexes,
-                                       false) # lesser endpoints first => false
-    const o = 1/2*(a + b) # The local origin of each side face is the midpoint.
-    const side_len = hypot(b._1 - a._1, b._2 - a._2)
-
-    const integrand = let p_t = mesh.integrand_work_array
-      function(t::Vector{R}) # compute f(p(t)) mon(p(t)-o) |p'(t)|
-        const t = t[1]
-        p_t[1] = a._1 + (b._1 - a._1)*t
-        p_t[2] = a._2 + (b._2 - a._2)*t
-        const f_val = f(p_t)
-        # Make p_t side origin relative for the monomial evaluation.
-        p_t[1] -= o._1; p_t[2] -= o._2
-        const mon_val = Poly.value_at(mon, p_t)
-        f_val * mon_val * side_len  # |p'(t)| = |b-a| = side length
-      end
-    end
-
-    hcubature(integrand,
-              singleZero, singleOne,
-              mesh.integration_rel_err, mesh.integration_abs_err)[1]
-  end
-end
-
-# Integrate a side-local monomial vs. a vector monomial interpreted relative to the
-# entire finite element, dot multiplied with the outward normal for the side.
-import Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side
-function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(mon::Monomial,
-                                                                     vmon::VectorMonomial,
-                                                                     oshapenum::OShapeNum, side_face::FEFaceNum,
-                                                                     mesh::TriMesh)
-  const ref_tri = mesh.oshapes[oshapenum]
-
-  # fe-relative side endpoints
-  const a,b = sideface_endpoint_pair(side_face,
-                                     zeroPt, ref_tri.v12, ref_tri.v13,
-                                     ref_tri.nums_faces_between_vertexes,
-                                     false) # lesser endpoints first => false
-  # The local origin of each side face is the midpoint.
-  const side_o = 1/2*(a + b)
-  const onormal = ref_tri.outward_normals_by_sideface[side_face]
-  const side_len = hypot(b._1 - a._1, b._2 - a._2)
-
-  # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
-  #   mon(p(t)-side_o) vmon(p(t)).n  |p'(t)|
-  const integrand = let p_t = mesh.integrand_work_array
-    function(t::Vector{R})
-      const t = t[1]
-      # fe-relative path point
-      p_t[1] = a._1 + (b._1 - a._1)*t
-      p_t[2] = a._2 + (b._2 - a._2)*t
-      const vmon_dot_normal = let vmon_mon_val = Poly.value_at(vmon.mon, p_t)
-        vmon.mon_pos == 1 ? onormal._1 * vmon_mon_val: onormal._2 * vmon_mon_val
-      end
-      # Make p_t relative to the side origin for the monomial evaluation.
-      p_t[1] -= side_o._1; p_t[2] -= side_o._2
-      const mon_val = Poly.value_at(mon, p_t)
-      mon_val * vmon_dot_normal * side_len
-    end
-  end
-
-  hcubature(integrand,
-            singleZero, singleOne,
-            mesh.integration_rel_err, mesh.integration_abs_err)[1]
-end
-
-# Integrate a finite element relative monomial vs. a side relative monomial.
-import Mesh.integral_fe_rel_x_side_rel_on_oshape_side
-function integral_fe_rel_x_side_rel_on_oshape_side(fe_rel_mon::Monomial,
-                                                   side_rel_mon::Monomial,
-                                                   oshapenum::OShapeNum, side_face::FEFaceNum,
-                                                   mesh::TriMesh)
-  const ref_tri = mesh.oshapes[oshapenum]
-
-  # fe-relative side endpoints
-  const a,b = sideface_endpoint_pair(side_face,
-                                     zeroPt, ref_tri.v12, ref_tri.v13,
-                                     ref_tri.nums_faces_between_vertexes,
-                                     false) # lesser endpoints first => false
-  # The local origin of each side face is the midpoint.
-  const side_o = 1/2*(a + b)
-  const onormal = ref_tri.outward_normals_by_sideface[side_face]
-  const side_len = hypot(b._1 - a._1, b._2 - a._2)
-
-  # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
-  #   side_rel_mon(p(t)-side_o) fe_rel_mon(p(t))  |p'(t)|
-  const integrand = let p_t = mesh.integrand_work_array
-    function(t::Vector{R})
-      const t = t[1]
-      # fe-relative path point
-      p_t[1] = a._1 + (b._1 - a._1)*t
-      p_t[2] = a._2 + (b._2 - a._2)*t
-      const fe_rel_mon_val = Poly.value_at(fe_rel_mon, p_t)
-      # Make p_t relative to the side origin for the side-local monomial evaluation.
-      p_t[1] -= side_o._1; p_t[2] -= side_o._2
-      const side_rel_mon_val = Poly.value_at(side_rel_mon, p_t)
-      fe_rel_mon_val * side_rel_mon_val * side_len
-    end
-  end
-
-  hcubature(integrand,
-            singleZero, singleOne,
-            mesh.integration_rel_err, mesh.integration_abs_err)[1]
-end
-
-# required AbstractMesh functions
-####################################################################
-
-# Integrate a monomial over the triangular region bounded on two sides by two
-# non-vertical lines of indicated slopes which meet at a point p, and by the
-# indicated vertical line as the remaining side.
-function integral_mon_between_lines_meeting_at_point_and_vert_line(mon::Monomial,
-                                                                   p::Point,
-                                                                   slope_1::R, slope_2::R,
-                                                                   vert_line_x::R)
-  # slopes of the lower and upper lines
-  const m_l, m_u = p._1 < vert_line_x ? (min(slope_1, slope_2), max(slope_1, slope_2)) :
-                                        (max(slope_1, slope_2), min(slope_1, slope_2))
-  # polynomials representing the lower and upper lines for the inner (y) integral's bounds
-  const y_l, y_u = let x = MON_VAR_1D
-    p._2 + m_l*(x-p._1),
-    p._2 + m_u*(x-p._1)
-  end
-
-  # Compute inner integral, which is an integral over y with x held constant, as a polynomial in x.
-  const mon_antider = Poly.antideriv(dim(2), mon)
-  const inner_int = Poly.reduce_dim_by_subst(dim(2), y_u, mon_antider) - Poly.reduce_dim_by_subst(dim(2), y_l, mon_antider)
-
-  # Difference of anti-derivative of inner integral over 1st coordinate bounds is the final integral value.
-  const antider_inner_int = Poly.antideriv(dim(1), inner_int)
-  # bounds of integration for outer integral
-  const ib_l, ib_u = p._1 < vert_line_x ? (p._1, vert_line_x) : (vert_line_x, p._1)
-  Poly.value_at(antider_inner_int, ib_u) - Poly.value_at(antider_inner_int, ib_l)
-end
-
-# Integrate a function over the triangular region bounded on two sides by two
-# non-vertical lines of indicated slopes which meet at a point p, and by the
-# indicated vertical line as the remaining side.
-function integral_fn_between_lines_meeting_at_point_and_vert_line(g::Function,
-                                                                  p::Point,
-                                                                  slope_1::R, slope_2::R,
-                                                                  vert_line_x::R,
-                                                                  mesh::TriMesh)
-  const xmin, xmax = min(p._1, vert_line_x), max(p._1, vert_line_x)
-  const w = xmax - xmin # width of triangular integration region
-
-  # Method
-  # We will pull back the integration over the original triangular section T to an integration
-  # over the unit square, by change of variables via the bijection
-  #   t:[0,1]^2 -> T
-  #   t(x,y) = (xmin + x w,  p_2 + m1 (xmin + x w - p_1) + y(m2 - m1)(xmin + x w - p_1))
-  #     for (x,y) in [0,1]^2.  Here m1 and m2 are the slopes of the non-vertical bounding lines.
-  # The determinant of the derivative matrix Dt(x,y) is
-  #                     |          w                           0               |
-  #  det Dt(x,y)| = det |                                                      |
-  #                     | m1 w + y(m2 - m1) w      (m2 - m1)(xmin + x w - p_1) |
-  #               = w (m2 - m1) (xmin + x w - p_1).
-  # Now by applying change of variables in the integral of g over the T via the mapping t,
-  # we have
-  #   int_T g = int_0^1 int_0^1 g(t(x,y)) |det Dt(x,y)| dy dx
-  #            = int_0^1 int_0^1 g(t(x,y)) |w (m2 - m1) (xmin + x w - p_1)| dy dx
-
-  const slopediff = slope_2 - slope_1
-  const w_slopediff = w * slopediff
-
-  function gt_absdetDt(r::Vector{R}) # evaluate integrand at rectangle cubature point r
-    const x, y = r[1], r[2]
-    const xT = xmin + x * w      # (triangle x)
-    const xT_minus_p1 = xT - p._1
-    try
-      # Construct the triangle point t(x,y).
-      const t = r # reuse the rectangle point array temporarily for the triangle point
-      t[1] = xT
-      t[2] = p._2 + slope_1 * xT_minus_p1  +  y * slopediff * xT_minus_p1
-      const det_Dt = w_slopediff * xT_minus_p1
-      g(t) * abs(det_Dt)
-    finally
-      # restore input array to its original state
-      r[1] = x; r[2] = y
-    end
-  end
-
-  hcubature(gt_absdetDt,
-            mesh.space_dim_zeros, mesh.space_dim_ones, # unit square bounds
-            mesh.integration_rel_err, mesh.integration_abs_err)[1]
 end
 
 
@@ -472,14 +112,14 @@ function TriMesh(ios::IO, base_subdiv_iters::Integer, integration_rel_err::R = 1
   # We'll estimate 2 reference triangles for each mesh element if we are subdividing, 1 if not. We ignore
   # for this estimate any additional reference triangles for hanging node support.
   const est_ref_tris = (base_subdiv_iters > 0 ? 2 : 1) * est_mesh_tris
-  println("Estimating $(int(est_fes)) finite elements, $(int(est_ref_tris)) reference triangles.")
+  println("Estimating $(int(est_fes)) finite elements based on mesh header section, with $(int(est_ref_tris)) reference triangles.")
 
   # Data to be updated as input element lines are processed.
   const oshapes = sizehint(Array(RefTri,0), est_ref_tris)
   const fes = sizehint(Array(ElTri, 0), est_fes)
   const fe_faces_by_endpoints = sizehint(Dict{(Point,Point), Array{(FENum,FEFaceNum),1}}(), uint64(est_fes * 3/2)) # estimate assumes most fes have 3 sides, each in 2 fes
-  num_nb_sides = 0
-  num_b_sides = 0
+  num_nb_sides = convert(NBSideNum,0)
+  num_b_sides = int64(0)
 
   # Function via which all finite elements will be created during the processing of input element lines.
   const fe_maker = function(oshapenum::OShapeNum, v1::Point, v2::Point, v3::Point)
@@ -500,26 +140,25 @@ function TriMesh(ios::IO, base_subdiv_iters::Integer, integration_rel_err::R = 1
   if line != "\$EndElements\n" error("Missing end of elements marker in mesh file.") end
 
   # Create the final non-boundary sides data structures based on the mapping of side endpoints to fe faces.
-  const nbsidenums_by_feface, nbsideincls_by_nbsidenum  = create_nb_sides_data(fe_faces_by_endpoints, num_nb_sides_hint=num_nb_sides)
-
-  const space_dim = dim(2)
+  const num_fes = fenum(length(fes)) 
+  const max_sides_per_fe = max(reftri -> reftri.num_side_faces, oshapes)
+  const nbsidenums_by_feface, nbsideincls_by_nbsidenum  =
+    create_nb_sides_data(fe_faces_by_endpoints, num_fes, max_sides_per_fe, num_nb_sides_hint=num_nb_sides)
 
   TriMesh(fes,
           oshapes,
           nbsidenums_by_feface,
           nbsideincls_by_nbsidenum,
           num_b_sides,
-          space_dim,
           Monomial(zeros(Deg,2)),
           fenum(length(fes)),
           nbsidenum(length(nbsideincls_by_nbsidenum)),
           Mesh.oshapenum(length(oshapes)),
-          Array(R, space_dim), # integrand_work_array
-          zeros(R, space_dim),
-          ones(R,  space_dim),
+          Array(R, SPACE_DIM), # integrand_work_array
+          zeros(R, SPACE_DIM),
+          ones(R,  SPACE_DIM),
           integration_rel_err,
           integration_abs_err)
-
 end
 
 
@@ -780,9 +419,10 @@ end
 #   1) nb side numbers by (fe,face) :: Dict{(FENum, FEFaceNum), NBSideNum},
 #   2) an array of NBSideInclusions indexed by nb side number.
 #   3) an array of side dependent dimension by nb side number
-function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}};
+function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}},
+                              num_fes::FENum, max_sides_per_fe::FEFaceNum;
                               num_nb_sides_hint::Integer=0)
-  const nbsidenums_by_feface = sizehint(Dict{(FENum, FEFaceNum), NBSideNum}(), 2*num_nb_sides_hint)
+  const nbsidenums_by_feface = zeros(NBSideNum, num_fes, max_sides_per_fe)
   const nbsideincls_by_nbsidenum = sizehint(Array(NBSideInclusions, 0), num_nb_sides_hint)
 
   for side_endpoints in keys(fe_faces_by_endpoints)
@@ -790,8 +430,8 @@ function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{
     const num_fe_incls = length(fe_faces)
     if num_fe_incls == 2
       sort!(fe_faces)
-      const (fe_1, sf_1) = fe_faces[1]
-      const (fe_2, sf_2) = fe_faces[2]
+      const fe_1, sf_1 = fe_faces[1]
+      const fe_2, sf_2 = fe_faces[2]
 
       # Assign a new non-boundary side number.
       const nb_side_num = nbsidenum(length(nbsideincls_by_nbsidenum) + 1)
@@ -803,8 +443,8 @@ function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{
                              fe_2, sf_2))
 
       # Map the two fe/face pairs to this nb side number.
-      nbsidenums_by_feface[fe_faces[1]] = nb_side_num
-      nbsidenums_by_feface[fe_faces[2]] = nb_side_num
+      nbsidenums_by_feface[fe_1, sf_1] = nb_side_num
+      nbsidenums_by_feface[fe_2, sf_2] = nb_side_num
     elseif num_fe_incls > 2
       error("Invalid mesh: side encountered with more than two including finite elements.")
     end
@@ -935,7 +575,410 @@ function nums_faces_between_vertexes(v1::Point, v2::Point, v3::Point, el_tags::A
   ONE_FACE_BETWEEN_VERTEX_PAIRS
 end
 
-# file reading utilities
+# definitions related to the Gmsh format
+
+typealias ElTypeNum Uint8
+eltypenum(i::Integer) = if i>=1 && i<=typemax(ElTypeNum) convert(ElTypeNum, i) else error("invalid element type: $i") end
+eltypenum(s::String) = eltypenum(int(s))
+
+# Gmsh triangle type codes
+const ELTYPE_3_NODE_TRIANGLE = eltypenum(2)
+# lower order elements, which can be ignored
+const ELTYPE_POINT = eltypenum(15)
+const ELTYPE_2_NODE_LINE = eltypenum(1)
+const ELTYPE_3_NODE_LINE = eltypenum(8)
+const ELTYPE_4_NODE_LINE = eltypenum(26)
+const ELTYPE_5_NODE_LINE = eltypenum(27)
+const ELTYPE_6_NODE_LINE = eltypenum(28)
+
+function is_3_node_triangle_el_type(el_type::ElTypeNum)
+  el_type == ELTYPE_3_NODE_TRIANGLE
+end
+
+function is_lower_order_el_type(el_type::ElTypeNum)
+  el_type == ELTYPE_POINT ||
+  el_type == ELTYPE_2_NODE_LINE ||
+  el_type == ELTYPE_3_NODE_LINE ||
+  el_type == ELTYPE_4_NODE_LINE ||
+  el_type == ELTYPE_5_NODE_LINE ||
+  el_type == ELTYPE_6_NODE_LINE
+end
+
+const TOKN_NODELINE_ELNUM = 1
+const TOKN_NODELINE_POINT1 = 2
+const TOKN_NODELINE_POINT2 = 3
+const TOKN_NODELINE_POINT3 = 4
+
+# Gmsh element line format:
+# elm-number elm-type number-of-tags < tag > ... vert-number-list
+const TOKN_ELLINE_ELTYPE = 2
+const TOKN_ELLINE_NUMTAGS = 3
+
+# Mesh Construction
+####################################################################
+
+
+####################################################################
+# implementations of required AbstractMesh functions
+
+import Mesh.space_dim
+space_dim(mesh::TriMesh) = SPACE_DIM
+
+import Mesh.one_mon
+one_mon(mesh::TriMesh) = mesh.one_mon
+
+import Mesh.num_fes
+num_fes(mesh::TriMesh) = mesh.num_fes
+
+import Mesh.num_nb_sides
+num_nb_sides(mesh::TriMesh) = mesh.num_nb_sides
+
+import Mesh.num_oriented_element_shapes
+num_oriented_element_shapes(mesh::TriMesh) = mesh.num_oshapes
+
+import Mesh.oriented_shape_for_fe
+oriented_shape_for_fe(fe::FENum, mesh::TriMesh) = mesh.fes[fe].oshapenum
+
+import Mesh.num_side_faces_for_fe
+num_side_faces_for_fe(fe::FENum, mesh::TriMesh) = ref_tri_for_fe(fe, mesh).num_side_faces
+
+import Mesh.num_side_faces_for_shape
+num_side_faces_for_shape(oshapenum::OShapeNum, mesh::TriMesh) = mesh.oshapes[oshapenum].num_side_faces
+
+import Mesh.dependent_dim_for_oshape_side
+dependent_dim_for_oshape_side(oshapenum::OShapeNum, sf::FEFaceNum, mesh::TriMesh) =
+  mesh.oshapes[oshapenum].dep_dims_by_sideface[sf]
+
+import Mesh.fe_inclusions_of_nb_side
+fe_inclusions_of_nb_side(nbsn::NBSideNum, mesh::TriMesh) = mesh.nbsideincls_by_nbsidenum[nbsn]
+
+import Mesh.nb_side_num_for_fe_side
+nb_side_num_for_fe_side(fe::FENum, sf::FEFaceNum, mesh::TriMesh) = mesh.nbsidenums_by_feface[fe, sf]
+
+import Mesh.is_boundary_side
+is_boundary_side(fe::FENum, face::FEFaceNum, mesh::TriMesh) = mesh.nbsidenums_by_feface[fe, face] == 0
+
+import Mesh.num_boundary_sides
+num_boundary_sides(mesh::TriMesh) = mesh.num_b_sides
+
+import Mesh.shape_diameter_inv
+shape_diameter_inv(oshapenum::OShapeNum, mesh::TriMesh) = mesh.oshapes[oshapenum].diameter_inv
+
+import Mesh.max_fe_diameter
+max_fe_diameter(mesh::TriMesh) = mapreduce(rt -> 1./rt.diameter_inv, max, mesh.oshapes)
+
+import Mesh.fe_interior_origin!
+function fe_interior_origin!(fe::FENum, fill::Vector{R}, mesh::TriMesh)
+  const el_tri = mesh.fes[fe]
+  fill[1] = el_tri.v1._1
+  fill[2] = el_tri.v1._2
+end
+
+
+# Integration Functions
+
+# Integrate a monomial on the indicated face of a finite element of given oriented
+# shape, with the monomial interpreted locally on the face.
+import Mesh.integral_face_rel_on_oshape_face
+function integral_face_rel_on_oshape_face(mon::Monomial,
+                                          oshapenum::OShapeNum, face::FEFaceNum,
+                                          mesh::TriMesh)
+  const ref_tri = mesh.oshapes[oshapenum]
+
+  if face == Mesh.interior_face
+    # Order the interior-relative vertex points by their first coordinate values.
+    const pts = sort!([zeroPt, ref_tri.v12, ref_tri.v13])
+    const slope_12, slope_13 = slope_between(pts[1], pts[2]), slope_between(pts[1], pts[3])
+
+    if pts[1]._1 == pts[2]._1 # vertical side on left between points 1 and 2
+      # Integrate over the area bounded above and below by the lines between points 1 and 3 and 2 and 3,
+      # and horizontally between the vertical left side formed by points 1 and 2, and point 3 on the right
+      # where the upper and lower bounding lines meet.
+      const slope_23 = slope_between(pts[2], pts[3])
+      integral_mon_between_lines_meeting_at_point_and_vert_line(mon, pts[3], slope_13, slope_23, pts[1]._1)
+    else
+      # Points 1 and 2 do not form a vertical line. Integrate between points 1 and 2, and between points 2 and 3 if
+      # points 2 and 3 don't lie on a vertical line.
+      const fst_seg = integral_mon_between_lines_meeting_at_point_and_vert_line(mon, pts[1], slope_12, slope_13, pts[2]._1)
+      const snd_seg =
+        if pts[2]._1 == pts[3]._1 # vertical right side, no second segment
+          zeroR
+        else
+          const slope_23 = slope_between(pts[3], pts[2])
+          integral_mon_between_lines_meeting_at_point_and_vert_line(mon, pts[3], slope_13, slope_23, pts[2]._1)
+        end
+      fst_seg + snd_seg
+    end
+  else # line integral along side face
+    # We want to compute int_{t=0..1} mon(p(t)-o) |p'(t)| dt, where p:[0,1] -> R^2
+    # is a bijection traversing the side face smoothly, p(0) and p(1) being the side
+    # endpoints, and o is the local origin for the side, which is the side's midpoint.
+    const a,b = sideface_endpoint_pair(face,
+                                       zeroPt, ref_tri.v12, ref_tri.v13,
+                                       ref_tri.nums_faces_between_vertexes,
+                                       false) # lesser endpoints first => false
+    # The local origin of each side face is the midpoint.
+    const o = 1/2*(a + b)
+    # Path traversing the side from a to b, in local coordinates, relative to the side's local origin.
+    const path_orel = let t = MON_VAR_1D
+      [a._1 + (b._1 - a._1)*t - o._1,
+       a._2 + (b._2 - a._2)*t - o._2]
+    end
+    const pullback_poly_1d = Poly.precompose_with_poly_path(mon, path_orel) * norm(b-a)
+    const pullback_antider = Poly.antideriv(dim(1), pullback_poly_1d)
+    Poly.value_at(pullback_antider, oneR) - Poly.value_at(pullback_antider, zeroR)
+  end
+end
+
+
+# Integrate a global function f on the indicated finite element face, multiplied against
+# a monomial interpreted locally on the face.
+import Mesh.integral_global_x_face_rel_on_fe_face
+function integral_global_x_face_rel_on_fe_face(f::Function,
+                                               mon::Monomial,
+                                               fe::FENum, face::FEFaceNum,
+                                               mesh::TriMesh)
+  const ref_tri = ref_tri_for_fe(fe, mesh)
+  const fe_v1 = mesh.fes[fe].v1
+
+  if face == Mesh.interior_face
+
+    function f_x_mon(int_rel_x::Vector{R})
+      const irel_1, irel_2 = int_rel_x[1], int_rel_x[2]
+      const mon_val = Poly.value_at(mon, int_rel_x)
+      try
+        const x = int_rel_x # temporarily reuse storage of int_rel_x for global x
+        # vertex 1 is the local origin for the interior
+        x[1] += fe_v1._1
+        x[2] += fe_v1._2
+        f(x) * mon_val
+      finally
+        # restore int_rel_x to original contents
+        int_rel_x[1] = irel_1; int_rel_x[2] = irel_2
+      end
+    end
+
+    # Order the interior-relative vertex points by their first coordinate values.
+    const pts = sort!([zeroPt, ref_tri.v12, ref_tri.v13])
+    const slope_12, slope_13 = slope_between(pts[1], pts[2]), slope_between(pts[1], pts[3])
+
+    if pts[1]._1 == pts[2]._1 # vertical side on left between points 1 and 2
+      # Integrate over the area bounded above and below by the lines between points 1 and 3 and 2 and 3,
+      # and horizontally between the vertical left side formed by points 1 and 2, and point 3 on the right
+      # where the upper and lower bounding lines meet.
+      const slope_23 = slope_between(pts[2], pts[3])
+      integral_fn_between_lines_meeting_at_point_and_vert_line(f_x_mon, pts[3], slope_13, slope_23, pts[1]._1, mesh)
+    else
+      # Points 1 and 2 do not form a vertical line. Integrate between points 1 and 2, and between points 2 and 3 if
+      # points 2 and 3 don't lie on a vertical line.
+      const fst_seg = integral_fn_between_lines_meeting_at_point_and_vert_line(f_x_mon, pts[1], slope_12, slope_13, pts[2]._1, mesh)
+      const snd_seg =
+        if pts[2]._1 == pts[3]._1 # vertical right side, no second segment
+          zeroR
+        else
+          const slope_23 = slope_between(pts[3], pts[2])
+          integral_fn_between_lines_meeting_at_point_and_vert_line(f_x_mon, pts[3], slope_13, slope_23, pts[2]._1, mesh)
+        end
+      fst_seg + snd_seg
+    end
+  else # side face
+    # We want to compute int_{t=0..1} f(p(t)) mon(p(t)-o) |p'(t)| dt, where p:[0,1] -> R^2
+    # is a bijection traversing the side face smoothly, p(0) and p(1) being the side
+    # endpoints, and o is the local origin for the side, which is the side's midpoint.
+    const a,b = sideface_endpoint_pair(face,
+                                       fe_v1, fe_v1 + ref_tri.v12, fe_v1 + ref_tri.v13,
+                                       ref_tri.nums_faces_between_vertexes,
+                                       false) # lesser endpoints first => false
+    const o = 1/2*(a + b) # The local origin of each side face is the midpoint.
+    const side_len = hypot(b._1 - a._1, b._2 - a._2)
+
+    const integrand = let p_t = mesh.integrand_work_array
+      function(t::Vector{R}) # compute f(p(t)) mon(p(t)-o) |p'(t)|
+        const t = t[1]
+        p_t[1] = a._1 + (b._1 - a._1)*t
+        p_t[2] = a._2 + (b._2 - a._2)*t
+        const f_val = f(p_t)
+        # Make p_t side origin relative for the monomial evaluation.
+        p_t[1] -= o._1; p_t[2] -= o._2
+        const mon_val = Poly.value_at(mon, p_t)
+        f_val * mon_val * side_len  # |p'(t)| = |b-a| = side length
+      end
+    end
+
+    hcubature(integrand,
+              singleZero, singleOne,
+              mesh.integration_rel_err, mesh.integration_abs_err)[1]
+  end
+end
+
+# Integrate a side-local monomial vs. a vector monomial interpreted relative to the
+# entire finite element, dot multiplied with the outward normal for the side.
+import Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side
+function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(mon::Monomial,
+                                                                     vmon::VectorMonomial,
+                                                                     oshapenum::OShapeNum, side_face::FEFaceNum,
+                                                                     mesh::TriMesh)
+  const ref_tri = mesh.oshapes[oshapenum]
+
+  # fe-relative side endpoints
+  const a,b = sideface_endpoint_pair(side_face,
+                                     zeroPt, ref_tri.v12, ref_tri.v13,
+                                     ref_tri.nums_faces_between_vertexes,
+                                     false) # lesser endpoints first => false
+  # The local origin of each side face is the midpoint.
+  const side_o = 1/2*(a + b)
+  const onormal = ref_tri.outward_normals_by_sideface[side_face]
+  const side_len = hypot(b._1 - a._1, b._2 - a._2)
+
+  # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
+  #   mon(p(t)-side_o) vmon(p(t)).n  |p'(t)|
+  const integrand = let p_t = mesh.integrand_work_array
+    function(t::Vector{R})
+      const t = t[1]
+      # fe-relative path point
+      p_t[1] = a._1 + (b._1 - a._1)*t
+      p_t[2] = a._2 + (b._2 - a._2)*t
+      const vmon_dot_normal = let vmon_mon_val = Poly.value_at(vmon.mon, p_t)
+        vmon.mon_pos == 1 ? onormal._1 * vmon_mon_val: onormal._2 * vmon_mon_val
+      end
+      # Make p_t relative to the side origin for the monomial evaluation.
+      p_t[1] -= side_o._1; p_t[2] -= side_o._2
+      const mon_val = Poly.value_at(mon, p_t)
+      mon_val * vmon_dot_normal * side_len
+    end
+  end
+
+  hcubature(integrand,
+            singleZero, singleOne,
+            mesh.integration_rel_err, mesh.integration_abs_err)[1]
+end
+
+# Integrate a finite element relative monomial vs. a side relative monomial.
+import Mesh.integral_fe_rel_x_side_rel_on_oshape_side
+function integral_fe_rel_x_side_rel_on_oshape_side(fe_rel_mon::Monomial,
+                                                   side_rel_mon::Monomial,
+                                                   oshapenum::OShapeNum, side_face::FEFaceNum,
+                                                   mesh::TriMesh)
+  const ref_tri = mesh.oshapes[oshapenum]
+
+  # fe-relative side endpoints
+  const a,b = sideface_endpoint_pair(side_face,
+                                     zeroPt, ref_tri.v12, ref_tri.v13,
+                                     ref_tri.nums_faces_between_vertexes,
+                                     false) # lesser endpoints first => false
+  # The local origin of each side face is the midpoint.
+  const side_o = 1/2*(a + b)
+  const onormal = ref_tri.outward_normals_by_sideface[side_face]
+  const side_len = hypot(b._1 - a._1, b._2 - a._2)
+
+  # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
+  #   side_rel_mon(p(t)-side_o) fe_rel_mon(p(t))  |p'(t)|
+  const integrand = let p_t = mesh.integrand_work_array
+    function(t::Vector{R})
+      const t = t[1]
+      # fe-relative path point
+      p_t[1] = a._1 + (b._1 - a._1)*t
+      p_t[2] = a._2 + (b._2 - a._2)*t
+      const fe_rel_mon_val = Poly.value_at(fe_rel_mon, p_t)
+      # Make p_t relative to the side origin for the side-local monomial evaluation.
+      p_t[1] -= side_o._1; p_t[2] -= side_o._2
+      const side_rel_mon_val = Poly.value_at(side_rel_mon, p_t)
+      fe_rel_mon_val * side_rel_mon_val * side_len
+    end
+  end
+
+  hcubature(integrand,
+            singleZero, singleOne,
+            mesh.integration_rel_err, mesh.integration_abs_err)[1]
+end
+
+# required AbstractMesh functions
+####################################################################
+
+
+# Integration Auxiliary Functions
+
+# Integrate a monomial over the triangular region bounded on two sides by two
+# non-vertical lines of indicated slopes which meet at a point p, and by the
+# indicated vertical line as the remaining side.
+function integral_mon_between_lines_meeting_at_point_and_vert_line(mon::Monomial,
+                                                                   p::Point,
+                                                                   slope_1::R, slope_2::R,
+                                                                   vert_line_x::R)
+  # slopes of the lower and upper lines
+  const m_l, m_u = p._1 < vert_line_x ? (min(slope_1, slope_2), max(slope_1, slope_2)) :
+                                        (max(slope_1, slope_2), min(slope_1, slope_2))
+  # polynomials representing the lower and upper lines for the inner (y) integral's bounds
+  const y_l, y_u = let x = MON_VAR_1D
+    p._2 + m_l*(x-p._1),
+    p._2 + m_u*(x-p._1)
+  end
+
+  # Compute inner integral, which is an integral over y with x held constant, as a polynomial in x.
+  const mon_antider = Poly.antideriv(dim(2), mon)
+  const inner_int = Poly.reduce_dim_by_subst(dim(2), y_u, mon_antider) - Poly.reduce_dim_by_subst(dim(2), y_l, mon_antider)
+
+  # Difference of anti-derivative of inner integral over 1st coordinate bounds is the final integral value.
+  const antider_inner_int = Poly.antideriv(dim(1), inner_int)
+  # bounds of integration for outer integral
+  const ib_l, ib_u = p._1 < vert_line_x ? (p._1, vert_line_x) : (vert_line_x, p._1)
+  Poly.value_at(antider_inner_int, ib_u) - Poly.value_at(antider_inner_int, ib_l)
+end
+
+# Integrate a function over the triangular region bounded on two sides by two
+# non-vertical lines of indicated slopes which meet at a point p, and by the
+# indicated vertical line as the remaining side.
+function integral_fn_between_lines_meeting_at_point_and_vert_line(g::Function,
+                                                                  p::Point,
+                                                                  slope_1::R, slope_2::R,
+                                                                  vert_line_x::R,
+                                                                  mesh::TriMesh)
+  const xmin, xmax = min(p._1, vert_line_x), max(p._1, vert_line_x)
+  const w = xmax - xmin # width of triangular integration region
+
+  # Method
+  # We will pull back the integration over the original triangular section T to an integration
+  # over the unit square, by change of variables via the bijection
+  #   t:[0,1]^2 -> T
+  #   t(x,y) = (xmin + x w,  p_2 + m1 (xmin + x w - p_1) + y(m2 - m1)(xmin + x w - p_1))
+  #     for (x,y) in [0,1]^2.  Here m1 and m2 are the slopes of the non-vertical bounding lines.
+  # The determinant of the derivative matrix Dt(x,y) is
+  #                     |          w                           0               |
+  #  det Dt(x,y)| = det |                                                      |
+  #                     | m1 w + y(m2 - m1) w      (m2 - m1)(xmin + x w - p_1) |
+  #               = w (m2 - m1) (xmin + x w - p_1).
+  # Now by applying change of variables in the integral of g over the T via the mapping t,
+  # we have
+  #   int_T g = int_0^1 int_0^1 g(t(x,y)) |det Dt(x,y)| dy dx
+  #            = int_0^1 int_0^1 g(t(x,y)) |w (m2 - m1) (xmin + x w - p_1)| dy dx
+
+  const slopediff = slope_2 - slope_1
+  const w_slopediff = w * slopediff
+
+  function gt_absdetDt(r::Vector{R}) # evaluate integrand at rectangle cubature point r
+    const x, y = r[1], r[2]
+    const xT = xmin + x * w      # (triangle x)
+    const xT_minus_p1 = xT - p._1
+    try
+      # Construct the triangle point t(x,y).
+      const t = r # reuse the rectangle point array temporarily for the triangle point
+      t[1] = xT
+      t[2] = p._2 + slope_1 * xT_minus_p1  +  y * slopediff * xT_minus_p1
+      const det_Dt = w_slopediff * xT_minus_p1
+      g(t) * abs(det_Dt)
+    finally
+      # restore input array to its original state
+      r[1] = x; r[2] = y
+    end
+  end
+
+  hcubature(gt_absdetDt,
+            mesh.space_dim_zeros, mesh.space_dim_ones, # unit square bounds
+            mesh.integration_rel_err, mesh.integration_abs_err)[1]
+end
+
+###############################################
+# Mesh File Reading Utilities
 
 function read_points(ios::IO)
   if !read_through_line(ios, "\$Nodes\n")
@@ -989,56 +1032,18 @@ function read_until(io::IO, line_cond_fn::Function)
   l, lines_read
 end
 
-
-
-# definitions related to the Gmsh format
-
-typealias ElTypeNum Uint8
-eltypenum(i::Integer) = if i>=1 && i<=typemax(ElTypeNum) convert(ElTypeNum, i) else error("invalid element type: $i") end
-eltypenum(s::String) = eltypenum(int(s))
-
-# Gmsh triangle type codes
-const ELTYPE_3_NODE_TRIANGLE = eltypenum(2)
-# lower order elements, which can be ignored
-const ELTYPE_POINT = eltypenum(15)
-const ELTYPE_2_NODE_LINE = eltypenum(1)
-const ELTYPE_3_NODE_LINE = eltypenum(8)
-const ELTYPE_4_NODE_LINE = eltypenum(26)
-const ELTYPE_5_NODE_LINE = eltypenum(27)
-const ELTYPE_6_NODE_LINE = eltypenum(28)
-
-function is_3_node_triangle_el_type(el_type::ElTypeNum)
-  el_type == ELTYPE_3_NODE_TRIANGLE
-end
-
-function is_lower_order_el_type(el_type::ElTypeNum)
-  el_type == ELTYPE_POINT ||
-  el_type == ELTYPE_2_NODE_LINE ||
-  el_type == ELTYPE_3_NODE_LINE ||
-  el_type == ELTYPE_4_NODE_LINE ||
-  el_type == ELTYPE_5_NODE_LINE ||
-  el_type == ELTYPE_6_NODE_LINE
-end
-
-const TOKN_NODELINE_ELNUM = 1
-const TOKN_NODELINE_POINT1 = 2
-const TOKN_NODELINE_POINT2 = 3
-const TOKN_NODELINE_POINT3 = 4
-
-# Gmsh element line format:
-# elm-number elm-type number-of-tags < tag > ... vert-number-list
-const TOKN_ELLINE_ELTYPE = 2
-const TOKN_ELLINE_NUMTAGS = 3
-
-# Mesh Construction
-####################################################################
+# Mesh File Reading Utilities
+###############################################
 
 
 ###############
 # Etc
 
+const SPACE_DIM= dim(2)
+const zeroPt = Point(0.,0.)
+const singleZero = [zeroR]
+const singleOne = [oneR]
 const ONE_FACE_BETWEEN_VERTEX_PAIRS = (1,1,1)
-
 const MON_VAR_1D = Monomial(1)
 
 # Reference triangle for a finite element.
@@ -1064,13 +1069,14 @@ isless(v::Vec, w::Vec) = v._1 < w._1 || v._1 == w._1 && v._2 < w._2
 import Base.dot
 dot(v::Vec, w::Vec) = v._1 * w._1 + v._2 * w._2
 
-
 counterclockwise(u::Vec, v::Vec) =
   u._1*v._2 - u._2*v._1 > 0
 
 slope_between(p::Point, q::Point) = (q._2 - p._2)/(q._1 - p._1)
 
+
 # string representations
+
 import Base.string, Base.show, Base.print
 
 function string(m::TriMesh)
