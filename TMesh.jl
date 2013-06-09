@@ -3,8 +3,7 @@ export TriMesh,
        Vec,
        Point,
        RefTri,
-       ElTri,
-       integral_mon_between_lines_meeting_at_point_and_vert_line
+       ElTri
 
 # using TMesh; ios = open("meshes/one_subdivided_triangle_mesh.msh"); tmsh = TriMesh(ios, 100)
 
@@ -14,7 +13,6 @@ import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.Ab
 import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
-const dom_dim = 2
 
 # vector type for representing relative node offsets and points in the mesh
 immutable Vec
@@ -82,13 +80,16 @@ immutable TriMesh <: AbstractMesh
   num_oshapes::OShapeNum
 
   # integration support members
-  intgd_args_work_array::Vector{R}
+  integrand_work_array::Vector{R}
   space_dim_zeros::Vector{R}
   space_dim_ones::Vector{R}
   integration_rel_err::R
   integration_abs_err::R
 end
 
+const zeroPt = Point(0.,0.)
+const singleZero = [zeroR]
+const singleOne = [oneR]
 
 ####################################################################
 # implementations of required AbstractMesh functions
@@ -158,7 +159,7 @@ function integral_face_rel_on_oshape_face(mon::Monomial,
 
   if face == Mesh.interior_face
     # Order the interior-relative vertex points by their first coordinate values.
-    const pts = sort!([Point(0.,0.), ref_tri.v12, ref_tri.v13])
+    const pts = sort!([zeroPt, ref_tri.v12, ref_tri.v13])
     const slope_12, slope_13 = slope_between(pts[1], pts[2]), slope_between(pts[1], pts[3])
 
     if pts[1]._1 == pts[2]._1 # vertical side on left between points 1 and 2
@@ -184,10 +185,10 @@ function integral_face_rel_on_oshape_face(mon::Monomial,
     # We want to compute int_{t=0..1} mon(p(t)-o) |p'(t)| dt, where p:[0,1] -> R^2
     # is a bijection traversing the side face smoothly, p(0) and p(1) being the side
     # endpoints, and o is the local origin for the side, which is the side's midpoint.
-    a,b = sideface_endpoint_pair(face,
-                                 Point(0.,0.), ref_tri.v12, ref_tri.v13,
-                                 ref_tri.nums_faces_between_vertexes,
-                                 false) # lesser endpoints first => false
+    const a,b = sideface_endpoint_pair(face,
+                                       zeroPt, ref_tri.v12, ref_tri.v13,
+                                       ref_tri.nums_faces_between_vertexes,
+                                       false) # lesser endpoints first => false
     # The local origin of each side face is the midpoint.
     const o = 1/2*(a + b)
     # Path traversing the side from a to b, in local coordinates, relative to the side's local origin.
@@ -210,19 +211,27 @@ function integral_global_x_face_rel_on_fe_face(f::Function,
                                                fe::FENum, face::FEFaceNum,
                                                mesh::TriMesh)
   const ref_tri = ref_tri_for_fe(fe, mesh)
+  const fe_v1 = mesh.fes[fe].v1
 
   if face == Mesh.interior_face
-    const fe_int_origin = Mesh.fe_interior_origin(fe, mesh)
-    const x = mesh.intgd_args_work_array
+
     function f_x_mon(int_rel_x::Vector{R})
-      for i=1:dom_dim
-        x[i] = fe_int_origin[i] + int_rel_x[i]
+      const irel_1, irel_2 = int_rel_x[1], int_rel_x[2]
+      const mon_val = Poly.value_at(mon, int_rel_x)
+      try
+        const x = int_rel_x # temporarily reuse storage of int_rel_x for global x
+        # vertex 1 is the local origin for the interior
+        x[1] += fe_v1._1
+        x[2] += fe_v1._2
+        f(x) * mon_val
+      finally
+        # restore int_rel_x to original contents
+        int_rel_x[1] = irel_1; int_rel_x[2] = irel_2
       end
-      f(x) * Poly.value_at(mon, int_rel_x)
     end
 
     # Order the interior-relative vertex points by their first coordinate values.
-    const pts = sort!([Point(0.,0.), ref_tri.v12, ref_tri.v13])
+    const pts = sort!([zeroPt, ref_tri.v12, ref_tri.v13])
     const slope_12, slope_13 = slope_between(pts[1], pts[2]), slope_between(pts[1], pts[3])
 
     if pts[1]._1 == pts[2]._1 # vertical side on left between points 1 and 2
@@ -242,50 +251,117 @@ function integral_global_x_face_rel_on_fe_face(f::Function,
           const slope_23 = slope_between(pts[3], pts[2])
           integral_fn_between_lines_meeting_at_point_and_vert_line(f_x_mon, pts[3], slope_13, slope_23, pts[2]._1, mesh)
         end
-      println("fst_seg: $fst_seg,  snd_seg: $snd_seg")
       fst_seg + snd_seg
     end
   else # side face
-    # TODO
-    error("Not yet implemented.")
-    # const a = side_face_perp_axis(face)
-    # const a_coord_of_fe_side = fe_int_origin[a] + (side_face_is_lesser_on_perp_axis(face) ? zeroR : mesh.fe_dims[a])
-    # const mon_dim_reduced_poly = Poly.reduce_dim_by_fixing(a, zeroR, mon)
+    # We want to compute int_{t=0..1} f(p(t)) mon(p(t)-o) |p'(t)| dt, where p:[0,1] -> R^2
+    # is a bijection traversing the side face smoothly, p(0) and p(1) being the side
+    # endpoints, and o is the local origin for the side, which is the side's midpoint.
+    const a,b = sideface_endpoint_pair(face,
+                                       fe_v1, fe_v1 + ref_tri.v12, fe_v1 + ref_tri.v13,
+                                       ref_tri.nums_faces_between_vertexes,
+                                       false) # lesser endpoints first => false
+    const o = 1/2*(a + b) # The local origin of each side face is the midpoint.
+    const side_len = hypot(b._1 - a._1, b._2 - a._2)
 
-    # function ref_intgd(x::Vector{R}) # x has d-1 components
-    #   for i=1:a-1
-    #     fe_x[i] = fe_int_origin[i] + x[i]
-    #   end
-    #   fe_x[a] = a_coord_of_fe_side
-    #   for i=a+1:d
-    #     fe_x[i] = fe_int_origin[i] + x[i-1]
-    #   end
-    #   f(fe_x) * Poly.value_at(mon_dim_reduced_poly, x)
-    # end
+    const integrand = let p_t = mesh.integrand_work_array
+      function(t::Vector{R}) # compute f(p(t)) mon(p(t)-o) |p'(t)|
+        const t = t[1]
+        p_t[1] = a._1 + (b._1 - a._1)*t
+        p_t[2] = a._2 + (b._2 - a._2)*t
+        const f_val = f(p_t)
+        # Make p_t side origin relative for the monomial evaluation.
+        p_t[1] -= o._1; p_t[2] -= o._2
+        const mon_val = Poly.value_at(mon, p_t)
+        f_val * mon_val * side_len  # |p'(t)| = |b-a| = side length
+      end
+    end
 
-    # hcubature(ref_intgd,
-    #           mesh.space_dim_less_one_zeros, mesh.fe_dims_wo_dim[a],
-    #           mesh.integration_rel_err, mesh.integration_abs_err)[1]
+    hcubature(integrand,
+              singleZero, singleOne,
+              mesh.integration_rel_err, mesh.integration_abs_err)[1]
   end
 end
 
 # Integrate a side-local monomial vs. a vector monomial interpreted relative to the
 # entire finite element, dot multiplied with the outward normal for the side.
 import Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side
-function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(v::Monomial,
-                                                                     q::VectorMonomial,
-                                                                     oshapenum::OShapeNum, sf::FEFaceNum,
+function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(mon::Monomial,
+                                                                     vmon::VectorMonomial,
+                                                                     oshapenum::OShapeNum, side_face::FEFaceNum,
                                                                      mesh::TriMesh)
-  # TODO
+  const ref_tri = mesh.oshapes[oshapenum]
+
+  # fe-relative side endpoints
+  const a,b = sideface_endpoint_pair(side_face,
+                                     zeroPt, ref_tri.v12, ref_tri.v13,
+                                     ref_tri.nums_faces_between_vertexes,
+                                     false) # lesser endpoints first => false
+  # The local origin of each side face is the midpoint.
+  const side_o = 1/2*(a + b)
+  const onormal = ref_tri.outward_normals_by_sideface[side_face]
+  const side_len = hypot(b._1 - a._1, b._2 - a._2)
+
+  # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
+  #   mon(p(t)-side_o) vmon(p(t)).n  |p'(t)|
+  const integrand = let p_t = mesh.integrand_work_array
+    function(t::Vector{R})
+      const t = t[1]
+      # fe-relative path point
+      p_t[1] = a._1 + (b._1 - a._1)*t
+      p_t[2] = a._2 + (b._2 - a._2)*t
+      const vmon_dot_normal = let vmon_mon_val = Poly.value_at(vmon.mon, p_t)
+        vmon.mon_pos == 1 ? onormal._1 * vmon_mon_val: onormal._2 * vmon_mon_val
+      end
+      # Make p_t relative to the side origin for the monomial evaluation.
+      p_t[1] -= side_o._1; p_t[2] -= side_o._2
+      const mon_val = Poly.value_at(mon, p_t)
+      mon_val * vmon_dot_normal * side_len
+    end
+  end
+
+  hcubature(integrand,
+            singleZero, singleOne,
+            mesh.integration_rel_err, mesh.integration_abs_err)[1]
 end
 
 # Integrate a finite element relative monomial vs. a side relative monomial.
 import Mesh.integral_fe_rel_x_side_rel_on_oshape_side
-function integral_fe_rel_x_side_rel_on_oshape_side(mon1::Monomial,
-                                                   mon2::Monomial,
-                                                   oshapenum::OShapeNum, sf::FEFaceNum,
+function integral_fe_rel_x_side_rel_on_oshape_side(fe_rel_mon::Monomial,
+                                                   side_rel_mon::Monomial,
+                                                   oshapenum::OShapeNum, side_face::FEFaceNum,
                                                    mesh::TriMesh)
-  # TODO
+  const ref_tri = mesh.oshapes[oshapenum]
+
+  # fe-relative side endpoints
+  const a,b = sideface_endpoint_pair(side_face,
+                                     zeroPt, ref_tri.v12, ref_tri.v13,
+                                     ref_tri.nums_faces_between_vertexes,
+                                     false) # lesser endpoints first => false
+  # The local origin of each side face is the midpoint.
+  const side_o = 1/2*(a + b)
+  const onormal = ref_tri.outward_normals_by_sideface[side_face]
+  const side_len = hypot(b._1 - a._1, b._2 - a._2)
+
+  # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
+  #   side_rel_mon(p(t)-side_o) fe_rel_mon(p(t))  |p'(t)|
+  const integrand = let p_t = mesh.integrand_work_array
+    function(t::Vector{R})
+      const t = t[1]
+      # fe-relative path point
+      p_t[1] = a._1 + (b._1 - a._1)*t
+      p_t[2] = a._2 + (b._2 - a._2)*t
+      const fe_rel_mon_val = Poly.value_at(fe_rel_mon, p_t)
+      # Make p_t relative to the side origin for the side-local monomial evaluation.
+      p_t[1] -= side_o._1; p_t[2] -= side_o._2
+      const side_rel_mon_val = Poly.value_at(side_rel_mon, p_t)
+      fe_rel_mon_val * side_rel_mon_val * side_len
+    end
+  end
+
+  hcubature(integrand,
+            singleZero, singleOne,
+            mesh.integration_rel_err, mesh.integration_abs_err)[1]
 end
 
 # required AbstractMesh functions
@@ -440,7 +516,7 @@ function TriMesh(ios::IO, base_subdiv_iters::Integer, integration_rel_err::R = 1
           fenum(length(fes)),
           nbsidenum(length(nbsideincls_by_nbsidenum)),
           Mesh.oshapenum(length(oshapes)),
-          Array(R, space_dim), # integrand args work array
+          Array(R, space_dim), # integrand_work_array
           zeros(R, space_dim),
           ones(R,  space_dim),
           integration_rel_err,
@@ -989,6 +1065,7 @@ isless(v::Vec, w::Vec) = v._1 < w._1 || v._1 == w._1 && v._2 < w._2
 
 import Base.dot
 dot(v::Vec, w::Vec) = v._1 * w._1 + v._2 * w._2
+
 
 counterclockwise(u::Vec, v::Vec) =
   u._1*v._2 - u._2*v._1 > 0
