@@ -122,19 +122,19 @@ end
 function err_vs_proj_L2_norm(exact_sol::Function, wg_sol::WGSolution)
   const basis = wg_sol.basis
   const mesh = basis.mesh
-  const fe_rel_x = Array(R, Mesh.space_dim(mesh))
 
   sum_fe_diff_norm_sqs = zeroR
   for fe=fenum(1):Mesh.num_fes(mesh)
     const proj_poly = Proj.project_onto_fe_face_supported_approx_subspace_as_poly(exact_sol, fe, Mesh.interior_face, basis)
     const wg_sol_poly = wg_sol_interior_poly(fe, wg_sol)
     const diff = proj_poly - wg_sol_poly
-    const diff_sq = diff * diff
+    const diff_sq = diff * diff | Poly.canonical_form
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
     sum_fe_diff_norm_sqs += Mesh.integral_face_rel_on_oshape_face(diff_sq,
                                                                   fe_oshape, Mesh.interior_face,
                                                                   mesh)
   end
+
   sqrt(sum_fe_diff_norm_sqs)
 end
 
