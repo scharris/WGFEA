@@ -17,21 +17,30 @@ function simple_2d_test_trimesh()
   u(x::Vector{R}) = x[1]*(1-x[1])*x[2]*(1-x[2])
   grad_u(x::Vector{R}) = [(1-2x[1])*x[2]*(1-x[2]), x[1]*(1-x[1])*(1-2x[2])]
   f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
-  g = 0.0
+  g = u
 
   ios = open("meshes/one_tri.msh")
-  mesh = TriMesh(ios, 3)
+  mesh = TriMesh(ios, 4)
 
   basis = WeakFunsPolyBasis(deg(3), deg(2), mesh)
+
+  printBasisSummary(basis)
+
+  println("Constructing VBF (computing vbf bel vs bel matrix)...")
   vbf = a_s(basis)
+  println("VBF constructed.")
   wg = WGSolver(vbf, basis)
 
+  println("Solving...")
   wg_sol = solve(f, g, wg)
+  println("System solved.")
 
   # print_sample_points(wg_sol, u, grad_u)
 
+  println("Computing L2 norm of error.")
   println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, wg_sol))")
-  println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
+
+  #println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
   #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
   flush(OUTPUT_STREAM)
@@ -48,7 +57,9 @@ function simple_2d_test()
   vbf = a_s(basis)
   wg = WGSolver(vbf, basis)
 
+  println("Solving...")
   wg_sol = solve(f, g, wg)
+  println("System solved.")
 
   # print_sample_points(wg_sol, u, grad_u)
 
@@ -210,6 +221,15 @@ function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function)
   flush(OUTPUT_STREAM)
 end
 
+
+function printBasisSummary(basis::WeakFunsPolyBasis)
+  const interacting_bel_pairs_ub = WGBasis.ub_estimate_num_bel_bel_common_support_fe_triplets(basis)
+  println("Computing vbf bel vs bel matrix, with $(int64(basis.total_bels)) basis elements.")
+  println("Mesh has $(int(basis.mesh.num_fes)) finite elements, and $(int(basis.mesh.num_nb_sides)) nb sides.")
+  println("Basis has $(int(basis.mons_per_fe_interior)) monomials per interior, $(int(basis.mons_per_fe_side)) monomials per side.")
+  println("Data arrays for non-zeros are of initial (upper bound) size $(int64(interacting_bel_pairs_ub)).")
+end
+
 # Error functions
 err_vs_proj_L2(u::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinearForm) =
   WGSol.err_vs_proj_L2_norm(u, wg_sol)
@@ -217,8 +237,8 @@ err_vs_proj_L2(u::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinear
 err_vs_proj_vbf_seminorm(u::Function, wg_sol::WGSolution, vbf::AbstractVariationalBilinearForm) =
   WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf)
 
-simple_2d_test()
-#simple_2d_test_trimesh()
+#simple_2d_test()
+simple_2d_test_trimesh()
 
 #trig_Rd_test(mesh_ldims(5,5,5,5), deg(3), deg(2))
 
