@@ -1032,3 +1032,20 @@ f4(x::Vector{R}) = (x[1] - fe5_coords[1])^2 * (x[2] - fe5_coords[2])^3
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x, fenum(5), bottom_face, rmesh3x2), 0)
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x, fenum(5), top_face, rmesh3x2), 1/4)
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x*y, fenum(5), top_face, rmesh3x2), 0)
+
+
+# Test Gmsh export.
+mesh_min_coords = [0.0, 0.0]
+mesh_max_coords = [2.0, 1.0]
+mesh_ldims = [mesh_coord(2), mesh_coord(1)]
+rmesh1x2 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
+os = open("/home/sharris/tmp/rmesh1x2.geo", "w")
+RMesh.exportAsGmshSurface(os, rmesh1x2)
+
+
+mesh_min_coords = [0.0, 0.0]
+mesh_max_coords = [2.0, 2.0]
+mesh_ldims = [mesh_coord(2), mesh_coord(2)]
+rmesh2x2 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
+os = open("/home/sharris/tmp/rmesh2x2.geo", "w")
+RMesh.exportAsGmshSurface(os, rmesh2x2)

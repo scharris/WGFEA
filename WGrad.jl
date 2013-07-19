@@ -83,6 +83,8 @@ function wgrad(v::Nomial,
   const rhs = [wgrad_def_rhs_comp(v, fe_oshape, v_sface, q_vmon_num, solver)
                for q_vmon_num in 1:length(solver.basis_vmons)]
   # solve the linear system
+  println(STDERR, "det of wgrad ips matrix: $(det(solver.ips_basis_vs_basis[fe_oshape])).")
+  writedlm("/home/sharris/tmp/wgrad_solver_ips_basis_vs_basis.dat", solver.ips_basis_vs_basis[fe_oshape])
   const sol_coefs = solver.ips_basis_vs_basis[fe_oshape] \ rhs
 
   Poly.linear_comb(sol_coefs, solver.basis_vmons)

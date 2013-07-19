@@ -1,7 +1,8 @@
 module RMesh
 export RectMesh,
        MeshCoord, mesh_coord, mesh_ldim, mesh_ldims,
-       lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis
+       lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis,
+       exportAsGmshSurface
 
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
@@ -397,10 +398,15 @@ end
 function fe_mesh_coords(fe::FENum, mesh::RectMesh)
   const d = mesh.space_dim
   const coords = Array(MeshCoord, d)
+  fe_mesh_coords!(fe, coords, mesh)
+  coords
+end
+
+function fe_mesh_coords!(fe::FENum, coords::Array{MeshCoord,1}, mesh::RectMesh)
+  const d = mesh.space_dim
   for r=dim(1):dim(d)
     coords[r] = fe_mesh_coord(r, fe, mesh)
   end
-  coords
 end
 
 # Converts finite element/interior coords in the main mesh to a finite element/interior number.
@@ -486,6 +492,109 @@ function nb_side_with_mesh_coords(coords::Array{MeshCoord,1}, perp_axis::Dim, me
     sum += (coords[i]-1) * cumprods_side_mesh_ldims[i-1]
   end
   sum
+end
+
+# Exporting
+
+function exportAsGmshSurface(ios::IO,  mesh::RectMesh)
+  if mesh.space_dim != 2 
+    error("Gmsh output for rectangle meshes is currently only supported for the 2d case.")
+  end
+
+  typealias PointNum Uint64
+  typealias LineNum Int64
+
+  const pointnums_by_mcoords = sizehint(Dict{(MeshCoord, MeshCoord), PointNum}(), uint64(mesh.num_fes))
+  const linenums_by_endptnums = sizehint(Dict{(PointNum, PointNum), LineNum}(), uint64(2*mesh.num_fes))
+
+  const incrementor() = let next = uint64(1); () -> (next += 1) - 1 end
+  const next_pointnum = incrementor()
+  const next_linenum  = incrementor()
+
+  function register_point(pt_mcoords::(MeshCoord, MeshCoord))
+    const existing_pointnum = get(pointnums_by_mcoords, pt_mcoords, uint64(0))
+    if existing_pointnum == 0
+      # Register the new point number with its mesh coordinates.
+      const pointnum = next_pointnum()
+      pointnums_by_mcoords[pt_mcoords] = pointnum
+      # Write the Gmsh point declaration.
+      const pt_1 = mesh.min_bounds[1] + (pt_mcoords[1] - 1) * mesh.fe_dims[1]
+      const pt_2 = mesh.min_bounds[2] + (pt_mcoords[2] - 1) * mesh.fe_dims[2]
+      @printf(ios, "Point(%u) = {%.15le, %.15le, 0.0, 1.0};\n", pointnum, pt_1, pt_2)
+      pointnum
+    else
+      existing_pointnum
+    end
+  end
+
+  # Fetch the negative of a registered line number for a pair of points if the points have already been registered in
+  # the reverse order (which should be the only case in which the line is found at all), else register and return a
+  # (positive) new number for the line.
+  function get_linenum(ptnum_1::PointNum, ptnum_2::PointNum)
+    const minus_existing_linenum = -get(linenums_by_endptnums, (ptnum_2, ptnum_1), uint64(0))
+    if minus_existing_linenum != 0
+      minus_existing_linenum
+    else
+      # Register new line.
+      const linenum = next_linenum()
+      linenums_by_endptnums[(ptnum_1, ptnum_2)] = linenum
+      linenum
+    end
+  end
+
+  # pre-allocated work arrays for the loop
+  const fe_mcoords = Array(MeshCoord, mesh.space_dim)
+
+  for fe=Mesh.fenum(1):mesh.num_fes
+    fe_mesh_coords!(fe, fe_mcoords, mesh)
+
+    # lower left vertex
+    const ll_pointnum = register_point((fe_mcoords[1], fe_mcoords[2]))
+
+    # lower right vertex
+    const lr_pointnum = register_point((fe_mcoords[1]+1, fe_mcoords[2]))
+
+    # lower left to lower right line
+    const ll_lr_linenum = get_linenum(ll_pointnum, lr_pointnum)
+    if ll_lr_linenum > 0 # new line: declare in Gmsh
+      @printf(ios, "Line(%d) = {%u, %u};\n", ll_lr_linenum, ll_pointnum, lr_pointnum)
+    end
+
+    # upper right vertex
+    const ur_pointnum = register_point((fe_mcoords[1]+1, fe_mcoords[2]+1))
+
+    # lower right to upper right line
+    const lr_ur_linenum = get_linenum(lr_pointnum, ur_pointnum)
+    if lr_ur_linenum > 0 # new line: declare in Gmsh
+      @printf(ios, "Line(%d) = {%u, %u};\n", lr_ur_linenum, lr_pointnum, ur_pointnum)
+    end
+
+    # upper left vertex
+    const ul_pointnum = register_point((fe_mcoords[1], fe_mcoords[2]+1))
+
+    # upper right to upper left line
+    const ur_ul_linenum = get_linenum(ur_pointnum, ul_pointnum)
+    if ur_ul_linenum > 0 # new line: declare in Gmsh
+      @printf(ios, "Line(%d) = {%u, %u};\n", ur_ul_linenum, ur_pointnum, ul_pointnum)
+    end
+
+    # upper left to lower left line
+    const ul_ll_linenum = get_linenum(ul_pointnum, ll_pointnum)
+    if ul_ll_linenum > 0 # new line: declare in Gmsh
+      @printf(ios, "Line(%d) = {%u, %u};\n", ul_ll_linenum, ul_pointnum, ll_pointnum)
+    end
+
+    # Write Gmsh line loop representing this element.
+    @printf(ios, "Line Loop(%u) = {%d, %d, %d, %d};\n", fe, ll_lr_linenum, lr_ur_linenum, ur_ul_linenum, ul_ll_linenum)
+
+    # Write Gmsh surface representing this element constructed from the above line loop.
+    @printf(ios, "Plane Surface(%u) = {%u};\n", fe, fe)
+
+    # Tag the physical region with this finite element number.
+    @printf(ios, "Physical Line(%u) = {%d, %d, %d, %d};\n\n\n", fe, ll_lr_linenum, lr_ur_linenum, ur_ul_linenum, ul_ll_linenum)
+  end
+
+  flush(ios)
 end
 
 

@@ -11,6 +11,7 @@ import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.Ab
 import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
+typealias Tag Int64
 
 # vector type for representing relative node offsets and points in the mesh
 immutable Vec
@@ -82,6 +83,10 @@ immutable TriMesh <: AbstractMesh
   space_dim_ones::Vector{R}
   integration_rel_err::R
   integration_abs_err::R
+
+  # Tag -> element maps
+  physRegTagsByFENum::Array{Tag,1}
+  geomEntTagsByFENum::Array{Tag,1}
 end
 
 
@@ -90,9 +95,11 @@ end
 
 # Construct from Gmsh .msh formatted input stream, and number of subdivision operations to perform within each
 # mesh element from the stream.  Some elements may have additional iterations specified via Gmsh tags.
-function TriMesh(ios::IO, base_subdiv_iters::Integer, integration_rel_err::R = 1e-12, integration_abs_err::R = 1e-12)
+function TriMesh(ios::IO, _base_subdiv_iters::Integer,
+                 integration_rel_err::R = 1e-12, integration_abs_err::R = 1e-12,
+                 load_phys_reg_tags::Bool = false, load_geom_ent_tags::Bool = false)
 
-  const base_subdiv_iters = base_subdiv_iters >= 0 ? uint(base_subdiv_iters) : throw(ArgumentError("Number of iterations must be non-negative."))
+  const base_subdiv_iters = _base_subdiv_iters >= 0 ? uint(_base_subdiv_iters) : throw(ArgumentError("Number of iterations must be non-negative."))
 
   # Read the points from the input mesh, storing by mesh node number.  The elements section of the input
   # stream will refer to these node numbers.
@@ -118,17 +125,29 @@ function TriMesh(ios::IO, base_subdiv_iters::Integer, integration_rel_err::R = 1
   const oshapes = sizehint(Array(RefTri,0), est_ref_tris)
   const fes = sizehint(Array(ElTri, 0), est_fes)
   const fe_faces_by_endpoints = sizehint(Dict{(Point,Point), Array{(FENum,FEFaceNum),1}}(), uint64(est_fes * 3/2)) # estimate assumes most fes have 3 sides, each in 2 fes
+  const phys_reg_tags_by_fenum = load_phys_reg_tags ? sizehint(Array(Tag,0), est_fes) : Array(Tag,0)
+  const geom_ent_tags_by_fenum = load_geom_ent_tags ? sizehint(Array(Tag,0), est_fes) : Array(Tag,0)
   num_nb_sides = convert(NBSideNum,0)
   num_b_sides = int64(0)
 
+
   # Function via which all finite elements will be created during the processing of input element lines.
-  const fe_maker = function(oshapenum::OShapeNum, v1::Point, v2::Point, v3::Point)
-     push!(fes, ElTri(oshapenum, v1))
-     const fe_num = fenum(length(fes))
-     const nums_faces_btw_verts = oshapes[oshapenum].nums_faces_between_vertexes
-     const nb_delta, b_delta = register_fe_faces_by_endpoints(fe_num, v1,v2,v3, nums_faces_btw_verts, fe_faces_by_endpoints)
-     num_nb_sides += nb_delta
-     num_b_sides += b_delta
+  const fe_maker = function(oshapenum::OShapeNum, v1::Point, v2::Point, v3::Point, tag_physreg::Tag, tag_geoment::Tag)
+    push!(fes, ElTri(oshapenum, v1))
+    const fe_num = fenum(length(fes))
+    # store tag if present and option on
+    if load_phys_reg_tags
+      push!(phys_reg_tags_by_fenum, tag_physreg)
+      assert(length(phys_reg_tags_by_fenum) == fe_num)
+    end
+    if load_geom_ent_tags
+      push!(geom_ent_tags_by_fenum, tag_geoment)
+      assert(length(geom_ent_tags_by_fenum) == fe_num)
+    end
+    const nums_faces_btw_verts = oshapes[oshapenum].nums_faces_between_vertexes
+    const nb_delta, b_delta = register_fe_faces_by_endpoints(fe_num, v1,v2,v3, nums_faces_btw_verts, fe_faces_by_endpoints)
+    num_nb_sides += nb_delta
+    num_b_sides += b_delta
   end
 
   # process input mesh elements
@@ -158,7 +177,9 @@ function TriMesh(ios::IO, base_subdiv_iters::Integer, integration_rel_err::R = 1
           zeros(R, SPACE_DIM),
           ones(R,  SPACE_DIM),
           integration_rel_err,
-          integration_abs_err)
+          integration_abs_err,
+          phys_reg_tags_by_fenum,
+          geom_ent_tags_by_fenum)
 end
 
 
@@ -173,19 +194,21 @@ function process_el_line(line::String,
   if is_lower_order_el_type(el_type) return end
   if !is_3_node_triangle_el_type(el_type) error("Element type $el_type is not supported.") end
 
-  const el_tags = toks[TOKN_ELLINE_NUMTAGS+1 : TOKN_ELLINE_NUMTAGS+int(toks[TOKN_ELLINE_NUMTAGS])]
+  const tag_physreg = parseint(toks[TOKN_ELLINE_NUMTAGS+1])
+  const tag_geoment = parseint(toks[TOKN_ELLINE_NUMTAGS+2])
+
 
   const v1,v2,v3 = lookup_vertexes(toks, mesh_pts_by_nodenum)
 
   # Add any extra subdivision iterations to be done in this element.
-  const subdiv_iters = base_subdiv_iters + extra_subdiv_iters(v1,v2,v3, el_tags)
+  const subdiv_iters = base_subdiv_iters + extra_subdiv_iters(v1,v2,v3, tag_physreg, tag_geoment)
 
   # For each of the three sides of this mesh element to be subdivided, the generated subdivision
   # elements can be made to have more than one face between vertexes lying on the side.  This is
   # used to support "hanging" nodes where a finer subdivision is adjacent to this one.  The triplet
   # returned represents the number of faces between element vertex pairs embedded in the input mesh
   # element sides from v1 to v2, v2 to v3, and v3 to v1, respectively.
-  const nums_faces_btw_verts = nums_faces_between_vertexes(v1,v2,v3, el_tags)
+  const nums_faces_btw_verts = nums_faces_between_vertexes(v1,v2,v3, tag_physreg, tag_geoment)
 
   # Register the primary reference triangles for our mesh element's subdivisions.
   const pri_oshapenums_by_nums_faces_btw_verts = register_primary_ref_tris(v1,v2,v3, nums_faces_btw_verts, subdiv_iters, oshapes)
@@ -200,11 +223,12 @@ function process_el_line(line::String,
                       subdiv_iters,
                       nums_faces_btw_verts,
                       pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      tag_physreg, tag_geoment,
                       fe_maker)
   else # no subdivision to be done
     # The mesh element itself is our finite element, with its own reference triangle (added in register_primary_ref_tris above).
     const oshapenum = pri_oshapenums_by_nums_faces_btw_verts(nums_faces_btw_verts)
-    fe_maker(oshapenum, v1,v2,v3)
+    fe_maker(oshapenum, v1,v2,v3, tag_physreg, tag_geoment)
   end
 end # process_el_line
 
@@ -302,10 +326,11 @@ function subdivide_primary(v1::Point, v2::Point, v3::Point,
                            iters::Uint,
                            nums_faces_btw_verts::(Int,Int,Int),
                            pri_oshapenums_by_nums_faces_btw_verts::Function, sec_oshapenum::OShapeNum,
+                           tag_physreg::Tag, tag_geoment::Tag,
                            fe_maker::Function)
   if iters == 0
     const oshapenum = pri_oshapenums_by_nums_faces_btw_verts(nums_faces_btw_verts)
-    fe_maker(oshapenum, v1,v2,v3)
+    fe_maker(oshapenum, v1,v2,v3, tag_physreg, tag_geoment)
   else
     const midpt_12 = 0.5(v1+v2)
     const midpt_13 = 0.5(v1+v3)
@@ -320,6 +345,7 @@ function subdivide_primary(v1::Point, v2::Point, v3::Point,
                       iters-1,
                       st1_nums_faces_btw_verts,
                       pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      tag_physreg, tag_geoment,
                       fe_maker)
 
     const st2_nums_faces_btw_verts = (nums_faces_btw_verts[1], nums_faces_btw_verts[2], 1)
@@ -327,6 +353,7 @@ function subdivide_primary(v1::Point, v2::Point, v3::Point,
                       iters-1,
                       st2_nums_faces_btw_verts,
                       pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      tag_physreg, tag_geoment,
                       fe_maker)
 
     const st3_nums_faces_btw_verts = (1, nums_faces_btw_verts[2], nums_faces_btw_verts[3])
@@ -334,12 +361,14 @@ function subdivide_primary(v1::Point, v2::Point, v3::Point,
                       iters-1,
                       st3_nums_faces_btw_verts,
                       pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      tag_physreg, tag_geoment,
                       fe_maker)
 
     # secondary sub-triangle
     subdivide_secondary(midpt_12, midpt_23, midpt_13,
                         iters-1,
                         pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        tag_physreg, tag_geoment,
                         fe_maker)
   end
 end
@@ -348,9 +377,10 @@ end
 function subdivide_secondary(v1::Point, v2::Point, v3::Point,
                              iters::Uint,
                              pri_oshapenums_by_nums_faces_btw_verts::Function, sec_oshapenum::OShapeNum,
+                             tag_physreg::Tag, tag_geoment::Tag,
                              fe_maker::Function)
   if iters == 0
-    fe_maker(sec_oshapenum, v1,v2,v3)
+    fe_maker(sec_oshapenum, v1,v2,v3, tag_physreg, tag_geoment)
   else
     const midpt_12 = 0.5(v1+v2)
     const midpt_13 = 0.5(v1+v3)
@@ -359,16 +389,19 @@ function subdivide_secondary(v1::Point, v2::Point, v3::Point,
     subdivide_secondary(v1, midpt_12, midpt_13,
                         iters-1,
                         pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        tag_physreg, tag_geoment,
                         fe_maker)
 
     subdivide_secondary(midpt_12, v2, midpt_23,
                         iters-1,
                         pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        tag_physreg, tag_geoment,
                         fe_maker)
 
     subdivide_secondary(midpt_13, midpt_23, v3,
                         iters-1,
                         pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                        tag_physreg, tag_geoment,
                         fe_maker)
 
     # secondary sub-triangle
@@ -376,6 +409,7 @@ function subdivide_secondary(v1::Point, v2::Point, v3::Point,
                       iters-1,
                       ONE_FACE_BETWEEN_VERTEX_PAIRS,
                       pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
+                      tag_physreg, tag_geoment,
                       fe_maker)
   end
 end
@@ -560,7 +594,7 @@ end
 side_dep_dim(ep1::Point, ep2::Point) = abs(ep2._1-ep1._1) >= abs(ep2._2-ep1._2) ? dim(2) : dim(1)
 
 
-function extra_subdiv_iters(v1::Point, v2::Point, v3::Point, el_tags::Array{String,1})
+function extra_subdiv_iters(v1::Point, v2::Point, v3::Point, physreg_tag::Tag, geoment_tag::Tag)
   # TODO: Allow specifying extra iterations by tagging a mesh element.
   0
 end
@@ -570,7 +604,7 @@ end
 # This allows these subdivision elements to meet those of a finer subdivision in a mesh element adjacent
 # to this element ("hanging nodes").  The numbers are returned as a triplet of integers, corresponding to
 # the face counts to be generated for elements' sides within sides v1v2, v2v3, and v3v1.
-function nums_faces_between_vertexes(v1::Point, v2::Point, v3::Point, el_tags::Array{String,1})
+function nums_faces_between_vertexes(v1::Point, v2::Point, v3::Point, physreg_tag::Tag, geoment_tag::Tag)
   # TODO: Allow specifying somewhere such as in mesh element tags.
   ONE_FACE_BETWEEN_VERTEX_PAIRS
 end
@@ -793,8 +827,8 @@ function integral_global_x_face_rel_on_fe_face(f::Function,
     const side_len = hypot(b._1 - a._1, b._2 - a._2)
 
     const integrand = let p_t = mesh.integrand_work_array
-      function(t::Vector{R}) # compute f(p(t)) mon(p(t)-o) |p'(t)|
-        const t = t[1]
+      function(t_::Vector{R}) # compute f(p(t)) mon(p(t)-o) |p'(t)|
+        const t = t_[1]
         p_t[1] = a._1 + (b._1 - a._1)*t
         p_t[2] = a._2 + (b._2 - a._2)*t
         const f_val = f(p_t)
@@ -833,8 +867,8 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(mon::Monomi
   # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
   #   mon(p(t)-side_o) vmon(p(t)).n  |p'(t)|
   const integrand = let p_t = mesh.integrand_work_array
-    function(t::Vector{R})
-      const t = t[1]
+    function(t_::Vector{R})
+      const t = t_[1]
       # fe-relative path point
       p_t[1] = a._1 + (b._1 - a._1)*t
       p_t[2] = a._2 + (b._2 - a._2)*t
@@ -874,8 +908,8 @@ function integral_fe_rel_x_side_rel_on_oshape_side(fe_rel_mon::Monomial,
   # For path p:[0,1] -> S traversing from a to b linearly in fe-relative coordinates, compute
   #   side_rel_mon(p(t)-side_o) fe_rel_mon(p(t))  |p'(t)|
   const integrand = let p_t = mesh.integrand_work_array
-    function(t::Vector{R})
-      const t = t[1]
+    function(t_::Vector{R})
+      const t = t_[1]
       # fe-relative path point
       p_t[1] = a._1 + (b._1 - a._1)*t
       p_t[2] = a._2 + (b._2 - a._2)*t

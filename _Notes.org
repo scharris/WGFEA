@@ -1,21 +1,70 @@
 TODO
 ----
+const r = 8.0 # or whatever
+const k = 3 # or whatever
+const s = 2.49 # or whatever
+const alpha = ...
+const mesh_min_coords = [0.0, 0.0]
+const mesh_max_coords = [1.0, 1.0]
+for n = 1:10
+  const tau = 1/n
+  const h = tau^alpha
+  const mesh_ldims = [mesh_coord(n), mesh_coord(n)]
+  const tau_mesh = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
+  const os = open("/home/sharris/tmp/tau_mesh_$n.geo", "w")
+  RMesh.exportAsGmshSurface(os, tau_mesh)
 
+  # TODO: Run gmsh as external process to generate embedded triangular mesh.
+  # gmsh -saveall -2 -clmax 0.10 -o h_mesh_$n.msh tau_mesh_$n.geo
 
+  # TODO: Run WG method on h mesh (with geom ent storage on), producing wg_sol
 
-Documentation Changes
----------------------
-rmesh docs:
-  New interface functions:
-    integral_prod_on_ref_fe_side_vs_outward_normal
-    integral_vs_local_monomial_on_fe_interior
-    integral_on_ref_fe_face
-    num_side_faces_per_fe
-    space_dim
-    is_boundary_side
-    side_face
-    dependent_axis_for_side_face
-    fe_diameter
-    one_mon
-  Change description of basis ordering, now pure lexicographically ordered.
-  Change description of side basis size, and describe interaction with mesh to find "dependent dimension" for a side to form the basis there.
+  # TODO: Project the wg sol u_h onto piecewise polynomials of deg <= r on the tau mesh.
+  #  Given an element e_tau of the tau mesh, and a basis {v_i} of P_r(e_tau), we have
+  #    (Q_tau u_h, v_i)_{e_tau} = (u_h, v_i)_{e_tau} for i=1..dim(P_r(e_tau)).
+  #  Letting e_{h,j} be the h-mesh elements whose union is e_tau (by construction),
+  #  this gives us
+  #    (Q_tau u_h, v_i)_{e_tau} = sum_j (u_h, v_i)_{e_{h,j}}.
+  #  Letting lambda be the vector of unknown coefficients satisfying
+  #    Q_tau u_h = sum_j lambda_j v_j,
+  #  we obtain the linear system
+  #  (sys)
+  #  M lambda = R
+  #      where M_ij = (v_j, v_i)_{e_tau},
+  #        and R_i = sum_j (u_h, v_i)_{e_{h,j}} for i=1..dim(P_r(e_tau)).
+  const projs_by_tau_fenum = Array(Array{R,1}, num_tau_fes)
+  for l=1:num tau mesh els
+    sys_rhs = zeros(R, num tau mesh basis mons)
+    for each basis mon (# i) of the tau fe
+      for each h-mesh fe in e_tau
+        const tau_mon_i = ...
+        const tau_mon_i_h_rel = ...
+        const u_h = WGSol.(...)
+        sys_rhs[i] += integral_fe_rel { tau_mon_i_h_rel * u_h }
+      end
+    end
+    projs_by_tau_fenum[l] = # (v_i vs v_j matrix) \ sys_rhs
+  end
+
+SC Strategy
+-----------
+Fix tau > 0.
+Generate rectangle mesh of diagonal (el diam) tau.
+  Add function in RMesh to output in Gmsh format.
+    Write out point and rectangle basic elements (see Gmsh tutorial).
+    Assign element numbers as physical regions.
+  Make script invoking Gmsh to triangulate this generated rectangular mesh with a target triangle diameter of tau^(1/alpha).
+  Modify Tmsh to read and store physical region per element, and add accessor to interface.
+
+Method:
+  Construct tau mesh.  
+  Run script to generate triangular mesh.
+  Construct triangular mesh from generated file.
+  Build a map of rectangle to set of triangle element numbers included in the rectangle.
+  For each rectangle T_tau in tau mesh,
+    Obtain triangle element numbers T_hi comprising rectangle T_tau.
+    Let u_hi be the WGSol polynomial for T_hi.
+    Solve the linear system with RHS having i^th component
+      (u_h, m_i) = sum_i { (u_hi, m_i)_{T_hi} } = sum_i { int_{T_hi} u_hi m_i }
+    where m_i is the i^th basis polynomial for the V_tau polynomial space.
+
