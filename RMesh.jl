@@ -2,6 +2,7 @@ module RMesh
 export RectMesh,
        MeshCoord, mesh_coord, mesh_ldim, mesh_ldims,
        lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis,
+       mesh_logical_dimensions,
        exportAsGmshSurface
 
 using Common
@@ -382,6 +383,7 @@ end
 ##
 ##############################################
 
+mesh_logical_dimensions(mesh::RectMesh) = mesh.mesh_ldims
 
 
 # Returns one coordinate of a finite element in the main fe/interiors mesh.
@@ -496,7 +498,7 @@ end
 
 # Exporting
 
-function exportAsGmshSurface(ios::IO,  mesh::RectMesh)
+function exportAsGmshSurface(ios::IO,  mesh::RectMesh, targetElementSize::R)
   if mesh.space_dim != 2 
     error("Gmsh output for rectangle meshes is currently only supported for the 2d case.")
   end
@@ -520,7 +522,7 @@ function exportAsGmshSurface(ios::IO,  mesh::RectMesh)
       # Write the Gmsh point declaration.
       const pt_1 = mesh.min_bounds[1] + (pt_mcoords[1] - 1) * mesh.fe_dims[1]
       const pt_2 = mesh.min_bounds[2] + (pt_mcoords[2] - 1) * mesh.fe_dims[2]
-      @printf(ios, "Point(%u) = {%.15le, %.15le, 0.0, 1.0};\n", pointnum, pt_1, pt_2)
+      @printf(ios, "Point(%u) = {%.15le, %.15le, 0.0, %.15le};\n", pointnum, pt_1, pt_2, targetElementSize)
       pointnum
     else
       existing_pointnum
@@ -591,7 +593,7 @@ function exportAsGmshSurface(ios::IO,  mesh::RectMesh)
     @printf(ios, "Plane Surface(%u) = {%u};\n", fe, fe)
 
     # Tag the physical region with this finite element number.
-    @printf(ios, "Physical Line(%u) = {%d, %d, %d, %d};\n\n\n", fe, ll_lr_linenum, lr_ur_linenum, ur_ul_linenum, ul_ll_linenum)
+    #@printf(ios, "Physical Line(%u) = {%d, %d, %d, %d};\n\n\n", fe, ll_lr_linenum, lr_ur_linenum, ur_ul_linenum, ul_ll_linenum)
   end
 
   flush(ios)
