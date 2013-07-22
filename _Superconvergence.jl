@@ -48,44 +48,51 @@ function test_superconvergence(mod_prob::LaplaceModelProblem,
 end
 
 #  Project the wg sol onto the space of piecewise polynomials of deg <= r on the tau mesh.
+#  Returns an array of projection coefficient arrays, indexed by tau mesh element number.
 function project(wg_sol::WGSol, h_mesh::AbstractMesh, tau_mesh::RectMesh, r::Deg)
   #  Given an element e_tau of the tau mesh, and a basis {v_i} of P_r(e_tau), we have
   #    (Q_tau u_h, v_i)_{e_tau} = (u_h, v_i)_{e_tau} for i=1..dim(P_r(e_tau)).
-  #  Letting e_{h,j} be the h-mesh elements whose union is e_tau (which exist by our construction),
+  #  Letting e_{h,j} be the h-mesh elements whose union is e_tau (which exist by construction),
   #  this gives us
   #    (Q_tau u_h, v_i)_{e_tau} = sum_j (u_h, v_i)_{e_{h,j}}.
   #  Letting lambda be the vector of unknown coefficients satisfying
   #    Q_tau u_h = sum_j lambda_j v_j,
   #  we obtain the linear system
-  #    M lambda = b  (sys)
-  #      where M_ij = (v_j, v_i)_{e_tau},
-  #        and b_i = sum_j (u_h, v_i)_{e_{h,j}} for i=1..dim(P_r(e_tau)).
+  #  (sys)  M lambda = b
+  #  where M_ij = (v_j, v_i)_{e_tau},
+  #    and b_i = sum_j (u_h, v_i)_{e_{h,j}} for i=1..dim(P_r(e_tau)).
   const num_tau_mesh_fes = Mesh.num_fes(tau_mesh)
-  const projs_by_tau_fenum = Array(Array{R,1}, num_tau_mesh_fes) # return value
+  const projs_by_tau_fenum = sizehint(Array(Array{R,1},0), num_tau_mesh_fes) # return value
 
-  const proj_space_basis_mons = Poly.mons_of_deg_le(r, Mesh.space_dim(tau_mesh))
-  const num_proj_space_basis_mons = length(proj_space_basis_mons)
+  # Reference basis monomials, which when interpreted locally on a tau mesh element will form
+  # a basis of the space to which we are projecting for the element.
+  const proj_space_basis_mons = Poly.mons_of_deg_le(r, Mesh.space_dim(tau_mesh))                   # {v_*}
+  const proj_space_dim = length(proj_space_basis_mons)
 
   const included_h_fes_by_tau_fe = fenums_by_geoment(h_mesh, num_tau_mesh_fes)
 
   const proj_space_basis_vs_basis_ips = ips_matrix(proj_space_basis_mons, RMesh.fe_dims(tau_mesh)) # M
-  const sys_rhs = Array(R, num_proj_space_basis_mons)                                              # B
+  const sys_rhs = Array(R, proj_space_dim)                                                         # b
 
   for tau_fe=fenum(1):num_tau_mesh_fes
     fill!(sys_rhs, zeroR)
-    for i=1:num_proj_space_basis_mons # (sys) equation number, index into proj space basis
-      const tau_mon = proj_space_basis_mons[i]
-      const h_fes = included_h_fes_by_tau_fe[tau_fe]
-      for h_fe in h_fes
-        const tau_mon_rel = TODO: replace vars x_j^k_j in monomial with translations (x_j-t_j)^k_j and expand to polynomial
+    # Compute rhs (b) column vector of (sys).
+    for i=1:proj_space_dim # (sys) equation number, index into proj space basis
+      # Compute component i of (sys) rhs.
+      const tau_mon = proj_space_basis_mons[i]                                                     # v_i
+      const h_fes = included_h_fes_by_tau_fe[tau_fe]                                               # e_{h,*}
+      for h_fe in h_fes                                                                            # e_{h,j}
         const u_h_rel = WGSol.(...) TODO: get poly representing wg sol on h_fe
-        const oshape = Mesh.oriented_shape_for_fe(h_fe)
-        sys_rhs[i] += Mesh.integral_face_rel_x_face_rel_on_oshape_face(tau_mon_rel, u_h_rel, oshape, Mesh.interior_face)
+        # Translate the tau monomial to a polynomial to be interpreted relative to the h_fe origin.
+        const tau_mon_rel = Poly.translate(tau_mon, origin_h_fe - origin_tau_fe)
+        sys_rhs[i] += Mesh.integral_face_rel_on_oshape_face(u_h_rel * tau_mon_rel, Mesh.oriented_shape_for_fe(h_fe), Mesh.interior_face)
       end
     end
-    projs_by_tau_fenum[tau_fe] = proj_space_basis_vs_basis_ips \ sys_rhs
+    const proj_coefs = proj_space_basis_vs_basis_ips \ sys_rhs
+    push!(projs_by_tau_fenum, proj_coefs)
   end
 
+  assert(length(projs_by_tau_fenum) == num_tau_mesh_fes)
   projs_by_tau_fenum
 end
 

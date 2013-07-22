@@ -25,9 +25,11 @@ export Monomial,
        antideriv,
        divergence,
        integral_on_rect_at_origin,
+       translate,
        drop_coefs_lt,
        coefs_closer_than,
        mons_in_same_comp_of_vmons
+
 
 using Common
 
@@ -476,6 +478,20 @@ function integral_on_rect_at_origin(p::Polynomial, rect_dims::Array{R,1})
   sum
 end
 
+# Pre-compose the given monomial m with a translation function x -> x + v, yielding a polynomial p
+# such that p(x) = m(x+v) for all x.  This allows passing points expressed relative to a new origin,
+# while producing values which the original monomial would have yielded for the point relative to
+# the original origin.
+function translate(m::Monomial, v::Vector{R})
+  const dom_dim = domain_dim(m)
+  prod = oneR
+  for i=dim(1):dom_dim
+    prod *= poly_pwr(comp_mon(i, dom_dim) + v[i], m.exps[i])
+  end
+  prod
+end
+
+
 # Returns the polynomial function whose partial derivative in the nth input is the given monomial,
 # and which has value 0 at 0.
 function antideriv(n::Dim, m::Monomial)
@@ -654,6 +670,17 @@ function coefs_closer_than(eps::R, pv1::PolynomialVector, pv2::PolynomialVector)
     end
   end
   true
+end
+
+
+function comp_mon(i::Dim, dom_dim::Dim)
+  Monomial(one_exp_at(i, dom_dim))
+end
+
+function one_exp_at(i::Dim, dom_dim::Dim)
+  const exps = zeros(Deg, dom_dim)
+  exps[i] = deg(1)
+  exps
 end
 
 const one_mon_1d = Monomial(0)

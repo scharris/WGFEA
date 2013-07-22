@@ -127,7 +127,13 @@ pv2 = 1 * vm2
 # dot of vector polynomials
 @test dot(pv1,pv1) == 1.0 * x^4 * y^2
 
-# Test closeness functions
+# Test closeness functions.
 @test coefs_closer_than(10e-3, 2.0000001x*y + -0.99999999x^2 + 0.00003y^2, 2.0000008x*y + -1.000000001x^2)
 @test !coefs_closer_than(10e-3, 2.0000001x*y + -0.99999999x^2, 2.1000008x*y + -1.000000001x^2)
 @test drop_coefs_lt(10e-3, 0.00000003x*y + 1.2x) == 1.2x
+
+
+# Test translation.
+@test translate(x^2 * y, [2.,3.]) == (x+2)^2 * (y+3)
+@test translate(x * y^2, [-2.,3.]) == (x-2) * (y+3)^2
+@test translate(x^3 * y^2, [-2.,3.]) == (x-2)^3 * (y+3)^2
