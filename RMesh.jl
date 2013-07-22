@@ -2,7 +2,8 @@ module RMesh
 export RectMesh,
        MeshCoord, mesh_coord, mesh_ldim, mesh_ldims,
        lesser_side_face_perp_to_axis, greater_side_face_perp_to_axis,
-       mesh_logical_dimensions,
+       mesh_ldims,
+       fe_dims,
        exportAsGmshSurface
 
 using Common
@@ -383,7 +384,9 @@ end
 ##
 ##############################################
 
-mesh_logical_dimensions(mesh::RectMesh) = mesh.mesh_ldims
+mesh_ldims(mesh::RectMesh) = mesh.mesh_ldims
+
+fe_dims(mesh::RectMesh) = mesh.fe_dims
 
 
 # Returns one coordinate of a finite element in the main fe/interiors mesh.

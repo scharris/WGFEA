@@ -3,7 +3,12 @@ export TriMesh,
        Vec,
        Point,
        RefTri,
-       ElTri
+       ElTri,
+       Tag,
+       tag,
+       physical_region_tag,
+       geometric_entity_tag
+
 
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
@@ -12,6 +17,7 @@ import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
 typealias Tag Int64
+tag(i::Integer) = int64(i)
 
 # vector type for representing relative node offsets and points in the mesh
 immutable Vec
@@ -1082,6 +1088,11 @@ const MON_VAR_1D = Monomial(1)
 
 # Reference triangle for a finite element.
 ref_tri_for_fe(fe::FENum, mesh::TriMesh) = mesh.oshapes[mesh.fes[fe].oshapenum]
+
+physical_region_tag(fe::FENum, mesh::TriMesh) = physRegTagsByFENum[fe]
+
+geometric_entity_tag(fe::FENum, mesh::TriMesh) = geomEntTagsByFENum[fe]
+
 
 # vector operations
 
