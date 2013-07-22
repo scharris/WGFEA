@@ -112,7 +112,7 @@ function TriMesh(ios::IO, _base_subdiv_iters::Integer,
   const mesh_pts_by_nodenum = read_points(ios)
 
   # Read to the beginning of the elements section.
-  if !read_through_line(ios, "\$Elements\n") error("Could not find beginning of elements section in mesh file.") end
+  if !read_through_line_starting(ios, "\$Elements") error("Could not find beginning of elements section in mesh file.") end
 
   # Skip point and line elements, estimating number of input mesh triangles from the number of elements declared.
   const decl_num_els = uint64(readline(ios)) # This count can include unwanted lower order elements.
@@ -157,12 +157,12 @@ function TriMesh(ios::IO, _base_subdiv_iters::Integer,
   end
 
   # process input mesh elements
-  while line != "\$EndElements\n" && line != ""
+  while !beginswith(line, "\$EndElements") && line != ""
     process_el_line(line, mesh_pts_by_nodenum, base_subdiv_iters, fe_maker, oshapes)
     line = readline(ios)
   end
 
-  if line != "\$EndElements\n" error("Missing end of elements marker in mesh file.") end
+  if !beginswith(line, "\$EndElements") error("Missing end of elements marker in mesh file.") end
 
   # Create the final non-boundary sides data structures based on the mapping of side endpoints to fe faces.
   const num_fes = fenum(length(fes)) 
@@ -200,8 +200,8 @@ function process_el_line(line::String,
   if is_lower_order_el_type(el_type) return end
   if !is_3_node_triangle_el_type(el_type) error("Element type $el_type is not supported.") end
 
-  const tag_physreg = parseint(toks[TOKN_ELLINE_NUMTAGS+1])
-  const tag_geoment = parseint(toks[TOKN_ELLINE_NUMTAGS+2])
+  const tag_physreg = tag(int64(toks[TOKN_ELLINE_NUMTAGS+1]))
+  const tag_geoment = tag(int64(toks[TOKN_ELLINE_NUMTAGS+2]))
 
 
   const v1,v2,v3 = lookup_vertexes(toks, mesh_pts_by_nodenum)
@@ -1021,29 +1021,29 @@ end
 # Mesh File Reading Utilities
 
 function read_points(ios::IO)
-  if !read_through_line(ios, "\$Nodes\n")
+  if !read_through_line_starting(ios, "\$Nodes")
     error("Nodes section not found in mesh input file.")
   else
     # Next line should be the vert count.
     const count = int(readline(ios))
     const pts = Array(Point, count)
-    l = strip(readline(ios))
-    while l != "\$EndNodes" && l != ""
+    l = readline(ios)
+    while !beginswith(l, "\$EndNodes") && l != ""
       const toks = split(l, ' ')
       const pt = Point(convert(R, float64(toks[TOKN_NODELINE_POINT1])), convert(R, float64(toks[TOKN_NODELINE_POINT2])))
-      if length(toks) >= TOKN_NODELINE_POINT3 && toks[TOKN_NODELINE_POINT3] != "0" && toks[TOKN_NODELINE_POINT3] != "0.0"
+      if length(toks) >= TOKN_NODELINE_POINT3 && float64(toks[TOKN_NODELINE_POINT3]) != 0.0
         error("Nodes with non-zero third coordinates are not supported in this 2D mesh reader.")
       end
       pts[uint64(toks[TOKN_NODELINE_ELNUM])] = pt
-      l = strip(readline(ios))
+      l = readline(ios)
     end
-    if l == "" error("End of nodes section not found in mesh file.") end
+    if !beginswith(l, "\$EndNodes") error("End of nodes section not found in mesh file.") end
     pts
   end
 end
 
 function is_polytope_or_endmarker(line::ASCIIString)
-  if line == "\$EndElements"
+  if beginswith(line, "\$EndElements")
     true
   else
     const toks = split(line, ' ')
@@ -1051,9 +1051,9 @@ function is_polytope_or_endmarker(line::ASCIIString)
   end
 end
 
-function read_through_line(io::IO, line::ASCIIString)
+function read_through_line_starting(io::IO, line_start::ASCIIString)
   l = readline(io)
-  while l != "" && l != line
+  while l != "" && !beginswith(l, line_start)
     l = readline(io)
   end
   l != ""
