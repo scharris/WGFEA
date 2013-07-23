@@ -101,21 +101,21 @@ function err_L2_norm(exact_sol::Function, wg_sol::WGSolution)
   const d = Mesh.space_dim(mesh)
   const fe_rel_x = Array(R, d)
   const fe_origin = Array(R, d)
-
-  sum_fe_diff_norm_sqs = zeroR
+ssssssssssssssssssssssss
+  integral_sq_err = zeroR
   for fe=fenum(1):Mesh.num_fes(mesh)
     Mesh.fe_interior_origin!(fe, fe_origin, mesh)
-    function sq_diff(x::Vector{R})
+    function sq_err(x::Vector{R})
       for i=1:d  fe_rel_x[i] = x[i] - fe_origin[i] end
       const diff = exact_sol(x) - wg_sol_at_interior_rel_point(fe, fe_rel_x, wg_sol)
       diff * diff
     end
-    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(sq_diff,
-                                                                       one,
-                                                                       fe, Mesh.interior_face,
-                                                                       mesh)
+    integral_sq_err += Mesh.integral_global_x_face_rel_on_fe_face(sq_err,
+                                                                  one,
+                                                                  fe, Mesh.interior_face,
+                                                                  mesh)
   end
-  sqrt(sum_fe_diff_norm_sqs)
+  sqrt(integral_sq_err)
 end
 
 
@@ -123,19 +123,19 @@ function err_vs_proj_L2_norm(exact_sol::Function, wg_sol::WGSolution)
   const basis = wg_sol.basis
   const mesh = basis.mesh
 
-  sum_fe_diff_norm_sqs = zeroR
+  integral_sq_err = zeroR
   for fe=fenum(1):Mesh.num_fes(mesh)
     const proj_poly = Proj.project_onto_fe_face_supported_approx_subspace_as_poly(exact_sol, fe, Mesh.interior_face, basis)
     const wg_sol_poly = wg_sol_interior_poly(fe, wg_sol)
-    const diff = proj_poly - wg_sol_poly
-    const diff_sq = diff * diff | Poly.canonical_form
+    const err = proj_poly - wg_sol_poly
+    const sq_err = Poly.canonical_form(err * err)
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
-    sum_fe_diff_norm_sqs += Mesh.integral_face_rel_on_oshape_face(diff_sq,
-                                                                  fe_oshape, Mesh.interior_face,
-                                                                  mesh)
+    integral_sq_err += Mesh.integral_face_rel_on_oshape_face(sq_err,
+                                                             fe_oshape, Mesh.interior_face,
+                                                             mesh)
   end
 
-  sqrt(sum_fe_diff_norm_sqs)
+  sqrt(integral_sq_err)
 end
 
 function err_grad_vs_wgrad_L2_norm(exact_sol_grad::Function, wg_sol::WGSolution)
@@ -146,23 +146,23 @@ function err_grad_vs_wgrad_L2_norm(exact_sol_grad::Function, wg_sol::WGSolution)
   const fe_rel_x = Array(R, d)
   const fe_origin = Array(R, d)
 
-  sum_fe_diff_norm_sqs = zeroR
+  integral_sq_err = zeroR
   for fe=fenum(1):Mesh.num_fes(mesh)
     Mesh.fe_interior_origin!(fe, fe_origin, mesh)
     const wgrad = wg_sol_wgrad_on_interior(fe, wg_sol)
-    function diff_norm_sq(x::Vector{R})
+    function sq_err(x::Vector{R})
       for i=1:d
         fe_rel_x[i] = x[i] - fe_origin[i]
       end
       const diff = exact_sol_grad(x) - Poly.value_at(wgrad, fe_rel_x)
       dot(diff, diff)
     end
-    sum_fe_diff_norm_sqs += Mesh.integral_global_x_face_rel_on_fe_face(diff_norm_sq,
-                                                                       one,
-                                                                       fe, Mesh.interior_face,
-                                                                       mesh)
+    integral_sq_err += Mesh.integral_global_x_face_rel_on_fe_face(sq_err,
+                                                                  one,
+                                                                  fe, Mesh.interior_face,
+                                                                  mesh)
   end
-  sqrt(sum_fe_diff_norm_sqs)
+  sqrt(integral_sq_err)
 end
 
 # Compute semi-norm ||| Q_h u - u_h |||_vbf = sqrt(vbf(Q u - u_h, Q u - u_h)),

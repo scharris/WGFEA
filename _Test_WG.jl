@@ -43,7 +43,7 @@ function simple_2d_test_trimesh()
   #println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
   #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
-  flush(OUTPUT_STREAM)
+  flush(STDOUT)
 end
 
 function simple_2d_test()
@@ -67,7 +67,7 @@ function simple_2d_test()
   println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
   #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
-  flush(OUTPUT_STREAM)
+  flush(STDOUT)
 end
 
 function errs_and_diams_for_side_divs(errf::Function, space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
@@ -160,7 +160,7 @@ function simple_4d_test()
   println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, wg_sol))")
   println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
-  flush(OUTPUT_STREAM)
+  flush(STDOUT)
 end
 
 
@@ -176,7 +176,7 @@ function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
   # (D_i (grad u)_i)(x) = -2 ( cos(|x|^2)(2 x_i) x_i + sin(|x|^2) )
   # So -(div grad u)(x) =  2 sum_{i=1..d}{ 2 (x_i)^2 cos(|x|^2)  + sin(|x|^2) }
   #                     =  2 ( d sin(|x|^2) + 2 sum_{i=1..d}{ (x_i)^2 cos(|x|^2) } )
-  f(x::Vector{R}) = let xx = dot(x,x) 2(d*sin(xx) + 2sum(i -> x[i]*x[i]*cos(xx), 1:d)) end
+  f(x::Vector{R}) = let xx = dot(x,x); 2(d*sin(xx) + 2sum(i -> x[i]*x[i]*cos(xx), 1:d)) end
   g(x::Vector{R}) = u(x)
 
   mesh_min_bounds = zeros(R, d)
@@ -218,7 +218,7 @@ function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function)
     println("   wgrad: $wgrad_val, grad_u: $grad_u_val")
     println("   val diff: $(abs(wg_sol_val - u_val)),  grad diff: $(norm(wgrad_val - grad_u_val))")
   end
-  flush(OUTPUT_STREAM)
+  flush(STDOUT)
 end
 
 
