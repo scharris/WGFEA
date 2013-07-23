@@ -1089,9 +1089,9 @@ const MON_VAR_1D = Monomial(1)
 # Reference triangle for a finite element.
 ref_tri_for_fe(fe::FENum, mesh::TriMesh) = mesh.oshapes[mesh.fes[fe].oshapenum]
 
-physical_region_tag(fe::FENum, mesh::TriMesh) = physRegTagsByFENum[fe]
+physical_region_tag(fe::FENum, mesh::TriMesh) = mesh.physRegTagsByFENum[fe]
 
-geometric_entity_tag(fe::FENum, mesh::TriMesh) = geomEntTagsByFENum[fe]
+geometric_entity_tag(fe::FENum, mesh::TriMesh) = mesh.geomEntTagsByFENum[fe]
 
 
 # vector operations
