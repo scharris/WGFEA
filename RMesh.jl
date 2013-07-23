@@ -71,7 +71,7 @@ immutable RectMesh <: AbstractMesh
                     mesh_ldims::Array{MeshCoord,1},
                     integration_rel_err::R,
                     integration_abs_err::R)
-    const space_dim = length(min_bounds) | uint
+    const space_dim = length(min_bounds) |> uint
     assert(length(max_bounds) == space_dim, "min and max bound lengths should match")
     assert(length(mesh_ldims) == space_dim, "logical dimensions length does not match physical bounds length")
 
