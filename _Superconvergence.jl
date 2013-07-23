@@ -1,7 +1,7 @@
 
 using Common
 
-import Poly, Poly.Monomial
+import Poly, Poly.Monomial, Poly.Polynomial
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.fenum
 import RMesh, RMesh.RectMesh, RMesh.mesh_coord
 import TMesh, TMesh.TriMesh
@@ -9,6 +9,7 @@ import WGBasis, WGBasis.WeakFunsPolyBasis
 import VBF_a_s.a_s
 import WG, WG.WGSolver
 import WGSol, WGSol.WGSolution
+import Cubature.hcubature
 
 immutable LaplaceModelProblem
   laplace_eq_rhs::Function
@@ -19,6 +20,9 @@ immutable LaplaceModelProblem
   sol::Function
   grad_sol::Function
 end
+
+const integration_abs_err = 1e-12
+const integration_rel_err = 1e-12
 
 function test_superconvergence(mod_prob::LaplaceModelProblem,
                                wg_polys_max_deg::Deg,
@@ -42,8 +46,9 @@ function test_superconvergence(mod_prob::LaplaceModelProblem,
 
     const projs_by_tau_fe = project(wg_sol, tau_mesh, r)
 
-    # TODO: evaluate the error of the exact solution vs. the projections
-    println(projs_by_tau_fe)
+    const err = err_L2_norm(mod_prob.sol, projs_by_tau_fe, tau_mesh)
+
+    println("h=$h, tau=$tau, L2 Error: $err")
   end
 end
 
@@ -64,7 +69,7 @@ function triangle_submesh(rmesh::RectMesh, tri_diam::R)
     try 
       TriMesh(is,
               0, # no subdivision
-              1e-12, 1e-12, # integral error bounds
+              integration_rel_err, integration_abs_err,
               false, # no capture of phys region tags
               true)  # capture geom entity tags (rect mesh fe #'s)
     finally
@@ -91,8 +96,8 @@ function wg_solution(mod_prob::LaplaceModelProblem, mesh::AbstractMesh, k::Deg)
 end
 
 
-#  Project the wg sol onto the space of piecewise polynomials of deg <= r on the tau mesh.
-#  Returns an array of projection coefficient arrays, indexed by tau mesh element number.
+#  Project the wg sol onto the space of piecewise polynomials of deg <= r on the passed rectangular mesh.
+#  Returns an array of polynomials, indexed by tau mesh element number.
 #  Method
 #  Given an element e_tau of the tau mesh, and a basis {v_i} of P_r(e_tau), we have
 #    (Q_tau u_h, v_i)_{e_tau} = (u_h, v_i)_{e_tau} for i=1..dim(P_r(e_tau)).
@@ -108,7 +113,7 @@ end
 function project(wg_sol::WGSolution, tau_mesh::RectMesh, r::Deg)
   const h_mesh = wg_sol.basis.mesh
   const num_tau_mesh_fes = Mesh.num_fes(tau_mesh)
-  const projs_by_tau_fenum = sizehint(Array(Array{R,1},0), num_tau_mesh_fes) # return value
+  const projs_by_tau_fenum = sizehint(Array(Polynomial,0), num_tau_mesh_fes) # return value
 
   # Reference basis monomials, which when interpreted locally on a tau mesh element will form
   # a basis of the space to which we are projecting for the element.
@@ -138,7 +143,7 @@ function project(wg_sol::WGSolution, tau_mesh::RectMesh, r::Deg)
       end
     end
     const proj_coefs = proj_space_basis_vs_basis_ips \ sys_rhs
-    push!(projs_by_tau_fenum, proj_coefs)
+    push!(projs_by_tau_fenum, Polynomial(proj_space_basis_mons, proj_coefs))
   end
 
   assert(length(projs_by_tau_fenum) == num_tau_mesh_fes)
@@ -178,6 +183,37 @@ function ips_matrix(mons::Array{Monomial,1}, dom_rect_dims::Array{R,1})
 end
 
 
+# Sum integrals of (u - Q_tau u_h)^2 over tau mesh elements.
+function err_L2_norm(exact_sol::Function, projected_approx_sol_by_tau_fenum::Array{Polynomial,1}, tau_mesh::RectMesh)
+  const d = Mesh.space_dim(tau_mesh)
+  const origin = zeros(R,d)
+  const fe_dims = RMesh.fe_dims(tau_mesh)
+
+  # Work data for sq_err function below.
+  const x = Array(R, d)
+  const fe_origin = Array(R, d)
+
+  integral_sq_err = zeroR
+  for fe=fenum(1):Mesh.num_fes(tau_mesh)
+    Mesh.fe_interior_origin!(fe, fe_origin, tau_mesh)
+    const p = projected_approx_sol_by_tau_fenum[fe]
+    
+    function sq_err(fe_rel_x::Vector{R})
+      for i=1:d
+        x[i] = fe_rel_x[i] + fe_origin[i]
+      end
+      const err = exact_sol(x) - Poly.value_at(p, fe_rel_x)
+      err * err
+    end
+    
+    integral_sq_err += hcubature(sq_err,
+                                 origin, fe_dims,
+                                 integration_rel_err, integration_abs_err)[1]
+  end
+  sqrt(integral_sq_err)
+end
+
+
 function printBasisSummary(basis::WeakFunsPolyBasis)
   const interacting_bel_pairs_ub = WGBasis.ub_estimate_num_bel_bel_common_support_fe_triplets(basis)
   println("Computing vbf bel vs bel matrix, with $(int64(basis.total_bels)) basis elements.")
@@ -188,7 +224,7 @@ end
 
 s = 2.4
 k = deg(2)
-r = deg(4)
+r = deg(5)
 u(x::Vector{R}) = cos(x[1]) + sin(x[2])
 grad_u(x::Vector{R}) = [-sin(x[1]), cos(x[2])]
 # (grad u)(x) = (-sin(x_1), cos(x_2))
