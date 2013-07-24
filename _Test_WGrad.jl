@@ -7,7 +7,7 @@ import RMesh, RMesh.RectMesh, RMesh.mesh_coord
 
 k = 4
 rmesh = RectMesh([0.,0.], [3.,3.], [mesh_coord(3), mesh_coord(3)])
-rect_oshape = Mesh.oshape(1)
+rect_oshape = Mesh.oshapenum(1)
 wgrad_solver = WGradSolver(deg(k-1), rmesh)
 
 x = Monomial(1,0)

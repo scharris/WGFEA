@@ -183,7 +183,6 @@ function ips_matrix(mons::Array{Monomial,1}, dom_rect_dims::Array{R,1})
 end
 
 
-# Sum integrals of (u - Q_tau u_h)^2 over tau mesh elements.
 function err_L2_norm(exact_sol::Function, projected_approx_sol_by_tau_fenum::Array{Polynomial,1}, tau_mesh::RectMesh)
   const d = Mesh.space_dim(tau_mesh)
   const origin = zeros(R,d)
@@ -208,7 +207,7 @@ function err_L2_norm(exact_sol::Function, projected_approx_sol_by_tau_fenum::Arr
     
     integral_sq_err += hcubature(sq_err,
                                  origin, fe_dims,
-                                 integration_rel_err, integration_abs_err)[1]
+                                 reltol=integration_rel_err, abstol=integration_abs_err)[1]
   end
   sqrt(integral_sq_err)
 end
@@ -222,9 +221,10 @@ function printBasisSummary(basis::WeakFunsPolyBasis)
   println("Data arrays for non-zeros are of initial (upper bound) size $(int64(interacting_bel_pairs_ub)).")
 end
 
+
 s = 2.4
 k = deg(2)
-r = deg(5)
+r = deg(4)
 u(x::Vector{R}) = cos(x[1]) + sin(x[2])
 grad_u(x::Vector{R}) = [-sin(x[1]), cos(x[2])]
 # (grad u)(x) = (-sin(x_1), cos(x_2))

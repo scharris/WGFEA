@@ -23,7 +23,7 @@ test_poly_vals_eq(2x + 2(x*y), Polynomial([x, Monomial(1,1)], [2.0, 2.0]))
 
 test_poly_vals_eq((y+x)^2, y^2 + 2(x*y) + x^2)
 
-@test canonical_form(x + 2x*y + y^2*x + 3.0y^2*x) | string == "1.0 x^1 y^0 + 2.0 x^1 y^1 + 4.0 x^1 y^2"
+@test canonical_form(x + 2x*y + y^2*x + 3.0y^2*x) |> string == "1.0 x^1 y^0 + 2.0 x^1 y^1 + 4.0 x^1 y^2"
 
 # polynomial equality
 @test (Monomial(0,0)+x)^2 == Monomial(0,0) + 2x + x^2

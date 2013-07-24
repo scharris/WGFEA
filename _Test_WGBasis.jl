@@ -73,7 +73,7 @@ one = Monomial(0,0)
 @test RMesh.perp_axis_for_nb_side(support_nb_side_num(belnum(45), basis), basis.mesh) == dim(2)
 @test RMesh.perp_axis_for_nb_side(support_nb_side_num(belnum(49), basis), basis.mesh) == dim(2)
 @test RMesh.perp_axis_for_nb_side(support_nb_side_num(belnum(50), basis), basis.mesh) == dim(2)
-@test_fails RMesh.perp_axis_for_nb_side(support_nb_side_num(belnum(51), basis), basis.mesh)
+@test_throws RMesh.perp_axis_for_nb_side(support_nb_side_num(belnum(51), basis), basis.mesh)
 
 function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
   if is_interior_supported(i, basis)
@@ -189,7 +189,7 @@ rshape = oshapenum(1)
 @test side_mons_for_oshape_side(rshape, right_face, basis)[1] == side_mons_for_oshape_side(rshape, left_face, basis)[1] == one
 @test side_mons_for_oshape_side(rshape, right_face, basis)[2]  == side_mons_for_oshape_side(rshape, left_face, basis)[2] == y
 @test side_mons_for_fe_side(fenum(1), right_face, basis) == side_mons_for_fe_side(fenum(1), left_face, basis) == [one, y]
-@test_fails side_mons_for_oshape_side(rshape, right_face, basis)[3]
+@test_throws side_mons_for_oshape_side(rshape, right_face, basis)[3]
 
 # monomials on vertical side between finite elements 2 and 3
 @test WGBasis.side_mon_bel_num(fenum(2), right_face, monnum(1), basis) == 39
@@ -206,7 +206,7 @@ rshape = oshapenum(1)
 @test side_mons_for_oshape_side(rshape, top_face, basis)[1] == side_mons_for_oshape_side(rshape, bottom_face, basis)[1] == one
 @test side_mons_for_oshape_side(rshape, top_face, basis)[2] == side_mons_for_oshape_side(rshape, bottom_face, basis)[2] == x
 @test side_mons_for_fe_side(fenum(1), top_face, basis) == side_mons_for_fe_side(fenum(1), bottom_face, basis) == [one, x]
-@test_fails side_mons_for_oshape_side(rshape, bottom_face, basis)[3]
+@test_throws side_mons_for_oshape_side(rshape, bottom_face, basis)[3]
 
 
 # test weak gradients of basis elements
@@ -223,7 +223,7 @@ wgrad_solver = WGradSolver(deg(1), basis.mesh)
 
 @test wgrad_side_mon(monnum(1), rshape, right_face, basis) == WGrad.wgrad(one, rshape, right_face, wgrad_solver)
 @test wgrad_side_mon(monnum(2), rshape, right_face, basis) == WGrad.wgrad(y, rshape, right_face, wgrad_solver)
-@test_fails wgrad_side_mon(monnum(3), rshape, right_face, basis)
+@test_throws wgrad_side_mon(monnum(3), rshape, right_face, basis)
 
 
 # test L2 inner products of basis elements

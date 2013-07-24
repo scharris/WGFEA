@@ -323,7 +323,7 @@ function integral_global_x_face_rel_on_fe_face(f::Function,
 
     hcubature(ref_intgd,
               mesh.space_dim_zeros, mesh.fe_dims,
-              mesh.integration_rel_err, mesh.integration_abs_err)[1]
+              reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
 
   else # side face
     const a = side_face_perp_axis(face)
@@ -343,7 +343,7 @@ function integral_global_x_face_rel_on_fe_face(f::Function,
 
     hcubature(ref_intgd,
               mesh.space_dim_less_one_zeros, mesh.fe_dims_wo_dim[a],
-              mesh.integration_rel_err, mesh.integration_abs_err)[1]
+              reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
   end
 end
 

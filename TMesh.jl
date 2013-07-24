@@ -847,7 +847,7 @@ function integral_global_x_face_rel_on_fe_face(f::Function,
 
     hcubature(integrand,
               singleZero, singleOne,
-              mesh.integration_rel_err, mesh.integration_abs_err)[1]
+              reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
   end
 end
 
@@ -890,7 +890,7 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(mon::Monomi
 
   hcubature(integrand,
             singleZero, singleOne,
-            mesh.integration_rel_err, mesh.integration_abs_err)[1]
+            reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
 end
 
 # Integrate a finite element relative monomial vs. a side relative monomial.
@@ -929,7 +929,7 @@ function integral_fe_rel_x_side_rel_on_oshape_side(fe_rel_mon::Monomial,
 
   hcubature(integrand,
             singleZero, singleOne,
-            mesh.integration_rel_err, mesh.integration_abs_err)[1]
+            reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
 end
 
 # required AbstractMesh functions
@@ -1014,7 +1014,7 @@ function integral_fn_between_lines_meeting_at_point_and_vert_line(g::Function,
 
   hcubature(gt_absdetDt,
             mesh.space_dim_zeros, mesh.space_dim_ones, # unit square bounds
-            mesh.integration_rel_err, mesh.integration_abs_err)[1]
+            reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
 end
 
 ###############################################

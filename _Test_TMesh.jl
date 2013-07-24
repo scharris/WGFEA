@@ -4,7 +4,6 @@ using Common
 import Mesh.NBSideInclusions, Mesh.FENum, Mesh.FEFaceNum, Mesh.oshapenum, Mesh.nbsidenum, Mesh.fenum, Mesh.fefacenum
 import Poly, Poly.Monomial, Poly.VectorMonomial
 
-require("nearequal")
 
 x = Monomial(1,0)
 y = Monomial(0,1)
@@ -79,7 +78,7 @@ onormals = TMesh.outward_normals(Vec(0.,0.), Vec(1.,1.), Vec(-1.,1.), (1,2,3))
 # horizontal span of generated triangle is 4
 # according to the slopes, the right face of the resulting triangle has length 3*4 + 2*4 = 20
 # area of triangle = 1/2 * 20 * 4 = 40
-@test isapprox(TMesh.integral_mon_between_lines_meeting_at_point_and_vert_line(onemon, Point(-1.,-2.), -3.,2., 3.), 40., 1e-15,1e-15)
+@test isapprox(TMesh.integral_mon_between_lines_meeting_at_point_and_vert_line(onemon, Point(-1.,-2.), -3.,2., 3.), 40., atol=1e-15)
 
 # Monomial xy between lines diverging from point (2,1) of slope +/- 1, from x = 2 to x = 3.
 # int_{x=2..3} int_{y=1+(x-2)..y=1-(x-2)} x y dy dx
@@ -90,10 +89,10 @@ onormals = TMesh.outward_normals(Vec(0.,0.), Vec(1.,1.), Vec(-1.,1.), (1,2,3))
 #  = int_{x=2..3} 2x^2 - 4x
 #  = [2/3 x^3 - 2x^2]_|{x=2..3}
 #  = 2 + 2/3
-@test isapprox(TMesh.integral_mon_between_lines_meeting_at_point_and_vert_line(x*y, Point(2.,1.), -1.,1., 3.), 2 + 2/3, 1e-15,1e-15)
+@test isapprox(TMesh.integral_mon_between_lines_meeting_at_point_and_vert_line(x*y, Point(2.,1.), -1.,1., 3.), 2 + 2/3, atol=1e-15)
 
 # mirror image of the above about the y axis
-@test isapprox(TMesh.integral_mon_between_lines_meeting_at_point_and_vert_line(x*y, Point(-2.,1.), -1.,1., -3.), -(2 + 2/3), 1e-15,1e-15)
+@test isapprox(TMesh.integral_mon_between_lines_meeting_at_point_and_vert_line(x*y, Point(-2.,1.), -1.,1., -3.), -(2 + 2/3), atol=1e-15)
 
 # input mesh, before subdivision
 #     (0,3)
@@ -183,15 +182,15 @@ tmsh = TriMesh(IOString(right_tri_mesh), 1)
 # Check non-boundary side inclusions in finite elements.
 @test length(tmsh.nbsideincls_by_nbsidenum) == 3
 fe1face2_nbsidenum = Mesh.nb_side_num_for_fe_side(fenum(1),fefacenum(2), tmsh)
-@test tmsh.nbsidenums_by_feface[(fenum(4),fefacenum(3))] == fe1face2_nbsidenum
+@test tmsh.nbsidenums_by_feface[fenum(4),fefacenum(3)] == fe1face2_nbsidenum
 @test Mesh.fe_inclusions_of_nb_side(fe1face2_nbsidenum, tmsh) ==
       NBSideInclusions(fe1face2_nbsidenum, fenum(1), fefacenum(2), fenum(4), fefacenum(3))
 fe2face3_nbsidenum = Mesh.nb_side_num_for_fe_side(fenum(2),fefacenum(3), tmsh)
-@test tmsh.nbsidenums_by_feface[(fenum(4),fefacenum(1))] == fe2face3_nbsidenum
+@test tmsh.nbsidenums_by_feface[fenum(4),fefacenum(1)] == fe2face3_nbsidenum
 @test Mesh.fe_inclusions_of_nb_side(fe2face3_nbsidenum, tmsh) ==
       NBSideInclusions(fe2face3_nbsidenum, fenum(2), fefacenum(3), fenum(4), fefacenum(1))
 fe3face1_nbsidenum = Mesh.nb_side_num_for_fe_side(fenum(3),fefacenum(1), tmsh)
-@test tmsh.nbsidenums_by_feface[(fenum(4),fefacenum(2))] == fe3face1_nbsidenum
+@test tmsh.nbsidenums_by_feface[fenum(4),fefacenum(2)] == fe3face1_nbsidenum
 @test Mesh.fe_inclusions_of_nb_side(fe3face1_nbsidenum, tmsh) ==
       NBSideInclusions(fe3face1_nbsidenum, fenum(3), fefacenum(1), fenum(4), fefacenum(2))
 
@@ -209,34 +208,34 @@ fe3face1_nbsidenum = Mesh.nb_side_num_for_fe_side(fenum(3),fefacenum(1), tmsh)
 
 # integrals of constant 1 monomials should give side lengths
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(1), fefacenum(1), tmsh),
-               2., 1e-15, 1e-15)
+               2., atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(1), fefacenum(2), tmsh),
-               hypot(2.,1.5), 1e-15, 1e-12)
+               hypot(2.,1.5), rtol=1e-15, atol=1e-12)
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(1), fefacenum(3), tmsh),
-               1.5, 1e-15, 1e-12)
+               1.5, rtol=1e-15, atol=1e-12)
 
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x*y, oshapenum(1), fefacenum(1), tmsh),
-               0., 1e-15, 1e-15)
+               0., atol=1e-15, rtol=1e-15)
 
 # These compute side lengths like the above, but are expressed as a function times a local monomial.
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(1), fefacenum(1), tmsh),
-               2., 1e-15, 1e-15)
+               2., atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(1), fefacenum(2), tmsh),
-               hypot(2.,1.5), 1e-15, 1e-15)
+               hypot(2.,1.5), atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(1), fefacenum(3), tmsh),
-               1.5, 1e-15, 1e-15)
+               1.5, atol=1e-15, rtol=1e-15)
 
 # integral of xy on side 1
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x*y, oshapenum(1), fefacenum(1), tmsh),
-               0., 1e-15, 1e-15)
+               0., atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x*y, fenum(1), fefacenum(1), tmsh),
-               0., 1e-15, 1e-15)
+               0., atol=1e-15, rtol=1e-15)
 xy_on_fe1_side1 = local_mon_on_fe_side(deg(1), deg(1), fenum(1), fefacenum(1), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1_side1, onemon, fenum(1), fefacenum(1), tmsh),
-               0., 1e-15, 1e-15)
+               0., atol=1e-15, rtol=1e-15)
 x_on_fe1_side1 = local_mon_on_fe_side(deg(1), deg(0), fenum(1), fefacenum(1), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(x_on_fe1_side1, y, fenum(1), fefacenum(1), tmsh),
-               0., 1e-15, 1e-15)
+               0., atol=1e-15, rtol=1e-15)
 
 # Integrate polynomial xy on side face 2 of fe/oshape 1.
 # We can traverse side 2 of fe 1's reference triangle in side relative coordinates with
@@ -245,83 +244,83 @@ x_on_fe1_side1 = local_mon_on_fe_side(deg(1), deg(0), fenum(1), fefacenum(1), tm
 # so the integral should be
 # int_{0,..1} (1-2t)(1.5t-0.75) |(-2,1.5)| dt = 2.5[-.75t + 1.5t^2 - t^3]|{t=0,1} = -0.625
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x*y, oshapenum(1), fefacenum(2), tmsh),
-               -0.625, 1e-15, 1e-15)
+               -0.625, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x*y, fenum(1), fefacenum(2), tmsh),
-               -0.625, 1e-15, 1e-15)
+               -0.625, atol=1e-15, rtol=1e-15)
 x_on_fe1_side2 = local_mon_on_fe_side(deg(1), deg(0), fenum(1), fefacenum(2), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(x_on_fe1_side2, y, fenum(1), fefacenum(2), tmsh),
-               -0.625, 1e-15, 1e-15)
+               -0.625, atol=1e-15, rtol=1e-15)
 xy_on_fe1_side2 = local_mon_on_fe_side(deg(1), deg(1), fenum(1), fefacenum(2), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1_side2, onemon, fenum(1), fefacenum(2), tmsh),
-               -0.625, 1e-15, 1e-15)
+               -0.625, atol=1e-15, rtol=1e-15)
 
 # Integrate the same monomial over the same side but now also vs. outward normal.
 one_comp1_vmon = VectorMonomial(onemon, dim(1))
 @test isapprox(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x*y, one_comp1_vmon, oshapenum(1), fefacenum(2), tmsh),
-               -0.625 * 3/5, 1e-15, 1e-15) # 3/5 = component 1 of outward normal
+               -0.625 * 3/5, atol=1e-15, rtol=1e-15) # 3/5 = component 1 of outward normal
 one_comp2_vmon = VectorMonomial(onemon, dim(2))
 @test isapprox(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x*y, one_comp2_vmon, oshapenum(1), fefacenum(2), tmsh),
-               -0.625 * 4/5, 1e-15, 1e-15) # 4/5 = component 2 of outward normalj
+               -0.625 * 4/5, atol=1e-15, rtol=1e-15) # 4/5 = component 2 of outward normalj
 @test isapprox(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(onemon, one_comp1_vmon, oshapenum(1), fefacenum(1), tmsh),
-               0, 1e-15, 1e-15)
+               0, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(onemon, one_comp2_vmon, oshapenum(1), fefacenum(3), tmsh),
-               0, 1e-15, 1e-15)
+               0, atol=1e-15, rtol=1e-15)
 
 # Integrate (0,x) vector monomial vs outward normal along first side, which should equal int_0^2 -x dx = -2.
 x_comp2_vmon = VectorMonomial(x, dim(2))
 @test isapprox(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(onemon, x_comp2_vmon, oshapenum(1), fefacenum(1), tmsh),
-               -2, 1e-15, 1e-15)
+               -2, atol=1e-15, rtol=1e-15)
 
 # Like the above but with a scalar monomial instead of vector dotted against the normal.
 @test isapprox(Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x, onemon, oshapenum(1), fefacenum(1), tmsh),
-               2, 1e-15, 1e-15)
+               2, atol=1e-15, rtol=1e-15)
 
 # Integrate x side-local monomial vs (0,x) vector monomial (fe-relative) vs outward normal along the first side.
 # As an fe-local monomial, the side local monomial x is x-1. Thus the integral should be
 # int_0^2 -(x-1)x dx = -1/3 2^3 + 2^2/2 = -2/3
 @test isapprox(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(x, x_comp2_vmon, oshapenum(1), fefacenum(1), tmsh),
-               -2/3, 1e-15, 1e-15)
+               -2/3, atol=1e-15, rtol=1e-15)
 # Like the above but with a scalar monomial instead of vector dotted against the normal.
 @test isapprox(Mesh.integral_fe_rel_x_side_rel_on_oshape_side(x, x, oshapenum(1), fefacenum(1), tmsh),
-               2/3, 1e-15, 1e-15)
+               2/3, atol=1e-15, rtol=1e-15)
 
 # Integrate y side-local monomial vs (y,0) fe-relative vector monomial vs outward normal along the third side.
 # As an fe-local monomial, the side local monomial y is y-3/4. Thus the integral should be
 # int_0^{3/2} -(y-3/4)y dy = -1/2 (3/2)^2 + 3/8 (3/2)^2 = -9/32
 y_comp1_vmon = VectorMonomial(y, dim(1))
 @test isapprox(Mesh.integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(y, y_comp1_vmon, oshapenum(1), fefacenum(3), tmsh),
-               -9/32, 1e-15, 1e-15)
+               -9/32, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_fe_rel_x_side_rel_on_oshape_side(y, y, oshapenum(1), fefacenum(3), tmsh),
-               9/32, 1e-15, 1e-15)
+               9/32, atol=1e-15, rtol=1e-15)
 
 
 # interior integrals
 
 # Integral of constant one monomial on a triangle interior should give its area.
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(1), fefacenum(0), tmsh),
-               0.5*2*1.5, 1e-15, 1e-15)
+               0.5*2*1.5, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(2), fefacenum(0), tmsh),
-               0.5*2*1.5, 1e-15, 1e-15)
+               0.5*2*1.5, atol=1e-15, rtol=1e-15)
 
 # integral xy^2 over the interior of reference triangle 1
 # = int_{x=0..2} int_{y=0..1.5-0.75x} xy^2 = int_{x=0..2} 1/3 x(1.5-0.75x)^3
 # = 1/3 (1.6875 x^2 + -1.6875 x^3 + 0.6328125 x^4 + -0.084375 x^5)|_{x=0,2}
 # = 0.225
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x*y^2, oshapenum(1), fefacenum(0), tmsh),
-               0.225, 1e-15, 1e-15)
+               0.225, atol=1e-15, rtol=1e-15)
 
 
 # Integrate function (x,y)->(x,y)-o(fe) against local monomial y on various finite element interiors, which
 # should equal the integral of xy^2 local monomial over the oriented shape's interior.
 xy_on_fe1 = local_mon_on_fe_int(deg(1),deg(1),fenum(1), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1, y, fenum(1), fefacenum(0), tmsh),
-               0.225, 1e-13, 1e-13)
+               0.225, rtol=1e-13, atol=1e-13)
 xy_on_fe2 = local_mon_on_fe_int(deg(1),deg(1),fenum(2), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe2, y, fenum(2), fefacenum(0), tmsh),
-               0.225, 1e-13, 1e-13)
+               0.225, rtol=1e-13, atol=1e-13)
 xy_on_fe3 = local_mon_on_fe_int(deg(1),deg(1),fenum(3), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe3, y, fenum(3), fefacenum(0), tmsh),
-               0.225, 1e-13, 1e-13)
+               0.225, rtol=1e-13, atol=1e-13)
 
 # input mesh, before subdivision
 #     (2,8).
@@ -364,9 +363,9 @@ tmsh = TriMesh(IOString(isosc_tri_mesh), 2)
 #
 
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(1), fefacenum(0), tmsh),
-               0.5*1*2, 1e-15, 1e-15)
+               0.5*1*2, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(2), fefacenum(0), tmsh),
-               0.5*1*2, 1e-15, 1e-15)
+               0.5*1*2, atol=1e-15, rtol=1e-15)
 
 # Integrate the local monomial xy^2 over the interior of a reference triangle.
 # int_0^2 int_{y/4}^{-y/4 + 1}  xy^2 dx dy
@@ -375,20 +374,20 @@ tmsh = TriMesh(IOString(isosc_tri_mesh), 2)
 #  = (1/6 y^3 - 1/16 y^4)|_0^2
 #  = 8/6 - 1 = 1/3
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x * y^2, oshapenum(1), fefacenum(0), tmsh),
-               1/3, 1e-11, 1e-11)
+               1/3, rtol=1e-11, atol=1e-11)
 # Like the above, but expressed as a product of a global function, chosen to match local monomial xy, and monomial y.
 xy_on_fe1 = local_mon_on_fe_int(deg(1),deg(1), fenum(1), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1, y, fenum(1), fefacenum(0), tmsh),
-               1/3, 1e-11, 1e-11)
+               1/3, rtol=1e-11, atol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(1), fefacenum(0), tmsh),
-               1., 1e-11, 1e-11)
+               1., rtol=1e-11, atol=1e-11)
 
 # Integrate xy^2 monomial along side face 1, on which y = 0.
 xy_on_fe1 = local_mon_on_fe_int(deg(1),deg(1), fenum(1), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1, y, fenum(1), fefacenum(1), tmsh),
-               0., 1e-11, 1e-11)
+               0., rtol=1e-11, atol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x*y^2, fenum(1), fefacenum(1), tmsh),
-               0., 1e-11, 1e-11)
+               0., rtol=1e-11, atol=1e-11)
 
 # Integrate polynomial xy on side face 2 of fe/oshape 1.
 # We can traverse side 2 of fe 1's reference triangle in side relative coordinates with
@@ -398,15 +397,15 @@ xy_on_fe1 = local_mon_on_fe_int(deg(1),deg(1), fenum(1), tmsh)
 # so the integral should be
 # int_0^1 (-1/4 + t - t^2) |(-1/2,2)| dt = sqrt(17)/2 [-t/4 + 1/2 t^2 -1/3 t^3]|_{t=0,1} = -sqrt(17)/24
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x*y, oshapenum(1), fefacenum(2), tmsh),
-               -sqrt(17)/24, 1e-15, 1e-15)
+               -sqrt(17)/24, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x*y, fenum(1), fefacenum(2), tmsh),
-               -sqrt(17)/24, 1e-15, 1e-15)
+               -sqrt(17)/24, atol=1e-15, rtol=1e-15)
 x_on_fe1_side2 = local_mon_on_fe_side(deg(1), deg(0), fenum(1), fefacenum(2), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(x_on_fe1_side2, y, fenum(1), fefacenum(2), tmsh),
-               -sqrt(17)/24, 1e-15, 1e-15)
+               -sqrt(17)/24, atol=1e-15, rtol=1e-15)
 xy_on_fe1_side2 = local_mon_on_fe_side(deg(1), deg(1), fenum(1), fefacenum(2), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1_side2, onemon, fenum(1), fefacenum(2), tmsh),
-               -sqrt(17)/24, 1e-15, 1e-15)
+               -sqrt(17)/24, atol=1e-15, rtol=1e-15)
 
 
 # inversion of the above, original undivided triangle
@@ -448,24 +447,24 @@ tmsh = TriMesh(IOString(inv_isosc_tri_mesh), 2)
 @test tmsh.fes[1] == ElTri(oshapenum(1),Vec(0.,0.))
 
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(1), fefacenum(0), tmsh),
-               0.5*1*2, 1e-15, 1e-15)
+               0.5*1*2, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(onemon, oshapenum(2), fefacenum(0), tmsh),
-               0.5*1*2, 1e-15, 1e-15)
+               0.5*1*2, atol=1e-15, rtol=1e-15)
 
 # Integrate the local monomial xy^2 over the interior of a reference triangle.
 # int_0^2 int_{-y/4}^{y/4}  xy^2 dx dy
 #  = int_0^2 1/2 y^2 ((y/4)^2 - (-y/4)^2) dy
 #  = 0
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x * y^2, oshapenum(1), fefacenum(0), tmsh),
-               0., 1e-11, 1e-11)
+               0., rtol=1e-11, atol=1e-11)
 
 # Like the above, but expressed as a product of a global function, chosen to match local monomial xy, and monomial y.
 xy_on_fe1 = local_mon_on_fe_int(deg(1),deg(1), fenum(1), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1, y, fenum(1), fefacenum(0), tmsh),
-               0., 1e-11, 1e-11)
+               0., rtol=1e-11, rtol=1e-11)
 
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(1), fefacenum(0), tmsh),
-               1., 1e-11, 1e-11)
+               1., rtol=1e-11, atol=1e-11)
 
 # Integrate the local monomial x^2y^2 over the interior of the primary reference triangle.
 # int_0^2 int_{-y/4}^{y/4}  x^2y^2 dx dy
@@ -475,37 +474,37 @@ xy_on_fe1 = local_mon_on_fe_int(deg(1),deg(1), fenum(1), tmsh)
 #  = 1/96 1/6 y^6|_0^2
 #  = 1/9
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x^2 * y^2, oshapenum(1), fefacenum(0), tmsh),
-               1/9, 1e-11, 1e-11)
+               1/9, rtol=1e-11, atol=1e-11)
 
 # Same as above, but expressed as a product of a global function and monomial.
 
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x^2 * y^2, fenum(1), fefacenum(0), tmsh),
-               1/9, 1e-11, 1e-11)
+               1/9, rtol=1e-11, atol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(local_mon_on_fe_int(deg(2),deg(2), fenum(1), tmsh), onemon, fenum(1), fefacenum(0), tmsh),
-               1/9, 1e-11, 1e-11)
+               1/9, rtol=1e-11, atol=1e-11)
 
 # areas
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(1), fefacenum(0), tmsh),
-               1., 1e-11, 1e-11)
+               1., rtol=1e-11, atol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(2), fefacenum(0), tmsh),
-               1., 1e-11, 1e-11)
+               1., rtol=1e-11, atol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(3), fefacenum(0), tmsh),
-               1., 1e-11, 1e-11)
+               1., rtol=1e-11, atol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., onemon, fenum(4), fefacenum(0), tmsh),
-               1., 1e-11, 1e-11)
+               1., rtol=1e-11, atol=1e-11)
 
 # Integrate polynomial x^3y on side face 2 of fe/oshape 1.
 # The integral is int_{-1/2}^{1/2} 2 x^3 dx = 0.
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x^3*y, oshapenum(1), fefacenum(2), tmsh),
-               0, 1e-15, 1e-15)
+               0, atol=1e-15, rtol=1e-15)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x^3*y, fenum(1), fefacenum(2), tmsh),
-               0, 1e-15, 1e-15)
+               0, atol=1e-15, rtol=1e-15)
 xcubed_on_fe1_side2 = local_mon_on_fe_side(deg(3), deg(0), fenum(1), fefacenum(2), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xcubed_on_fe1_side2, y, fenum(1), fefacenum(2), tmsh),
-               0, 1e-15, 1e-15)
+               0, atol=1e-15, rtol=1e-15)
 xy_on_fe1_side2 = local_mon_on_fe_side(deg(1), deg(1), fenum(1), fefacenum(2), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe1_side2, x^2, fenum(1), fefacenum(2), tmsh),
-               0, 1e-15, 1e-15)
+               0, atol=1e-15, rtol=1e-15)
 
 
 # secondary reference element
@@ -521,11 +520,11 @@ xy_on_fe1_side2 = local_mon_on_fe_side(deg(1), deg(1), fenum(1), fefacenum(2), t
 #  = (1/16 y^4 - 1/6 y^3)|_0^2
 #  = 1 - 8/6 = -1/3
 @test isapprox(Mesh.integral_face_rel_on_oshape_face(x * y^2, oshapenum(2), fefacenum(0), tmsh),
-               -1/3, 1e-11, 1e-11)
+               -1/3, atol=1e-11, rtol=1e-11)
 
 # Like the above, but expressed as a product of a global function, chosen to match local monomial xy, and monomial y.
 xy_on_fe4 = local_mon_on_fe_int(deg(1),deg(1), fenum(4), tmsh)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(xy_on_fe4, y, fenum(4), fefacenum(0), tmsh),
-               -1/3, 1e-11, 1e-11)
+               -1/3, atol=1e-11, rtol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x*y^2, fenum(4), fefacenum(0), tmsh),
-               -1/3, 1e-11, 1e-11)
+               -1/3, atol=1e-11, rtol=1e-11)

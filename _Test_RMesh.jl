@@ -162,9 +162,9 @@ front_face = RMesh.greater_side_face_perp_to_axis(dim(3))
 @test  Mesh.Mesh.is_boundary_side(fenum(5*12), front_face, rmesh3x4x5)
 
 # out of range
-@test_fails RMesh.fe_mesh_coord(dim(1), fenum(5*12+1), rmesh3x4x5) > 0
-@test_fails RMesh.fe_mesh_coord(dim(2), fenum(5*12+1), rmesh3x4x5) > 0
-@test_fails RMesh.fe_mesh_coord(dim(3), fenum(5*12+1), rmesh3x4x5) > 0
+@test_throws RMesh.fe_mesh_coord(dim(1), fenum(5*12+1), rmesh3x4x5) > 0
+@test_throws RMesh.fe_mesh_coord(dim(2), fenum(5*12+1), rmesh3x4x5) > 0
+@test_throws RMesh.fe_mesh_coord(dim(3), fenum(5*12+1), rmesh3x4x5) > 0
 
 
 # test non-boundary side coordinates
@@ -461,7 +461,7 @@ sgeom = RMesh.nb_side_geom(nbsidenum(3*4*4 + last_axis2), rmesh3x4x5)
 
 
 # side number out of range
-@test_fails RMesh.nb_side_geom(nbsidenum(1 + 3*4*4 + last_axis2), rmesh3x4x5)
+@test_throws RMesh.nb_side_geom(nbsidenum(1 + 3*4*4 + last_axis2), rmesh3x4x5)
 
 
 # Test conversion of fe coords to fe number.
@@ -915,7 +915,7 @@ rmesh3x2 = RectMesh([0.,0.], [3.,2.], [mesh_coord(3), mesh_coord(2)])
 @test RMesh.perp_axis_for_nb_side(nbsidenum(4), rmesh3x2) == dim(1)
 @test RMesh.perp_axis_for_nb_side(nbsidenum(5), rmesh3x2) == dim(2)
 @test RMesh.perp_axis_for_nb_side(nbsidenum(7), rmesh3x2) == dim(2)
-@test_fails RMesh.perp_axis_for_nb_side(nbsidenum(8), rmesh3x2)
+@test_throws RMesh.perp_axis_for_nb_side(nbsidenum(8), rmesh3x2)
 
 # Test side inclusions
 # fe vertical sides
@@ -1032,20 +1032,3 @@ f4(x::Vector{R}) = (x[1] - fe5_coords[1])^2 * (x[2] - fe5_coords[2])^3
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x, fenum(5), bottom_face, rmesh3x2), 0)
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x, fenum(5), top_face, rmesh3x2), 1/4)
 @test nearly_eq(Mesh.integral_global_x_face_rel_on_fe_face(f4, x*y, fenum(5), top_face, rmesh3x2), 0)
-
-
-# Test Gmsh export.
-mesh_min_coords = [0.0, 0.0]
-mesh_max_coords = [2.0, 1.0]
-mesh_ldims = [mesh_coord(2), mesh_coord(1)]
-rmesh1x2 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
-os = open("/home/sharris/tmp/rmesh1x2.geo", "w")
-RMesh.exportAsGmshSurface(os, rmesh1x2)
-
-
-mesh_min_coords = [0.0, 0.0]
-mesh_max_coords = [2.0, 2.0]
-mesh_ldims = [mesh_coord(2), mesh_coord(2)]
-rmesh2x2 = RectMesh(mesh_min_coords, mesh_max_coords, mesh_ldims)
-os = open("/home/sharris/tmp/rmesh2x2.geo", "w")
-RMesh.exportAsGmshSurface(os, rmesh2x2)
