@@ -1,4 +1,3 @@
-using Profile
 using Common
 
 import Poly, Poly.Monomial, Poly.Polynomial
@@ -11,15 +10,61 @@ import WG, WG.WGSolver
 import WGSol, WGSol.WGSolution
 import Cubature.hcubature
 
+# Method
+# The method is to let the coarser, tau element diameter mesh be a rectangular mesh formed by
+# dividing a rectangular region into a grid of equal rectangles, and to have the finer h element
+# diameter mesh consist of triangles formed by subdividing the rectangles of the tau mesh by some
+# number of iterations.  Thus every tau mesh element is the union of some subset of h mesh
+# elements, which makes projection tractable with reasonable efficiency.
+#
+# Let Omega be the rectangular region to be meshed, and let alpha in (0,1) be rational.
+# Our meshing strategy requires that there are positive integers n and m such that:
+#   1) tau/h = 2^n,
+#      because the triangles of diameter h are formed by subdividing the tau mesh rectangles, with
+#      initial hypotenuses along the rectangle diagonals prior to subdivision, and
+#   2) tau = diam(Omega)/m,
+#      because the tau mesh is formed by evenly dividing the original rectangular region into an
+#      m x m grid, with resulting rectangles having having diameter diam(Omega)/m.
+#   3) tau = h^alpha
+# These conditions together imply that n and m satisfy
+#  (4)  2^{n alpha/(alpha-1)} = diam(Omega)/m.
+# Conversely, if postive integers m and n satisfy (4), then
+# by letting tau_{m,n} = 2^{n alpha/(alpha-1)} and h_{m,n} = tau_{m,n}^{1/alpha},
+# then (1) and (3) follow directly, and (2) follows from
+#   tau_{m,n}/h = tau_{m,n}^{1 - 1/alpha} = tau_{m,n}^{(alpha-1)/alpha} = 2^n .
+# Thus (4) implies (1), (2), and (3).
+#
+# We now only need to provide a sequence of pairs {(n_i,m_i): i = 1,2,...} satisfying (4), where the n_i are
+# increasing so that h->0 as i->infinity.
+#
+# To do this, assume that we've found a single pair n and m satisyfing (4).
+# Since alpha is rational, there are integers p < 0 and q > 0 such that 
+#    alpha/(alpha-1) = p/q  .
+# Then
+#    2^{(n+q) alpha/(alpha-1)} = 2^{n alpha/(alpha-1)} 2^p
+#                              = (diam(Omega)/m) 2^p 
+#                              = diam(Omega)/(m 2^|p|) (since p < 0)
+#                              
+# Thus we see that if m,n satisfy our condition (4), then so do the integers m 2^|p|, n+q in place of m
+# and n.   This gives us our sequence of pairs,
+#   {(m 2^{j p}, n + j q), j=0,1,...},
+# of mesh parameters satisfying (1),(2), and (3) and with h->0, so long as our initial pair n,m satisfies
+# considion (4).
+
 immutable LaplaceModelProblem
   laplace_eq_rhs::Function
   boundary_fn::Function
   region_min::Array{R,1}
   region_max::Array{R,1}
-  sol_H_regularity::R
+  sol_H_regularity::Rational{Int}
   sol::Function
   grad_sol::Function
 end
+
+immutable MeshPairSpec {
+  tau_mesh_divs_per_side::Int # m
+  h_mesh_subdiv_ops::Int      # n
+}
 
 const integration_abs_err = 1e-12
 const integration_rel_err = 1e-12
@@ -27,88 +72,36 @@ const integration_rel_err = 1e-12
 function test_superconvergence(mod_prob::LaplaceModelProblem,
                                wg_polys_max_deg::Deg,
                                proj_space_polys_max_deg::Deg,
-                               proj_mesh_side_secs::Array{Int,1}) # array of # sections per side for projection mesh
+                               mesh_pair_specs::Array{MeshPairSpec})
+  const s = mod_prob.sol_H_regularity
   const k = wg_polys_max_deg
   const r = proj_space_polys_max_deg
-  const s = mod_prob.sol_H_regularity
-  const alpha = (k + s - 1.)/(r + 1. - min(0., 2. - s))
+  const alpha = (k + s - 1)//(r + 1 - min(0, 2 - s))
 
-  for side_secs in proj_mesh_side_secs
+  for mesh_pair_spec in mesh_pair_specs
 
-    const tau = norm(mod_prob.region_max - mod_prob.region_min) / side_secs
-    const h = tau^(1/alpha)
-
-    const tau_mesh = RectMesh(mod_prob.region_min, mod_prob.region_max, [mesh_coord(side_secs), mesh_coord(side_secs)])
+    const m = mesh_pair_specs.tau_mesh_divs_per_side
+    const tau = norm(mod_prob.region_max - mod_prob.region_min) / m
+    const tau_mesh = RectMesh(mod_prob.region_min, mod_prob.region_max, [mesh_coord(m), mesh_coord(m)])
     
-    const h_mesh = triangle_submesh(tau_mesh, h)
+    const n = mesh_pair_specs.h_mesh_subdiv_ops
+    const h_mesh = triangle_submesh(tau_mesh, n)
 
-    # const wg_sol = wg_solution(mod_prob, h_mesh, k)
+    const wg_sol = wg_solution(mod_prob, h_mesh, k)
 
-    # const projs_by_tau_fe = project(wg_sol, tau_mesh, r)
+    const projs_by_tau_fe = project(wg_sol, tau_mesh, r)
 
-    # const err = err_L2_norm(mod_prob.sol, projs_by_tau_fe, tau_mesh)
+    const err = err_L2_norm(mod_prob.sol, projs_by_tau_fe, tau_mesh)
 
-    const h_act = Mesh.max_fe_diameter(h_mesh)
-    const tau_act = Mesh.max_fe_diameter(tau_mesh)
+    printMeshSizesInfo(h_mesh, tau_mesh, tau, alpha)
 
-    println()
-    println("h=$h (act. $h_act), h/h_act = $(h/h_act) tau=$tau (act. $tau_act)")
-    println("(tau act)/(h act)^alpha = $(tau_act/h_act^alpha)")
-    # println("L2 Error: $err")
+    println("L2 Error: $err")
   end
 end
 
-# function triangle_submesh(rmesh::RectMesh, target_max_el_diam::R, diam_rel_tol::Float64)
-#   const num_trial_meshes = 40
-#   relDiamErr(tmesh::AbstractMesh) = abs(1. -  Mesh.max_fe_diameter(tmesh) / target_max_el_diam)
 
-#   const init_gmsh_size = target_max_el_diam/sqrt(2)
-#   const init_tmesh = triangle_submesh_trial(rmesh::RectMesh, init_gmsh_size)
-
-#   const gmsh_sizes = linspace(init_gmsh_size/2, init_gmsh_size*2, num_trial_meshes)
-#     # if target_max_el_diam < Mesh.max_fe_diameter(init_tmesh)
-#     #   linspace(init_gmsh_size*0.5, init_gmsh_size, num_trial_meshes)
-#     # else
-#     #   linspace(init_gmsh_size, init_gmsh_size*2, num_trial_meshes)
-#     # end
-
-#   for gmsh_size in gmsh_sizes
-#     const tmesh = triangle_submesh_trial(rmesh, gmsh_size)
-#     const rel_err = relDiamErr(tmesh)
-#     println("rel diam err: $rel_err")
-#     if rel_err < diam_rel_tol
-#       println("Mesh rel diam err $rel_err, max diam $(Mesh.max_fe_diameter(tmesh)).")
-#       return tmesh
-#     end
-#   end
-#   println("No mesh found within diameter tolerance.")
-#   return nothing
-# end
-
-
-function triangle_submesh(rmesh::RectMesh, gmsh_target_size::R)
-  const num_rmesh_divs = RMesh.mesh_ldims(rmesh)[1]
-  
-  const rect_mesh_file = "meshes/sc_tmp/rect_mesh_$(int(num_rmesh_divs)).geo"
-  const tri_mesh_file = "meshes/sc_tmp/tri_mesh_$(int(num_rmesh_divs)).msh"
-
-  open(rect_mesh_file, "w") do os
-    RMesh.exportAsGmshSurface(os, rmesh, gmsh_target_size)
-  end
-
-  run(`gmsh -saveall -2 -o $tri_mesh_file $rect_mesh_file` |> "/dev/null") 
-
-  return let is = open(tri_mesh_file)
-    try 
-      TriMesh(is,
-              0, # no subdivision
-              integration_rel_err, integration_abs_err,
-              false, # no capture of phys region tags
-              true)  # capture geom entity tags (rect mesh fe #'s)
-    finally
-      close(is)
-    end
-  end
+function triangle_submesh(rmesh::RectMesh, subdiv_ops::Int)
+  # TODO
 end
 
 
@@ -254,6 +247,28 @@ function printBasisSummary(basis::WeakFunsPolyBasis)
   println("Data arrays for non-zeros are of initial (upper bound) size $(int64(interacting_bel_pairs_ub)).")
 end
 
+function printMeshSizesInfo(h_mesh, tau_mesh, tau, alpha)
+  const h = tau^(1/alpha)
+  const h_act = Mesh.max_fe_diameter(h_mesh)
+  const tau_act = Mesh.max_fe_diameter(tau_mesh)
+  println()
+  println("h=$h (act. $h_act), tau=$tau (act. $tau_act), (tau act)/(h act)^alpha = $(tau_act/h_act^alpha)")
+end
+
+
+
+function meshPairSpecs(init_mesh_params::MeshPairSpec, numMeshes::Int, alpha::Rational{Int})
+  const meshSpecs = Array(MeshPairSpec, numMeshes)
+  const m = init_mesh_params.tau_mesh_divs_per_side
+  const n = init_mesh_params.h_mesh_subdiv_ops
+  const p = alpha.num
+  const q = alpha.den
+  for j=0:numMeshes-1
+    meshSpecs[j+1] = MeshPairSpec(m*2^(j*p), n + j*q)
+  end
+  meshSpecs
+end
+
 
 
 u(x::Vector{R}) = cos(x[1]) + sin(x[2])
@@ -263,7 +278,7 @@ grad_u(x::Vector{R}) = [-sin(x[1]), cos(x[2])]
 f(x::Vector{R}) = cos(x[1]) + sin(x[2])
 g(x::Vector{R}) = u(x)
 
-const s = 2.4
+const s = 19//8
 const mod_prob = LaplaceModelProblem(f, g, [0.,0.], [1., 1.], s, u, grad_u)
 const k = deg(2)
 const r = deg(4)
