@@ -501,7 +501,7 @@ end
 
 # Exporting
 
-function exportAsGmshSurface(ios::IO,  mesh::RectMesh, targetElementSize::R)
+function exportAsGmshSurface(ios::IO,  mesh::RectMesh, targetGmshElSize::R)
   if mesh.space_dim != 2 
     error("Gmsh output for rectangle meshes is currently only supported for the 2d case.")
   end
@@ -525,7 +525,7 @@ function exportAsGmshSurface(ios::IO,  mesh::RectMesh, targetElementSize::R)
       # Write the Gmsh point declaration.
       const pt_1 = mesh.min_bounds[1] + (pt_mcoords[1] - 1) * mesh.fe_dims[1]
       const pt_2 = mesh.min_bounds[2] + (pt_mcoords[2] - 1) * mesh.fe_dims[2]
-      @printf(ios, "Point(%u) = {%.15le, %.15le, 0.0, %.15le};\n", pointnum, pt_1, pt_2, targetElementSize)
+      @printf(ios, "Point(%u) = {%.15le, %.15le, 0.0, %.15le};\n", pointnum, pt_1, pt_2, targetGmshElSize)
       pointnum
     else
       existing_pointnum

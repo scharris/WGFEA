@@ -1,4 +1,4 @@
-
+using Profile
 using Common
 
 import Poly, Poly.Monomial, Poly.Polynomial
@@ -42,28 +42,61 @@ function test_superconvergence(mod_prob::LaplaceModelProblem,
     
     const h_mesh = triangle_submesh(tau_mesh, h)
 
-    const wg_sol = wg_solution(mod_prob, h_mesh, k)
+    # const wg_sol = wg_solution(mod_prob, h_mesh, k)
 
-    const projs_by_tau_fe = project(wg_sol, tau_mesh, r)
+    # const projs_by_tau_fe = project(wg_sol, tau_mesh, r)
 
-    const err = err_L2_norm(mod_prob.sol, projs_by_tau_fe, tau_mesh)
+    # const err = err_L2_norm(mod_prob.sol, projs_by_tau_fe, tau_mesh)
 
-    println("h=$h, tau=$tau, L2 Error: $err")
+    const h_act = Mesh.max_fe_diameter(h_mesh)
+    const tau_act = Mesh.max_fe_diameter(tau_mesh)
+
+    println()
+    println("h=$h (act. $h_act), h/h_act = $(h/h_act) tau=$tau (act. $tau_act)")
+    println("(tau act)/(h act)^alpha = $(tau_act/h_act^alpha)")
+    # println("L2 Error: $err")
   end
 end
 
+# function triangle_submesh(rmesh::RectMesh, target_max_el_diam::R, diam_rel_tol::Float64)
+#   const num_trial_meshes = 40
+#   relDiamErr(tmesh::AbstractMesh) = abs(1. -  Mesh.max_fe_diameter(tmesh) / target_max_el_diam)
 
-function triangle_submesh(rmesh::RectMesh, tri_diam::R)
+#   const init_gmsh_size = target_max_el_diam/sqrt(2)
+#   const init_tmesh = triangle_submesh_trial(rmesh::RectMesh, init_gmsh_size)
+
+#   const gmsh_sizes = linspace(init_gmsh_size/2, init_gmsh_size*2, num_trial_meshes)
+#     # if target_max_el_diam < Mesh.max_fe_diameter(init_tmesh)
+#     #   linspace(init_gmsh_size*0.5, init_gmsh_size, num_trial_meshes)
+#     # else
+#     #   linspace(init_gmsh_size, init_gmsh_size*2, num_trial_meshes)
+#     # end
+
+#   for gmsh_size in gmsh_sizes
+#     const tmesh = triangle_submesh_trial(rmesh, gmsh_size)
+#     const rel_err = relDiamErr(tmesh)
+#     println("rel diam err: $rel_err")
+#     if rel_err < diam_rel_tol
+#       println("Mesh rel diam err $rel_err, max diam $(Mesh.max_fe_diameter(tmesh)).")
+#       return tmesh
+#     end
+#   end
+#   println("No mesh found within diameter tolerance.")
+#   return nothing
+# end
+
+
+function triangle_submesh(rmesh::RectMesh, gmsh_target_size::R)
   const num_rmesh_divs = RMesh.mesh_ldims(rmesh)[1]
   
   const rect_mesh_file = "meshes/sc_tmp/rect_mesh_$(int(num_rmesh_divs)).geo"
   const tri_mesh_file = "meshes/sc_tmp/tri_mesh_$(int(num_rmesh_divs)).msh"
 
   open(rect_mesh_file, "w") do os
-    RMesh.exportAsGmshSurface(os, rmesh, tri_diam)
+    RMesh.exportAsGmshSurface(os, rmesh, gmsh_target_size)
   end
 
-  run(`gmsh -saveall -2 -clmax $tri_diam -o $tri_mesh_file $rect_mesh_file`)
+  run(`gmsh -saveall -2 -o $tri_mesh_file $rect_mesh_file` |> "/dev/null") 
 
   return let is = open(tri_mesh_file)
     try 
@@ -222,9 +255,7 @@ function printBasisSummary(basis::WeakFunsPolyBasis)
 end
 
 
-s = 2.4
-k = deg(2)
-r = deg(4)
+
 u(x::Vector{R}) = cos(x[1]) + sin(x[2])
 grad_u(x::Vector{R}) = [-sin(x[1]), cos(x[2])]
 # (grad u)(x) = (-sin(x_1), cos(x_2))
@@ -232,9 +263,22 @@ grad_u(x::Vector{R}) = [-sin(x[1]), cos(x[2])]
 f(x::Vector{R}) = cos(x[1]) + sin(x[2])
 g(x::Vector{R}) = u(x)
 
-mod_prob = LaplaceModelProblem(f, g, [0.,0.], [1., 1.], s, u, grad_u)
+const s = 2.4
+const mod_prob = LaplaceModelProblem(f, g, [0.,0.], [1., 1.], s, u, grad_u)
+const k = deg(2)
+const r = deg(4)
+
+# # Profiling
+# const alpha = (k + s - 1.)/(r + 1. - min(0., 2. - s))
+# const side_secs = 2
+# const tau = norm(mod_prob.region_max - mod_prob.region_min) / side_secs
+# const h = tau^(1/alpha)
+# const tau_mesh = RectMesh(mod_prob.region_min, mod_prob.region_max, [mesh_coord(side_secs), mesh_coord(side_secs)])
+# const h_mesh = triangle_submesh(tau_mesh, h)
+# const wg_sol = wg_solution(mod_prob, h_mesh, k)
 
 test_superconvergence(mod_prob,
                       k,
                       r,
-                      [2])
+                      [10])
+
