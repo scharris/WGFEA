@@ -43,7 +43,6 @@ function simple_2d_test_trimesh()
   #println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
   #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
-  flush(STDOUT)
 end
 
 function simple_2d_test()
@@ -67,7 +66,6 @@ function simple_2d_test()
   println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
   #  println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   #  println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
-  flush(STDOUT)
 end
 
 function errs_and_diams_for_side_divs(errf::Function, space_dim::Dim, u::Function, f::Function, g::FunctionOrConst,
@@ -160,7 +158,6 @@ function simple_4d_test()
   println("L2 norm of Q u - u_h: $(WGSol.err_vs_proj_L2_norm(u, wg_sol))")
   println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
-  flush(STDOUT)
 end
 
 
@@ -195,7 +192,6 @@ function trig_Rd_test(mesh_ldims::Array{MeshCoord,1},
   println("L2 norm of u - u_h: $(WGSol.err_L2_norm(u, wg_sol))")
   println("vbf semi-norm of Q u - u_h: $(WGSol.err_vs_proj_vbf_seminorm(u, wg_sol, vbf))")
   println("L2 norm of grad u - wgrad u_h: $(WGSol.err_grad_vs_wgrad_L2_norm(grad_u, wg_sol))")
-  flush(STDOUT)
 end
 
 
@@ -218,7 +214,6 @@ function print_sample_points(wg_sol::WGSolution, u::Function, grad_u::Function)
     println("   wgrad: $wgrad_val, grad_u: $grad_u_val")
     println("   val diff: $(abs(wg_sol_val - u_val)),  grad diff: $(norm(wgrad_val - grad_u_val))")
   end
-  flush(STDOUT)
 end
 
 
