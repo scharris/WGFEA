@@ -1,5 +1,5 @@
 module Common
-export Deg, deg, check_degs, Dim, dim, R, zeroR, oneR, FunctionOrConst
+export Deg, deg, check_degs, Dim, dim, R, zeroR, oneR, FunctionOrConst, PointNum, pointnum
 
 typealias Deg Uint8
 deg(k::Integer) = check_degs(k) && convert(Deg,k)
@@ -13,5 +13,8 @@ const zeroR = zero(R)
 const oneR = one(R)
 
 typealias FunctionOrConst Union(Function, R)
+
+typealias PointNum Uint64
+pointnum(i) = uint64(i)
 
 end # end of module
