@@ -507,15 +507,14 @@ function exportAsGmshGeo(ios::IO,  mesh::RectMesh; targetGmshElSize::R = 1., asT
     error("Gmsh output for rectangle meshes is currently only supported for the 2d case.")
   end
 
-  typealias PointNum Uint64
   typealias LineNum Int64
 
   const pointnums_by_mcoords = sizehint(Dict{(MeshCoord, MeshCoord), PointNum}(), uint64(mesh.num_fes))
   const linenums_by_endptnums = sizehint(Dict{(PointNum, PointNum), LineNum}(), uint64(2*mesh.num_fes))
 
-  const get_pointnum = let next_pointnum = let next = uint64(1); () -> (next += 1) - 1 end;
+  const get_pointnum = let next_pointnum = let next = pointnum(1); () -> (next += 1) - 1 end;
     function (pt_mcoords::(MeshCoord, MeshCoord))
-      const existing_pointnum = get(pointnums_by_mcoords, pt_mcoords, uint64(0))
+      const existing_pointnum = get(pointnums_by_mcoords, pt_mcoords, pointnum(0))
       if existing_pointnum == 0
         # Register the new point number with its mesh coordinates.
         const pointnum = next_pointnum()
