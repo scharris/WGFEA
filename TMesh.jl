@@ -9,7 +9,6 @@ export TriMesh,
        physical_region_tag,
        geometric_entity_tag
 
-
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
        Mesh.NBSideInclusions, Mesh.fefacenum, Mesh.fenum, Mesh.nbsidenum
@@ -25,6 +24,15 @@ immutable Vec
   _2::R
 end
 typealias Point Vec
+
+# Represents an element provided to the mesh constructor which is to be subdivided to form
+# some of the final mesh elements.
+immutable BaseEl
+  node_nums::(Uint64, Uint64, Uint64)
+  tag_physreg::Tag
+  tag_geoment::Tag
+  other_tags::Array{Tag,1}
+end
 
 # reference triangle
 immutable RefTri
@@ -99,35 +107,25 @@ end
 ####################################################################
 # Mesh Construction
 
-# Construct from Gmsh .msh formatted input stream, and number of subdivision operations to perform within each
-# mesh element from the stream.  Some elements may have additional iterations specified via Gmsh tags.
-function TriMesh(ios::IO, _base_subdiv_iters::Integer,
+# Primary constructor.  Base (triangle) elements provided by the iterator will each be subdivided
+# subdiv_iters times, which may be 0.
+function TriMesh(base_pts_by_nodenum::Array{Point,1},
+                 base_els_iter,
+                 est_base_tris::Integer,
+                 subdiv_iters::Integer,
                  integration_rel_err::R = 1e-12, integration_abs_err::R = 1e-12,
                  load_phys_reg_tags::Bool = false, load_geom_ent_tags::Bool = false)
-
-  const base_subdiv_iters = _base_subdiv_iters >= 0 ? uint(_base_subdiv_iters) : throw(ArgumentError("Number of iterations must be non-negative."))
-
-  # Read the points from the input mesh, storing by mesh node number.  The elements section of the input
-  # stream will refer to these node numbers.
-  const mesh_pts_by_nodenum = read_points(ios)
-
-  # Read to the beginning of the elements section.
-  if !read_through_line_starting(ios, "\$Elements") error("Could not find beginning of elements section in mesh file.") end
-
-  # Skip point and line elements, estimating number of input mesh triangles from the number of elements declared.
-  const decl_num_els = uint64(readline(ios)) # This count can include unwanted lower order elements.
-  line, lines_read = read_until(ios, is_polytope_or_endmarker)
-  const est_mesh_tris = decl_num_els - (lines_read - 1)
+  assert(subdiv_iters >= 0)
+  assert(est_base_tris >= 0)
 
   # Make estimates of the number of finite elements and reference triangles for storage allocation.
   # This estimate ignores optional additional subdivisions that may be specified for some input elements.
-  const est_fes = est_mesh_tris * 4^base_subdiv_iters
-  # We'll estimate 2 reference triangles for each mesh element if we are subdividing, 1 if not. We ignore
-  # for this estimate any additional reference triangles for hanging node support.
-  const est_ref_tris = (base_subdiv_iters > 0 ? 2 : 1) * est_mesh_tris
-  println("Estimating $(int(est_fes)) finite elements based on mesh header section, with $(int(est_ref_tris)) reference triangles.")
+  const est_fes = est_base_tris * 4^subdiv_iters
+  # We'll estimate 2 reference triangles for each mesh element if we are subdividing, 1 if not.
+  # We ignore for this estimate any additional reference triangles for hanging node support.
+  const est_ref_tris = (subdiv_iters > 0 ? 2 : 1) * est_base_tris
 
-  # Data to be updated as input element lines are processed.
+  # Data to be updated as base elements are processed.
   const oshapes = sizehint(Array(RefTri,0), est_ref_tris)
   const fes = sizehint(Array(ElTri, 0), est_fes)
   const fe_faces_by_endpoints = sizehint(Dict{(Point,Point), Array{(FENum,FEFaceNum),1}}(), uint64(est_fes * 3/2)) # estimate assumes most fes have 3 sides, each in 2 fes
@@ -136,8 +134,7 @@ function TriMesh(ios::IO, _base_subdiv_iters::Integer,
   num_nb_sides = convert(NBSideNum,0)
   num_b_sides = int64(0)
 
-
-  # Function via which all finite elements will be created during the processing of input element lines.
+  # Function via which all finite elements will be created during the processing of base elements.
   const fe_maker = function(oshapenum::OShapeNum, v1::Point, v2::Point, v3::Point, tag_physreg::Tag, tag_geoment::Tag)
     push!(fes, ElTri(oshapenum, v1))
     const fe_num = fenum(length(fes))
@@ -157,12 +154,9 @@ function TriMesh(ios::IO, _base_subdiv_iters::Integer,
   end
 
   # process input mesh elements
-  while !beginswith(line, "\$EndElements") && line != ""
-    process_el_line(line, mesh_pts_by_nodenum, base_subdiv_iters, fe_maker, oshapes)
-    line = readline(ios)
+  for base_el in base_els_iter
+    process_base_el(base_el, base_pts_by_nodenum, uint64(subdiv_iters), fe_maker, oshapes)
   end
-
-  if !beginswith(line, "\$EndElements") error("Missing end of elements marker in mesh file.") end
 
   # Create the final non-boundary sides data structures based on the mapping of side endpoints to fe faces.
   const num_fes = fenum(length(fes)) 
@@ -188,36 +182,65 @@ function TriMesh(ios::IO, _base_subdiv_iters::Integer,
           geom_ent_tags_by_fenum)
 end
 
+# Construct from Gmsh .msh formatted input stream.
+function TriMesh(is::IO, subdiv_iters::Integer,
+                 integration_rel_err::R = 1e-12, integration_abs_err::R = 1e-12,
+                 load_phys_reg_tags::Bool = false, load_geom_ent_tags::Bool = false)
 
-function process_el_line(line::String,
+  const base_pts_by_nodenum = read_gmsh_nodes(is)
+
+  # Read to the beginning of the elements section.
+  if !read_through_line_starting(is, "\$Elements")
+    error("Could not find beginning of elements section in mesh file.")
+  end
+
+  # Estimate number of input mesh triangles from the number of elements declared and the number
+  # of skipped lower order elements (points and lines) before the first triangle element.
+  const decl_num_els = uint64(readline(is)) # This count can include unwanted lower order elements.
+  const line, lines_read = read_until(is, is_polytope_or_endmarker)
+  if line == "" || beginswith(line, "\$EndElements")
+    error("No elements found in \$Elements section.")
+  end
+  const est_base_tris = decl_num_els - (lines_read - 1)
+
+  const base_els_iter = GmshElementsIter(line, is)
+
+  TriMesh(base_pts_by_nodenum,
+          base_els_iter,
+          est_base_tris,
+          subdiv_iters,
+          integration_rel_err, integration_abs_err,
+          load_phys_reg_tags, load_geom_ent_tags)
+end
+
+
+
+function process_base_el(base_el::BaseEl,
                          mesh_pts_by_nodenum::Array{Point,1},
-                         base_subdiv_iters::Uint,
+                         global_subdiv_iters::Uint,
                          fe_maker::Function,
-                         oshapes::Array{RefTri,1}) # will be appended to
-  const toks = split(line, ' ')
+                         oshapes::Array{RefTri,1}) # will be appended
 
-  const el_type = eltypenum(toks[TOKN_ELLINE_ELTYPE])
-  if is_lower_order_el_type(el_type) return end
-  if !is_3_node_triangle_el_type(el_type) error("Element type $el_type is not supported.") end
-
-  const tag_physreg = tag(int64(toks[TOKN_ELLINE_NUMTAGS+1]))
-  const tag_geoment = tag(int64(toks[TOKN_ELLINE_NUMTAGS+2]))
-
-
-  const v1,v2,v3 = lookup_vertexes(toks, mesh_pts_by_nodenum)
+  const v1,v2,v3 = mesh_pts_by_nodenum[base_el.node_nums[1]],
+                   mesh_pts_by_nodenum[base_el.node_nums[2]],
+                   mesh_pts_by_nodenum[base_el.node_nums[3]]
 
   # Add any extra subdivision iterations to be done in this element.
-  const subdiv_iters = base_subdiv_iters + extra_subdiv_iters(v1,v2,v3, tag_physreg, tag_geoment)
+  const subdiv_iters = global_subdiv_iters + extra_subdiv_iters(base_el)
 
   # For each of the three sides of this mesh element to be subdivided, the generated subdivision
   # elements can be made to have more than one face between vertexes lying on the side.  This is
   # used to support "hanging" nodes where a finer subdivision is adjacent to this one.  The triplet
   # returned represents the number of faces between element vertex pairs embedded in the input mesh
   # element sides from v1 to v2, v2 to v3, and v3 to v1, respectively.
-  const nums_faces_btw_verts = nums_faces_between_vertexes(v1,v2,v3, tag_physreg, tag_geoment)
+  const nums_faces_btw_verts = nums_faces_between_vertexes(base_el)
 
   # Register the primary reference triangles for our mesh element's subdivisions.
-  const pri_oshapenums_by_nums_faces_btw_verts = register_primary_ref_tris(v1,v2,v3, nums_faces_btw_verts, subdiv_iters, oshapes)
+  # (Secondary triangles if any will only have a single reference triangle with 1 side between vertex pairs.)
+  const pri_oshapenums_by_nums_faces_btw_verts = register_primary_ref_tris(v1,v2,v3,
+                                                                           nums_faces_btw_verts,
+                                                                           subdiv_iters,
+                                                                           oshapes)
 
   if subdiv_iters > 0
     # Register the secondary reference triangle.
@@ -229,14 +252,14 @@ function process_el_line(line::String,
                       subdiv_iters,
                       nums_faces_btw_verts,
                       pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
-                      tag_physreg, tag_geoment,
+                      base_el.tag_physreg, base_el.tag_geoment,
                       fe_maker)
   else # no subdivision to be done
     # The mesh element itself is our finite element, with its own reference triangle (added in register_primary_ref_tris above).
     const oshapenum = pri_oshapenums_by_nums_faces_btw_verts(nums_faces_btw_verts)
-    fe_maker(oshapenum, v1,v2,v3, tag_physreg, tag_geoment)
+    fe_maker(oshapenum, v1,v2,v3, base_el.tag_physreg, base_el.tag_geoment)
   end
-end # process_el_line
+end # process_base_el
 
 
 # Create primary reference triangles for the given triangle to be subdivided. These reference triangles
@@ -421,14 +444,6 @@ function subdivide_secondary(v1::Point, v2::Point, v3::Point,
 end
 
 
-function lookup_vertexes(toks::Array{String,1}, mesh_pts_by_nodenum::Array{Point,1})
-  const last_tag_tokn = TOKN_ELLINE_NUMTAGS + int(toks[TOKN_ELLINE_NUMTAGS])
-  mesh_pts_by_nodenum[uint64(toks[last_tag_tokn + 1])],
-  mesh_pts_by_nodenum[uint64(toks[last_tag_tokn + 2])],
-  mesh_pts_by_nodenum[uint64(toks[last_tag_tokn + 3])]
-end
-
-
 # Register the finite element's side faces by their endpoints in the passed registry.
 function register_fe_faces_by_endpoints(fe_num::FENum,
                                         v1::Point, v2::Point, v3::Point,
@@ -455,10 +470,9 @@ function register_fe_faces_by_endpoints(fe_num::FENum,
   nb_sides_delta, b_sides_delta
 end
 
-# Return the triplet consisting of
+# Return the pair consisting of
 #   1) nb side numbers by (fe,face) :: Dict{(FENum, FEFaceNum), NBSideNum},
 #   2) an array of NBSideInclusions indexed by nb side number.
-#   3) an array of side dependent dimension by nb side number
 function create_nb_sides_data(fe_faces_by_endpoints::Dict{(Point, Point), Array{(FENum, FEFaceNum),1}},
                               num_fes::FENum, max_sides_per_fe::FEFaceNum;
                               num_nb_sides_hint::Integer=0)
@@ -600,8 +614,8 @@ end
 side_dep_dim(ep1::Point, ep2::Point) = abs(ep2._1-ep1._1) >= abs(ep2._2-ep1._2) ? dim(2) : dim(1)
 
 
-function extra_subdiv_iters(v1::Point, v2::Point, v3::Point, physreg_tag::Tag, geoment_tag::Tag)
-  # TODO: Allow specifying extra iterations by tagging a mesh element.
+function extra_subdiv_iters(base_el::BaseEl)
+  # TODO: Allow specifying extra iterations via a Gmsh tag.
   0
 end
 
@@ -610,12 +624,14 @@ end
 # This allows these subdivision elements to meet those of a finer subdivision in a mesh element adjacent
 # to this element ("hanging nodes").  The numbers are returned as a triplet of integers, corresponding to
 # the face counts to be generated for elements' sides within sides v1v2, v2v3, and v3v1.
-function nums_faces_between_vertexes(v1::Point, v2::Point, v3::Point, physreg_tag::Tag, geoment_tag::Tag)
+function nums_faces_between_vertexes(base_el::BaseEl)
   # TODO: Allow specifying somewhere such as in mesh element tags.
   ONE_FACE_BETWEEN_VERTEX_PAIRS
 end
 
-# definitions related to the Gmsh format
+
+# ----------------------------------
+# Gmsh msh format reading support
 
 typealias ElTypeNum Uint8
 eltypenum(i::Integer) = if i>=1 && i<=typemax(ElTypeNum) convert(ElTypeNum, i) else error("invalid element type: $i") end
@@ -653,6 +669,68 @@ const TOKN_NODELINE_POINT3 = 4
 # elm-number elm-type number-of-tags < tag > ... vert-number-list
 const TOKN_ELLINE_ELTYPE = 2
 const TOKN_ELLINE_NUMTAGS = 3
+
+
+# Gmsh base elements iterator
+
+immutable GmshElementsIter
+  first_base_el_line::String
+  is::IO # stream should be positioned after first base element line
+end
+
+import Base.start, Base.done, Base.next
+function start(gmsh_els_iter::GmshElementsIter)
+  base_el_from_gmsh_el(split(gmsh_els_iter.first_base_el_line, ' '))
+end
+
+function done(gmsh_els_iter::GmshElementsIter, next_base_el)
+  next_base_el == nothing
+end
+
+function next(gmsh_els_iter::GmshElementsIter, next_base_el)
+  while true
+    const line = readline(gmsh_els_iter.is)
+    if beginswith(line, "\$EndElements")
+      return (next_base_el, nothing)
+    elseif line == ""
+      error("No EndElements marker found.")
+    else
+      const toks = split(line, ' ')
+      const el_type = eltypenum(toks[TOKN_ELLINE_ELTYPE])
+      if is_lower_order_el_type(el_type)
+        continue
+      elseif is_3_node_triangle_el_type(el_type)
+        return (next_base_el, base_el_from_gmsh_el(toks))
+      else
+        error("Element type $el_type is not supported.")
+      end
+    end
+  end
+end
+
+const EMPTY_OTHER_TAGS = Array(Tag,0)
+
+function base_el_from_gmsh_el(toks::Array{String,1})
+  const num_tags = int(toks[TOKN_ELLINE_NUMTAGS])
+  assert(num_tags >= 2)
+  const physreg_tag = tag(int64(toks[TOKN_ELLINE_NUMTAGS+1]))
+  const geoment_tag = tag(int64(toks[TOKN_ELLINE_NUMTAGS+2]))
+  const other_tags = num_tags >= 3 ? map(t -> tag(int64(t)), toks[TOKN_ELLINE_NUMTAGS+3:TOKN_ELLINE_NUMTAGS+num_tags]) :
+                                     EMPTY_OTHER_TAGS
+  const node_nums = let last_tag_tokn = TOKN_ELLINE_NUMTAGS + num_tags;
+    (uint64(toks[last_tag_tokn + 1]),
+     uint64(toks[last_tag_tokn + 2]),
+     uint64(toks[last_tag_tokn + 3]))
+  end
+
+  BaseEl(node_nums,
+         physreg_tag,
+         geoment_tag,
+         other_tags)
+end
+
+# Gmsh msh format reading support
+# ----------------------------------
 
 # Mesh Construction
 ####################################################################
@@ -1020,14 +1098,14 @@ end
 ###############################################
 # Mesh File Reading Utilities
 
-function read_points(ios::IO)
-  if !read_through_line_starting(ios, "\$Nodes")
+function read_gmsh_nodes(is::IO)
+  if !read_through_line_starting(is, "\$Nodes")
     error("Nodes section not found in mesh input file.")
   else
     # Next line should be the vert count.
-    const count = int(readline(ios))
+    const count = int(readline(is))
     const pts = Array(Point, count)
-    l = readline(ios)
+    l = readline(is)
     while !beginswith(l, "\$EndNodes") && l != ""
       const toks = split(l, ' ')
       const pt = Point(convert(R, float64(toks[TOKN_NODELINE_POINT1])), convert(R, float64(toks[TOKN_NODELINE_POINT2])))
@@ -1035,7 +1113,7 @@ function read_points(ios::IO)
         error("Nodes with non-zero third coordinates are not supported in this 2D mesh reader.")
       end
       pts[uint64(toks[TOKN_NODELINE_ELNUM])] = pt
-      l = readline(ios)
+      l = readline(is)
     end
     if !beginswith(l, "\$EndNodes") error("End of nodes section not found in mesh file.") end
     pts
