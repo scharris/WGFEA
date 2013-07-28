@@ -6,6 +6,7 @@ export TriMesh,
        ElTri,
        Tag,
        tag,
+       BaseTri,
        physical_region_tag,
        geometric_entity_tag
 
@@ -27,8 +28,8 @@ typealias Point Vec
 
 # Represents an element provided to the mesh constructor which is to be subdivided to form
 # some of the final mesh elements.
-immutable BaseEl
-  node_nums::(Uint64, Uint64, Uint64)
+immutable BaseTri
+  point_nums::(PointNum, PointNum, PointNum)
   tag_physreg::Tag
   tag_geoment::Tag
   other_tags::Array{Tag,1}
@@ -109,8 +110,8 @@ end
 
 # Primary constructor.  Base (triangle) elements provided by the iterator will each be subdivided
 # subdiv_iters times, which may be 0.
-function TriMesh(base_pts_by_nodenum::Array{Point,1},
-                 base_els_iter,
+function TriMesh(base_pts_by_pointnum::Array{Point,1},
+                 base_tris_iter,
                  est_base_tris::Integer,
                  subdiv_iters::Integer,
                  integration_rel_err::R = 1e-12, integration_abs_err::R = 1e-12,
@@ -154,8 +155,8 @@ function TriMesh(base_pts_by_nodenum::Array{Point,1},
   end
 
   # process input mesh elements
-  for base_el in base_els_iter
-    process_base_el(base_el, base_pts_by_nodenum, uint64(subdiv_iters), fe_maker, oshapes)
+  for base_tri in base_tris_iter
+    process_base_tri(base_tri, base_pts_by_pointnum, uint64(subdiv_iters), fe_maker, oshapes)
   end
 
   # Create the final non-boundary sides data structures based on the mapping of side endpoints to fe faces.
@@ -203,10 +204,10 @@ function TriMesh(is::IO, subdiv_iters::Integer,
   end
   const est_base_tris = decl_num_els - (lines_read - 1)
 
-  const base_els_iter = GmshElementsIter(line, is)
+  const base_tris_iter = GmshElementsIter(line, is)
 
   TriMesh(base_pts_by_nodenum,
-          base_els_iter,
+          base_tris_iter,
           est_base_tris,
           subdiv_iters,
           integration_rel_err, integration_abs_err,
@@ -215,25 +216,25 @@ end
 
 
 
-function process_base_el(base_el::BaseEl,
-                         mesh_pts_by_nodenum::Array{Point,1},
-                         global_subdiv_iters::Uint,
-                         fe_maker::Function,
-                         oshapes::Array{RefTri,1}) # will be appended
+function process_base_tri(base_tri::BaseTri,
+                          mesh_pts_by_nodenum::Array{Point,1},
+                          global_subdiv_iters::Uint,
+                          fe_maker::Function,
+                          oshapes::Array{RefTri,1}) # will be appended
 
-  const v1,v2,v3 = mesh_pts_by_nodenum[base_el.node_nums[1]],
-                   mesh_pts_by_nodenum[base_el.node_nums[2]],
-                   mesh_pts_by_nodenum[base_el.node_nums[3]]
+  const v1,v2,v3 = mesh_pts_by_nodenum[base_tri.point_nums[1]],
+                   mesh_pts_by_nodenum[base_tri.point_nums[2]],
+                   mesh_pts_by_nodenum[base_tri.point_nums[3]]
 
   # Add any extra subdivision iterations to be done in this element.
-  const subdiv_iters = global_subdiv_iters + extra_subdiv_iters(base_el)
+  const subdiv_iters = global_subdiv_iters + extra_subdiv_iters(base_tri)
 
   # For each of the three sides of this mesh element to be subdivided, the generated subdivision
   # elements can be made to have more than one face between vertexes lying on the side.  This is
   # used to support "hanging" nodes where a finer subdivision is adjacent to this one.  The triplet
   # returned represents the number of faces between element vertex pairs embedded in the input mesh
   # element sides from v1 to v2, v2 to v3, and v3 to v1, respectively.
-  const nums_faces_btw_verts = nums_faces_between_vertexes(base_el)
+  const nums_faces_btw_verts = nums_faces_between_vertexes(base_tri)
 
   # Register the primary reference triangles for our mesh element's subdivisions.
   # (Secondary triangles if any will only have a single reference triangle with 1 side between vertex pairs.)
@@ -252,14 +253,14 @@ function process_base_el(base_el::BaseEl,
                       subdiv_iters,
                       nums_faces_btw_verts,
                       pri_oshapenums_by_nums_faces_btw_verts, sec_oshapenum,
-                      base_el.tag_physreg, base_el.tag_geoment,
+                      base_tri.tag_physreg, base_tri.tag_geoment,
                       fe_maker)
   else # no subdivision to be done
     # The mesh element itself is our finite element, with its own reference triangle (added in register_primary_ref_tris above).
     const oshapenum = pri_oshapenums_by_nums_faces_btw_verts(nums_faces_btw_verts)
-    fe_maker(oshapenum, v1,v2,v3, base_el.tag_physreg, base_el.tag_geoment)
+    fe_maker(oshapenum, v1,v2,v3, base_tri.tag_physreg, base_tri.tag_geoment)
   end
-end # process_base_el
+end # process_base_tri
 
 
 # Create primary reference triangles for the given triangle to be subdivided. These reference triangles
@@ -614,7 +615,7 @@ end
 side_dep_dim(ep1::Point, ep2::Point) = abs(ep2._1-ep1._1) >= abs(ep2._2-ep1._2) ? dim(2) : dim(1)
 
 
-function extra_subdiv_iters(base_el::BaseEl)
+function extra_subdiv_iters(base_tri::BaseTri)
   # TODO: Allow specifying extra iterations via a Gmsh tag.
   0
 end
@@ -624,7 +625,7 @@ end
 # This allows these subdivision elements to meet those of a finer subdivision in a mesh element adjacent
 # to this element ("hanging nodes").  The numbers are returned as a triplet of integers, corresponding to
 # the face counts to be generated for elements' sides within sides v1v2, v2v3, and v3v1.
-function nums_faces_between_vertexes(base_el::BaseEl)
+function nums_faces_between_vertexes(base_tri::BaseTri)
   # TODO: Allow specifying somewhere such as in mesh element tags.
   ONE_FACE_BETWEEN_VERTEX_PAIRS
 end
@@ -674,24 +675,24 @@ const TOKN_ELLINE_NUMTAGS = 3
 # Gmsh base elements iterator
 
 immutable GmshElementsIter
-  first_base_el_line::String
+  first_base_tri_line::String
   is::IO # stream should be positioned after first base element line
 end
 
 import Base.start, Base.done, Base.next
 function start(gmsh_els_iter::GmshElementsIter)
-  base_el_from_gmsh_el(split(gmsh_els_iter.first_base_el_line, ' '))
+  base_tri_from_gmsh_el(split(gmsh_els_iter.first_base_tri_line, ' '))
 end
 
-function done(gmsh_els_iter::GmshElementsIter, next_base_el)
-  next_base_el == nothing
+function done(gmsh_els_iter::GmshElementsIter, next_base_tri)
+  next_base_tri == nothing
 end
 
-function next(gmsh_els_iter::GmshElementsIter, next_base_el)
+function next(gmsh_els_iter::GmshElementsIter, next_base_tri)
   while true
     const line = readline(gmsh_els_iter.is)
     if beginswith(line, "\$EndElements")
-      return (next_base_el, nothing)
+      return (next_base_tri, nothing)
     elseif line == ""
       error("No EndElements marker found.")
     else
@@ -700,7 +701,7 @@ function next(gmsh_els_iter::GmshElementsIter, next_base_el)
       if is_lower_order_el_type(el_type)
         continue
       elseif is_3_node_triangle_el_type(el_type)
-        return (next_base_el, base_el_from_gmsh_el(toks))
+        return (next_base_tri, base_tri_from_gmsh_el(toks))
       else
         error("Element type $el_type is not supported.")
       end
@@ -710,23 +711,23 @@ end
 
 const EMPTY_OTHER_TAGS = Array(Tag,0)
 
-function base_el_from_gmsh_el(toks::Array{String,1})
+function base_tri_from_gmsh_el(toks::Array{String,1})
   const num_tags = int(toks[TOKN_ELLINE_NUMTAGS])
   assert(num_tags >= 2)
   const physreg_tag = tag(int64(toks[TOKN_ELLINE_NUMTAGS+1]))
   const geoment_tag = tag(int64(toks[TOKN_ELLINE_NUMTAGS+2]))
   const other_tags = num_tags >= 3 ? map(t -> tag(int64(t)), toks[TOKN_ELLINE_NUMTAGS+3:TOKN_ELLINE_NUMTAGS+num_tags]) :
                                      EMPTY_OTHER_TAGS
-  const node_nums = let last_tag_tokn = TOKN_ELLINE_NUMTAGS + num_tags;
-    (uint64(toks[last_tag_tokn + 1]),
-     uint64(toks[last_tag_tokn + 2]),
-     uint64(toks[last_tag_tokn + 3]))
+  const point_nums = let last_tag_tokn = TOKN_ELLINE_NUMTAGS + num_tags;
+    (pointnum(toks[last_tag_tokn + 1]),
+     pointnum(toks[last_tag_tokn + 2]),
+     pointnum(toks[last_tag_tokn + 3]))
   end
 
-  BaseEl(node_nums,
-         physreg_tag,
-         geoment_tag,
-         other_tags)
+  BaseTri(point_nums,
+          physreg_tag,
+          geoment_tag,
+          other_tags)
 end
 
 # Gmsh msh format reading support
