@@ -2,6 +2,7 @@ using Base.Test
 using TMesh
 using Common
 import Mesh.NBSideInclusions, Mesh.FENum, Mesh.FEFaceNum, Mesh.oshapenum, Mesh.nbsidenum, Mesh.fenum, Mesh.fefacenum
+import RMesh, RMesh.RectMesh
 import Poly, Poly.Monomial, Poly.VectorMonomial
 
 
@@ -528,3 +529,10 @@ xy_on_fe4 = local_mon_on_fe_int(deg(1),deg(1), fenum(4), tmsh)
                -1/3, atol=1e-11, rtol=1e-11)
 @test isapprox(Mesh.integral_global_x_face_rel_on_fe_face(_->1., x*y^2, fenum(4), fefacenum(0), tmsh),
                -1/3, atol=1e-11, rtol=1e-11)
+
+
+# Test construction from rectangle mesh.
+rmesh2x2 = RectMesh([1.,1.], [3.,3.], [RMesh.mesh_coord(2), RMesh.mesh_coord(2)])
+tmesh = from_rect_mesh(rmesh2x2, 1)
+@test Mesh.num_fes(tmesh) == 32
+@test Mesh.num_boundary_sides(tmesh) == 16

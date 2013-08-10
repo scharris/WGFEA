@@ -8,11 +8,13 @@ export TriMesh,
        tag,
        BaseTri,
        physical_region_tag,
-       geometric_entity_tag
+       geometric_entity_tag,
+       from_rect_mesh
 
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
        Mesh.NBSideInclusions, Mesh.fefacenum, Mesh.fenum, Mesh.nbsidenum
+import RMesh
 import Poly, Poly.Monomial, Poly.VectorMonomial
 import Cubature.hcubature
 
@@ -732,6 +734,58 @@ end
 
 # Gmsh msh format reading support
 # ----------------------------------
+
+# construction from rectangle mesh
+function from_rect_mesh(rmesh::RMesh.RectMesh, subdiv_ops::Int)
+  assert(Mesh.space_dim(rmesh) == 2)
+  const EMPTY_TAGS_ARRAY = Array(Tag,0)
+
+  const num_rects = Mesh.num_fes(rmesh)
+  const rect_dims = RMesh.fe_dims(rmesh)
+  const num_points = uint64(num_rects + sum(RMesh.logical_dims(rmesh))+1)
+
+  const pointnums_by_mcoords = sizehint(Dict{(RMesh.MeshCoord, RMesh.MeshCoord), PointNum}(), num_points)
+  const points_by_ptnum = sizehint(Array(Point, 0), num_points)
+
+  function register_point(pt_mcoords::(RMesh.MeshCoord, RMesh.MeshCoord))
+    const existing_ptnum = get(pointnums_by_mcoords, pt_mcoords, pointnum(0))
+    if existing_ptnum == 0
+      # Register the new point number with its mesh coordinates.
+      push!(points_by_ptnum,
+            Point(rmesh.min_bounds[1] + (pt_mcoords[1] - 1) * rect_dims[1],
+                  rmesh.min_bounds[2] + (pt_mcoords[2] - 1) * rect_dims[2]))
+      const new_ptnum = pointnum(length(points_by_ptnum))
+      pointnums_by_mcoords[pt_mcoords] = new_ptnum
+      new_ptnum
+    else
+      existing_ptnum
+    end
+  end
+
+  const base_tris = sizehint(Array(BaseTri, 0), 2*num_rects)
+  
+  const rect_mcoords = Array(RMesh.MeshCoord, Mesh.space_dim(rmesh))
+
+  for rect_fe=Mesh.fenum(1):num_rects
+    RMesh.fe_mesh_coords!(rect_fe, rect_mcoords, rmesh)
+
+    const ll_ptnum = register_point((rect_mcoords[1],   rect_mcoords[2]))
+    const lr_ptnum = register_point((rect_mcoords[1]+1, rect_mcoords[2]))
+    const ur_ptnum = register_point((rect_mcoords[1]+1, rect_mcoords[2]+1))
+    const ul_ptnum = register_point((rect_mcoords[1],   rect_mcoords[2]+1))
+
+    push!(base_tris, BaseTri((ll_ptnum, lr_ptnum, ur_ptnum), tag(rect_fe), tag(rect_fe), EMPTY_TAGS_ARRAY))
+    push!(base_tris, BaseTri((ll_ptnum, ur_ptnum, ul_ptnum), tag(rect_fe), tag(rect_fe), EMPTY_TAGS_ARRAY))
+  end
+
+  TriMesh(points_by_ptnum,
+          base_tris,
+          length(base_tris),
+          subdiv_ops,
+          rmesh.integration_rel_err, rmesh.integration_abs_err,
+          false, true) # load geom entity tags
+end
+
 
 # Mesh Construction
 ####################################################################
