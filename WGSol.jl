@@ -28,6 +28,7 @@ end
 function wg_sol_at_interior_rel_point(fe::FENum, x::Vector{R}, wg_sol::WGSolution)
   const basis = wg_sol.basis
   const int_mons = WGBasis.interior_mons(basis)
+  const sol_coefs = wg_sol.basis_coefs
   sum = zeroR
   for int_monn=monnum(1):WGBasis.mons_per_fe_interior(basis)
     const beln = WGBasis.interior_mon_bel_num(fe, int_monn, basis)
@@ -101,7 +102,7 @@ function err_L2_norm(exact_sol::Function, wg_sol::WGSolution)
   const d = Mesh.space_dim(mesh)
   const fe_rel_x = Array(R, d)
   const fe_origin = Array(R, d)
-ssssssssssssssssssssssss
+
   integral_sq_err = zeroR
   for fe=fenum(1):Mesh.num_fes(mesh)
     Mesh.fe_interior_origin!(fe, fe_origin, mesh)
