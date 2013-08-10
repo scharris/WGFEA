@@ -13,6 +13,7 @@ import Poly.Polynomial, Poly.Monomial
 import Mesh, Mesh.AbstractMesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one, Mesh.fefacenum, Mesh.oshape_one, Mesh.fenum
 import Proj
 import WGBasis, WGBasis.BElNum, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum, WGBasis.monnum
+import ParallelControl
 
 abstract AbstractVariationalBilinearForm
 
@@ -149,9 +150,20 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
   const num_int_mons = WGBasis.mons_per_fe_interior(basis)
   const num_side_mons = WGBasis.mons_per_fe_side(basis)
 
-  # Precompute vbf values for each fe oriented shape and pairing of monomial and support face with
-  # monomial and support face.
-  const int_int_vbf_vals, side_int_vbf_vals, int_side_vbf_vals, side_side_vbf_vals = reference_vbf_values(basis, vbf)
+  # Precompute vbf values for each oriented shape and pairing of monomial/support face with monomial/support face.
+  const int_int_vbf_vals, side_int_vbf_vals, side_side_vbf_vals, int_side_vbf_vals =
+    if ParallelControl.parallel_basis_vbf_vs_vbf_vals
+        const vals = pmap(f -> f(basis, vbf),
+                          (ref_int_vs_int_vbf_values, ref_side_vs_int_vbf_vals, ref_side_vs_side_vbf_vals))
+        const int_vs_side = is_symmetric(vbf) ? vals[2] : ref_int_vs_side_vbf_vals(basis, vbf)
+        vals[1], vals[2], vals[3], int_vs_side
+    else
+      const side_vs_int = ref_side_vs_int_vbf_vals(basis, vbf)
+      (ref_int_vs_int_vbf_values(basis, vbf), 
+       side_vs_int,
+       ref_side_vs_side_vbf_vals(basis, vbf),
+       is_symmetric(vbf) ? side_vs_int : ref_int_vs_side_vbf_vals(basis, vbf))
+    end
 
   # work array for remembering which sides are nb sides within a finite element
   const is_nb_side = Array(Bool, Mesh.max_num_shape_sides(mesh))
@@ -162,7 +174,7 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
     const fe_oshape = Mesh.oriented_shape_for_fe(fe, mesh)
     const fe_num_sides = Mesh.num_side_faces_for_shape(fe_oshape, mesh)
 
-    # fill is_nb_side work array (up to this shapes # sides)
+    # fill is_nb_side work array (up to this shape's # sides)
     for sf=feface_one:fe_num_sides  is_nb_side[sf] = !Mesh.is_boundary_side(fe, sf, mesh) end
 
     # fill interior vs interior matrix values
@@ -233,22 +245,58 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
          basis.total_bels)
 end
 
-
-function reference_vbf_values(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
-  const vbf_symm = is_symmetric(vbf)
+function ref_int_vs_int_vbf_values(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
   const num_oshapes = Mesh.num_oriented_element_shapes(basis.mesh)
-  const int_int_vbf_vals   = Array(Array{R,2}, num_oshapes) # vbf values indexed by fe oshape, (monn_1, monn_2)
-  const side_int_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn)
-  const int_side_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn) # [sic]
-  const side_side_vbf_vals = Array(Array{R,4}, num_oshapes) # by fe oshape, (side_face_1, monn_1, side_face_2, monn_2)
+  const int_int_vbf_vals = Array(Array{R,2}, num_oshapes) # vbf values indexed by fe oshape, (monn_1, monn_2)
   for os=oshape_one:num_oshapes
     int_int_vbf_vals[os] = int_vs_int_vbf_vals_for_oshape(os, basis, vbf)
+  end
+  int_int_vbf_vals
+end
+
+function ref_side_vs_int_vbf_vals(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
+  const num_oshapes = Mesh.num_oriented_element_shapes(basis.mesh)
+  const side_int_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn)
+  for os=oshape_one:num_oshapes
     side_int_vbf_vals[os] = side_vs_int_vbf_vals_for_oshape(os, basis, vbf)
-    int_side_vbf_vals[os] = vbf_symm ? side_int_vbf_vals[os] : int_vs_side_vbf_vals_for_oshape(os, basis, vbf)
+  end
+  side_int_vbf_vals
+end
+
+function ref_int_vs_side_vbf_vals(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
+  const num_oshapes = Mesh.num_oriented_element_shapes(basis.mesh)
+  const int_side_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn) # (ordered for compat with side-vs-int array)
+  for os=oshape_one:num_oshapes
+    int_side_vbf_vals[os] = int_vs_side_vbf_vals_for_oshape(os, basis, vbf)
+  end
+  int_side_vbf_vals
+end
+
+function ref_side_vs_side_vbf_vals(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
+  const num_oshapes = Mesh.num_oriented_element_shapes(basis.mesh)
+  const side_side_vbf_vals = Array(Array{R,4}, num_oshapes) # by fe oshape, (side_face_1, monn_1, side_face_2, monn_2)
+  for os=oshape_one:num_oshapes
     side_side_vbf_vals[os] = side_vs_side_vbf_vals_for_oshape(os, basis, vbf)
   end
-  (int_int_vbf_vals, side_int_vbf_vals, int_side_vbf_vals, side_side_vbf_vals)
+  side_side_vbf_vals
 end
+
+# function reference_vbf_values(basis::WeakFunsPolyBasis, vbf::AbstractVariationalBilinearForm)
+#   const int_int_vbf_vals = @spawn(TODO)
+#   const vbf_symm = is_symmetric(vbf)
+#   const num_oshapes = Mesh.num_oriented_element_shapes(basis.mesh)
+#   const int_int_vbf_vals   = Array(Array{R,2}, num_oshapes) # vbf values indexed by fe oshape, (monn_1, monn_2)
+#   const side_int_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn)
+#   const int_side_vbf_vals  = Array(Array{R,3}, num_oshapes) # by fe oshape, (side_face, side_monn, int_monn) # [sic]
+#   const side_side_vbf_vals = Array(Array{R,4}, num_oshapes) # by fe oshape, (side_face_1, monn_1, side_face_2, monn_2)
+#   for os=oshape_one:num_oshapes
+#     int_int_vbf_vals[os] = int_vs_int_vbf_vals_for_oshape(os, basis, vbf)
+#     side_int_vbf_vals[os] = side_vs_int_vbf_vals_for_oshape(os, basis, vbf)
+#     int_side_vbf_vals[os] = vbf_symm ? side_int_vbf_vals[os] : int_vs_side_vbf_vals_for_oshape(os, basis, vbf)
+#     side_side_vbf_vals[os] = side_vs_side_vbf_vals_for_oshape(os, basis, vbf)
+#   end
+#   (int_int_vbf_vals, side_int_vbf_vals, int_side_vbf_vals, side_side_vbf_vals)
+# end
 
 
 # Returns an array of vbf values indexed by (monn_1, monn_2).
