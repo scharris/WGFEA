@@ -1,5 +1,4 @@
 *~
-junk
-meshes/sc_tmp/
-plots
-sprofile*.txt
+etc/meshes/sc_tmp/
+etc/plots
+etc/sprofile*.txt
