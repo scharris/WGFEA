@@ -1,9 +1,13 @@
 module WGrad
 export WGradSolver, wgrad
 
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
+
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.oshape_one
 import Poly, Poly.Polynomial, Poly.Monomial, Poly.VectorMonomial, Poly.Nomial
+import Mesh, Mesh.AbstractMesh, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.oshape_one
 
 # For a weak function v on a finite element T, the weak gradient of degree r
 # of v on T is defined to be the polynomial vector function wgrad(v) in

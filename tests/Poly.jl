@@ -1,3 +1,5 @@
+require("Poly.jl")
+
 using Base.Test
 using Common
 using Poly

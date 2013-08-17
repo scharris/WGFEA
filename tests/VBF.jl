@@ -1,3 +1,6 @@
+require("VBF.jl")
+require("VBF_a_s.jl")
+
 using Base.Test
 using Common
 import Mesh

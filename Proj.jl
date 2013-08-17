@@ -3,6 +3,13 @@ export project_onto_fe_face_supported_approx_subspace,
        project_onto_fe_face_supported_approx_subspace_as_poly,
        project_interior_mon_onto_oshape_side_supported_approx_subspace
 
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
+require("RMesh.jl")
+require("WGrad.jl")
+require("WGBasis.jl")
+
 using Common
 import Poly.Monomial, Poly.Polynomial
 import Mesh, Mesh.FENum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.feface_one, Mesh.oshape_one

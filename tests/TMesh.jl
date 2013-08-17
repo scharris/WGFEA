@@ -1,3 +1,5 @@
+require("TMesh.jl")
+
 using Base.Test
 using TMesh
 using Common

@@ -1,3 +1,5 @@
+require("RMesh.jl")
+
 using Base.Test
 using RMesh
 using Common

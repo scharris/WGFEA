@@ -8,12 +8,21 @@ export AbstractVariationalBilinearForm,
        poly_on_face_vs_poly_on_face,
        bel_vs_bel_transpose
 
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
+require("RMesh.jl")
+require("WGrad.jl")
+require("WGBasis.jl")
+require("Proj.jl")
+require("ParCtrl.jl")
+
 using Common
 import Poly.Polynomial, Poly.Monomial
 import Mesh, Mesh.AbstractMesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one, Mesh.fefacenum, Mesh.oshape_one, Mesh.fenum
 import Proj
 import WGBasis, WGBasis.BElNum, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum, WGBasis.monnum
-import ParallelControl
+import ParCtrl
 
 abstract AbstractVariationalBilinearForm
 
@@ -152,7 +161,7 @@ function bel_vs_bel_transpose(basis::WeakFunsPolyBasis, vbf::AbstractVariational
 
   # Precompute vbf values for each oriented shape and pairing of monomial/support face with monomial/support face.
   const int_int_vbf_vals, side_int_vbf_vals, side_side_vbf_vals, int_side_vbf_vals =
-    if ParallelControl.parallel_basis_vbf_vs_vbf_vals
+    if ParCtrl.parallel_basis_vbf_vs_vbf_vals
         const vals = pmap(f -> f(basis, vbf),
                           (ref_int_vs_int_vbf_values, ref_side_vs_int_vbf_vals, ref_side_vs_side_vbf_vals))
         const int_vs_side = is_symmetric(vbf) ? vals[2] : ref_int_vs_side_vbf_vals(basis, vbf)

@@ -1,7 +1,6 @@
+require("WG.jl")
+
 using Base.Test
-
-#using Winston
-
 using WG
 using Common
 import Mesh, Mesh.fenum

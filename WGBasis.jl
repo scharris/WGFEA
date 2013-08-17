@@ -26,6 +26,11 @@ export WeakFunsPolyBasis,
        ips_fe_side_mons,
        ips_oshape_side_mons
 
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
+require("WGrad.jl")
+
 using Common
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one,
        Mesh.oshape_one, Mesh.fenum

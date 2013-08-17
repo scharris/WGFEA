@@ -1,3 +1,5 @@
+require("Proj.jl")
+
 using Base.Test
 using Proj
 using Common

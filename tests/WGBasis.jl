@@ -1,3 +1,8 @@
+require("WGBasis.jl")
+require("RMesh.jl")
+require("Poly.jl")
+require("WGrad.jl")
+
 using Base.Test
 using WGBasis
 using Common

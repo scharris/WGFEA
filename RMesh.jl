@@ -6,6 +6,10 @@ export RectMesh,
        fe_dims,
        fe_mesh_coords, fe_mesh_coords!,
        exportAsGmshGeo
+       
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
 
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,

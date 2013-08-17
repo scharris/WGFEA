@@ -1,5 +1,15 @@
-using Common
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
+require("RMesh.jl")
+require("TMesh.jl")
+require("WGBasis.jl")
+require("VBF.jl")
+require("VBF_a_s.jl")
+require("WG.jl")
+require("WGSol.jl")
 
+using Common
 import Poly, Poly.Monomial, Poly.Polynomial, Poly.grad
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.fenum
 import RMesh, RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_coord, RMesh.fe_mesh_coords!
@@ -129,7 +139,7 @@ function test_superconvergence(mod_prob::LaplaceModelProblem,
     (ln_h, log(err_L2), log(err_H1))
   end
 
-  const map_fn = ParallelControl.parallel_superconvergence_mesh_pairs ? pmap : map
+  const map_fn = ParCtrl.parallel_superconvergence_mesh_pairs ? pmap : map
   const ln_errs = map_fn(solve_and_project, mesh_pair_specs_list)
   
   for i=1:length(ln_errs)-1

@@ -31,7 +31,7 @@ export Monomial,
        coefs_closer_than,
        mons_in_same_comp_of_vmons
 
-
+require("Common.jl")
 using Common
 
 

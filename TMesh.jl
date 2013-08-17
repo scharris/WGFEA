@@ -11,6 +11,11 @@ export TriMesh,
        geometric_entity_tag,
        from_rect_mesh
 
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
+require("RMesh.jl")
+
 using Common
 import Mesh, Mesh.FENum, Mesh.NBSideNum, Mesh.FEFaceNum, Mesh.OShapeNum, Mesh.AbstractMesh,
        Mesh.NBSideInclusions, Mesh.fefacenum, Mesh.fenum, Mesh.nbsidenum
@@ -295,7 +300,7 @@ function register_primary_ref_tris(v1::Point, v2::Point, v3::Point,
     # primary triangles produced are corner triangles so we're done.
     for i=1:3
       const j = mod1(i+1,3) # next vertex pair number, cyclically
-      add!(nums_sides_btw_verts_triplets,
+      push!(nums_sides_btw_verts_triplets,
            (i==1||j==1 ? nums_faces_btw_verts[1] : 1,
             i==2||j==2 ? nums_faces_btw_verts[2] : 1,
             i==3||j==3 ? nums_faces_btw_verts[3] : 1))
@@ -307,9 +312,9 @@ function register_primary_ref_tris(v1::Point, v2::Point, v3::Point,
     #   2) primary reference triangles for each choice of one number of faces from nums_faces_btw_verts for
     #      some pair of vertexes, and just one face between the other two vertex pairs.
     if subdiv_iters >= 2
-      add!(nums_sides_btw_verts_triplets, ONE_FACE_BETWEEN_VERTEX_PAIRS)
+      push!(nums_sides_btw_verts_triplets, ONE_FACE_BETWEEN_VERTEX_PAIRS)
       for i=1:3
-        add!(nums_sides_btw_verts_triplets,
+        push!(nums_sides_btw_verts_triplets,
              (i==1 ? nums_faces_btw_verts[1] : 1,
               i==2 ? nums_faces_btw_verts[2] : 1,
               i==3 ? nums_faces_btw_verts[3] : 1))
