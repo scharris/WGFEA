@@ -19,7 +19,7 @@ function simple_2d_test_trimesh()
   f(x::Vector{R}) = 2x[2]*(1-x[2]) + 2x[1]*(1-x[1])
   g = u
 
-  ios = open("meshes/one_tri.msh")
+  ios = open("etc/meshes/one_tri.msh")
   mesh = TriMesh(ios, 4)
 
   basis = WeakFunsPolyBasis(deg(3), deg(2), mesh)

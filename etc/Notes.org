@@ -1,0 +1,8 @@
+TODO
+----
+Implement H1 error estimate.
+
+Represent solution gradients as an array of functions instead of a function that yields an array (and therefore allocates for every application).
+
+In TMesh integration functions, should not have to resort to a numeric cubature when the parameters are *nomials.
+

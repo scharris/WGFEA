@@ -35,6 +35,9 @@ test_poly_vals_eq((y+x)^2, y^2 + 2(x*y) + x^2)
 @test partial(dim(2), x^2*y) == as_poly(x^2)
 @test partial(dim(2), x^2) == zero_poly(dim(2))
 
+@test grad(x^2 * y) == PolynomialVector([2.0*x*y, 1.0*x^2])
+@test grad(x^2 * y - 3x*y^3) == PolynomialVector([2.0*x*y - 3y^3, 1.0*x^2 - 9x*y^2])
+
 @test antideriv(dim(1), x) == .5x^2
 @test antideriv(dim(2), x) == 1.0x*y
 @test antideriv(dim(2), y) == .5y^2

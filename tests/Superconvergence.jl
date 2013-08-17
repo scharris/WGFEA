@@ -1,9 +1,9 @@
 using Common
 
-import Poly, Poly.Monomial, Poly.Polynomial
+import Poly, Poly.Monomial, Poly.Polynomial, Poly.grad
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.fenum
-import RMesh, RMesh.RectMesh, RMesh.mesh_coord
-import TMesh, TMesh.TriMesh
+import RMesh, RMesh.RectMesh, RMesh.MeshCoord, RMesh.mesh_coord, RMesh.fe_mesh_coords!
+import TMesh, TMesh.TriMesh, TMesh.Point, TMesh.BaseTri
 import WGBasis, WGBasis.WeakFunsPolyBasis
 import VBF_a_s.a_s
 import WG, WG.WGSolver
@@ -50,6 +50,34 @@ import Cubature.hcubature
 #   {(m 2^{j p}, n + j q), j=0,1,...},
 # of mesh parameters satisfying (1),(2), and (3) and with h->0, so long as our initial pair n,m satisfies
 # considion (4).
+#
+# Example
+# -------
+# Let s = 2, k = 2, r = 4.
+# Then alpha = 3/5 and alpha/(alpha-1) = -3/2.
+# By (4), we need to find n and m (and diam(Omega)) with:
+#    2^{n alpha/(alpha-1)} = diam(Omega)/m
+#
+# So taking log2 of both sides, in this case we need
+#   (-3/2) n = log2(diam(Omega)) - log2(m)
+#   n = (-2/3) (log2(diam(Omega)) - log2(m))
+# Choose the region Omega so that diam(Omega) = 1
+# Then we need
+#   n = (2/3) log2(m)
+# We can let m = 8, and n = 2 to satisfy this.
+#
+# Then to verify:
+# tau is the region diameter over an integer:
+#    tau = 1/8 = diam(Omega)/8,
+# and setting h = tau^(1/alpha) = 0.03125,
+# we have
+#   tau/h = 4 = 2^2
+# so the h mesh can be obtained by subdivision of the tau mesh.
+# And of course tau = h^alpha by choice of h.
+
+# The next mesh parameters in the sequence after (m,n) are (2^|p| m, n + q) = (8 m, n + 2) = (64, 4).
+# Then tau = 1/64, h = tau^(1/alpha) = 0.0009765625, and 
+# tau/h = 16 = 2^4.
 
 immutable LaplaceModelProblem
   laplace_eq_rhs::Function
@@ -58,60 +86,71 @@ immutable LaplaceModelProblem
   region_max::Array{R,1}
   sol_H_regularity::Rational{Int}
   sol::Function
-  grad_sol::Function
+  grad_sol::Array{Function,1}
 end
 
-immutable MeshPairSpec {
+immutable MeshPairSpec
   tau_mesh_divs_per_side::Int # m
   h_mesh_subdiv_ops::Int      # n
-}
+end
 
-const integration_abs_err = 1e-12
 const integration_rel_err = 1e-12
+const integration_abs_err = 1e-12
 
 function test_superconvergence(mod_prob::LaplaceModelProblem,
                                wg_polys_max_deg::Deg,
                                proj_space_polys_max_deg::Deg,
-                               mesh_pair_specs::Array{MeshPairSpec})
+                               mesh_pair_specs_list::Array{MeshPairSpec})
   const s = mod_prob.sol_H_regularity
   const k = wg_polys_max_deg
   const r = proj_space_polys_max_deg
   const alpha = (k + s - 1)//(r + 1 - min(0, 2 - s))
 
-  for mesh_pair_spec in mesh_pair_specs
-
-    const m = mesh_pair_specs.tau_mesh_divs_per_side
+  function solve_and_project(mesh_pair_spec)
+    const m = mesh_pair_spec.tau_mesh_divs_per_side
     const tau = norm(mod_prob.region_max - mod_prob.region_min) / m
     const tau_mesh = RectMesh(mod_prob.region_min, mod_prob.region_max, [mesh_coord(m), mesh_coord(m)])
     
-    const n = mesh_pair_specs.h_mesh_subdiv_ops
-    const h_mesh = triangle_submesh(tau_mesh, n)
+    const n = mesh_pair_spec.h_mesh_subdiv_ops
+    const h_mesh = TMesh.from_rect_mesh(tau_mesh, n)
+    
+    println(h_mesh)
+    printMeshSizesInfo(h_mesh, tau_mesh, tau, alpha, n)
 
     const wg_sol = wg_solution(mod_prob, h_mesh, k)
 
-    const projs_by_tau_fe = project(wg_sol, tau_mesh, r)
+    const ln_h = log(tau^(1/alpha))
+    # const err_wg = WGSol.err_L2_norm(mod_prob.sol, wg_sol)
+    # (ln_h, log(err_wg)) # (to test WG convergence rate)
 
-    const err = err_L2_norm(mod_prob.sol, projs_by_tau_fe, tau_mesh)
+    const projs_by_tau_mesh_fe = project(wg_sol, tau_mesh, r)
+    const err_L2 = err_L2_norm(mod_prob.sol, projs_by_tau_mesh_fe, tau_mesh)
+    const err_H1 = err_H1_norm(mod_prob.sol, mod_prob.grad_sol, projs_by_tau_mesh_fe, tau_mesh)
+    (ln_h, log(err_L2), log(err_H1))
+  end
 
-    printMeshSizesInfo(h_mesh, tau_mesh, tau, alpha)
-
-    println("L2 Error: $err")
+  const map_fn = ParallelControl.parallel_superconvergence_mesh_pairs ? pmap : map
+  const ln_errs = map_fn(solve_and_project, mesh_pair_specs_list)
+  
+  for i=1:length(ln_errs)-1
+    const x1, y1_L2, y1_H1 = ln_errs[i]
+    const x2, y2_L2, y2_H1 = ln_errs[i+1]
+    const slope_L2 = (y2_L2 - y1_L2)/(x2-x1)
+    const slope_H1 = (y2_H1 - y1_H1)/(x2-x1)
+    println("slope ln L2 err vs ln h # $i: $slope_L2.")
+    println("slope ln H1 err vs ln h # $i: $slope_H1.")
   end
 end
 
-
-function triangle_submesh(rmesh::RectMesh, subdiv_ops::Int)
-  # TODO
-end
-
-
 function wg_solution(mod_prob::LaplaceModelProblem, mesh::AbstractMesh, k::Deg)
+  println("Constructing basis.")
   const basis = WGBasis.WeakFunsPolyBasis(k, deg(k-1), mesh)
   printBasisSummary(basis)
 
-  println("Constructing VBF (computing vbf bel vs bel matrix)...")
+  println("Constructing VBF.")
   const vbf = a_s(basis)
-  println("VBF constructed.")
+
+  println("Constructing WG solver and computing vbf bel vs bel matrix.")
   const wg = WG.WGSolver(vbf, basis)
 
   println("Solving...")
@@ -137,22 +176,19 @@ end
 #  where M_ij = (v_j, v_i)_{e_tau},
 #    and b_i = sum_j (u_h, v_i)_{e_{h,j}} for i=1..dim(P_r(e_tau)).
 function project(wg_sol::WGSolution, tau_mesh::RectMesh, r::Deg)
+  println("Projecting wg solution.")
   const h_mesh = wg_sol.basis.mesh
   const num_tau_mesh_fes = Mesh.num_fes(tau_mesh)
-  const projs_by_tau_fenum = sizehint(Array(Polynomial,0), num_tau_mesh_fes) # return value
-
-  # Reference basis monomials, which when interpreted locally on a tau mesh element will form
-  # a basis of the space to which we are projecting for the element.
-  const proj_space_basis_mons = Poly.mons_of_deg_le(r, Mesh.space_dim(tau_mesh))                   # {v_*}
-  const proj_space_dim = length(proj_space_basis_mons)
-
   const included_h_fes_by_tau_fe = fenums_by_geoment(h_mesh, num_tau_mesh_fes)
 
+  # Reference basis monomials, which when interpreted locally on a tau mesh element will form
+  # a basis of the space onto which we are projecting for the element.
+  const proj_space_basis_mons = Poly.mons_of_deg_le(r, Mesh.space_dim(tau_mesh))                   # v_*
+  const proj_space_dim = length(proj_space_basis_mons)
   const proj_space_basis_vs_basis_ips = ips_matrix(proj_space_basis_mons, RMesh.fe_dims(tau_mesh)) # M
-  const sys_rhs = Array(R, proj_space_dim)                                                         # b
 
-  for tau_fe=fenum(1):num_tau_mesh_fes
-    fill!(sys_rhs, zeroR)
+  function project_onto(tau_fe::FENum)
+    const sys_rhs = zeros(R, proj_space_dim)                                                       # b
     # Compute rhs (b) column vector of (sys).
     for i=1:proj_space_dim # (sys) equation number, index into proj space basis
       # Compute component i of (sys) rhs.
@@ -162,18 +198,19 @@ function project(wg_sol::WGSolution, tau_mesh::RectMesh, r::Deg)
         const u_h_rel = WGSol.wg_sol_interior_poly(h_fe, wg_sol)
         # Translate the tau monomial to a polynomial to be interpreted relative to the h_fe origin.
         const origin_diff = Mesh.fe_interior_origin(h_fe, h_mesh) - Mesh.fe_interior_origin(tau_fe, tau_mesh)
-        const tau_mon_rel = Poly.canonical_form(Poly.translate(tau_mon, origin_diff))
-        const u_h_x_tau_mon = Poly.canonical_form(u_h_rel * tau_mon_rel)
+        const tau_mon_h_fe_rel = Poly.canonical_form(Poly.translate(tau_mon, origin_diff))
+        const u_h_x_tau_mon = Poly.canonical_form(u_h_rel * tau_mon_h_fe_rel)
         const oshape = Mesh.oriented_shape_for_fe(h_fe, h_mesh)
         sys_rhs[i] += Mesh.integral_face_rel_on_oshape_face(u_h_x_tau_mon, oshape, Mesh.interior_face, h_mesh)
       end
     end
     const proj_coefs = proj_space_basis_vs_basis_ips \ sys_rhs
-    push!(projs_by_tau_fenum, Polynomial(proj_space_basis_mons, proj_coefs))
+    Polynomial(proj_space_basis_mons, proj_coefs)
   end
 
-  assert(length(projs_by_tau_fenum) == num_tau_mesh_fes)
-  projs_by_tau_fenum
+  const projs = pmap(project_onto, [fenum(1):num_tau_mesh_fes])
+
+  convert(Array{Polynomial,1}, projs)
 end
 
 
@@ -209,35 +246,78 @@ function ips_matrix(mons::Array{Monomial,1}, dom_rect_dims::Array{R,1})
 end
 
 
-function err_L2_norm(exact_sol::Function, projected_approx_sol_by_tau_fenum::Array{Polynomial,1}, tau_mesh::RectMesh)
-  const d = Mesh.space_dim(tau_mesh)
-  const origin = zeros(R,d)
-  const fe_dims = RMesh.fe_dims(tau_mesh)
+function err_L2_norm(exact_sol::Function, approx_sol_by_rmesh_fe::Array{Polynomial,1}, rmesh::RectMesh)
+  const d = Mesh.space_dim(rmesh)
+  const zs = zeros(R,d)
+  const fe_dims = RMesh.fe_dims(rmesh)
 
   # Work data for sq_err function below.
   const x = Array(R, d)
   const fe_origin = Array(R, d)
 
   integral_sq_err = zeroR
-  for fe=fenum(1):Mesh.num_fes(tau_mesh)
-    Mesh.fe_interior_origin!(fe, fe_origin, tau_mesh)
-    const p = projected_approx_sol_by_tau_fenum[fe]
+  for fe=fenum(1):Mesh.num_fes(rmesh)
+    Mesh.fe_interior_origin!(fe, fe_origin, rmesh)
     
     function sq_err(fe_rel_x::Vector{R})
       for i=1:d
         x[i] = fe_rel_x[i] + fe_origin[i]
       end
-      const err = exact_sol(x) - Poly.value_at(p, fe_rel_x)
+      const err = exact_sol(x) - Poly.value_at(approx_sol_by_rmesh_fe[fe], fe_rel_x)
       err * err
     end
     
     integral_sq_err += hcubature(sq_err,
-                                 origin, fe_dims,
+                                 zs, fe_dims,
                                  reltol=integration_rel_err, abstol=integration_abs_err)[1]
   end
   sqrt(integral_sq_err)
 end
 
+
+function err_H1_norm(exact_sol::Function,
+                     grad_exact_sol::Array{Function,1},
+                     approx_sol_by_rmesh_fe::Array{Polynomial,1},
+                     rmesh::RectMesh)
+  const d = Mesh.space_dim(rmesh)
+  const zs = zeros(R,d)
+  const fe_dims = RMesh.fe_dims(rmesh)
+
+  const grad_approx_sol_by_rmesh_fe = map(grad, approx_sol_by_rmesh_fe)
+
+  # Work data for sum_sq_errs function below.
+  const x = Array(R, d)
+  const fe_origin = Array(R, d)
+
+  integral_sq_errs = zeroR
+
+  for fe=fenum(1):Mesh.num_fes(rmesh)
+    Mesh.fe_interior_origin!(fe, fe_origin, rmesh)
+    const approx = approx_sol_by_rmesh_fe[fe]
+    const grad_approx = grad_approx_sol_by_rmesh_fe[fe]
+    
+    function sum_sq_errs(fe_rel_x::Vector{R})
+      # set the global point coordinates
+      for i=1:d
+        x[i] = fe_rel_x[i] + fe_origin[i]
+      end
+      # compute the sum of the square first partial derivative errors
+      sum_first_partial_sq_errs = zeroR
+      for n=dim(1):d
+        const partial_diff = grad_exact_sol[n](x) - Poly.value_at(grad_approx[n], fe_rel_x)
+        sum_first_partial_sq_errs += partial_diff * partial_diff
+      end
+      const err = exact_sol(x) - Poly.value_at(approx, fe_rel_x)
+      err * err + sum_first_partial_sq_errs
+    end
+    
+    integral_sq_errs += hcubature(sum_sq_errs,
+                                  zs, fe_dims,
+                                  reltol=integration_rel_err, abstol=integration_abs_err)[1]
+  end
+
+  sqrt(integral_sq_errs)
+end
 
 function printBasisSummary(basis::WeakFunsPolyBasis)
   const interacting_bel_pairs_ub = WGBasis.ub_estimate_num_bel_bel_common_support_fe_triplets(basis)
@@ -247,53 +327,58 @@ function printBasisSummary(basis::WeakFunsPolyBasis)
   println("Data arrays for non-zeros are of initial (upper bound) size $(int64(interacting_bel_pairs_ub)).")
 end
 
-function printMeshSizesInfo(h_mesh, tau_mesh, tau, alpha)
-  const h = tau^(1/alpha)
+function printMeshSizesInfo(h_mesh, tau_mesh, tau, alpha, tri_subdivs)
+  const h = tau^(1/alpha) 
   const h_act = Mesh.max_fe_diameter(h_mesh)
   const tau_act = Mesh.max_fe_diameter(tau_mesh)
   println()
-  println("h=$h (act. $h_act), tau=$tau (act. $tau_act), (tau act)/(h act)^alpha = $(tau_act/h_act^alpha)")
+  println("h=$h_act, tau=$tau_act, tau/h^alpha=$(tau_act/h_act^alpha), tau/h=$(tau_act/h_act)")
 end
 
 
 
-function meshPairSpecs(init_mesh_params::MeshPairSpec, numMeshes::Int, alpha::Rational{Int})
+function makeMeshPairSpecs(init_mesh_pair_spec::MeshPairSpec, numMeshes::Int, alpha::Rational{Int})
   const meshSpecs = Array(MeshPairSpec, numMeshes)
-  const m = init_mesh_params.tau_mesh_divs_per_side
-  const n = init_mesh_params.h_mesh_subdiv_ops
-  const p = alpha.num
-  const q = alpha.den
+  const m = init_mesh_pair_spec.tau_mesh_divs_per_side
+  const n = init_mesh_pair_spec.h_mesh_subdiv_ops
+  const alpha_over_alpha_minus_1 = alpha/(alpha-1)
+  const p = abs(alpha_over_alpha_minus_1.num)
+  const q = abs(alpha_over_alpha_minus_1.den)
   for j=0:numMeshes-1
-    meshSpecs[j+1] = MeshPairSpec(m*2^(j*p), n + j*q)
+    meshSpecs[j+1] = MeshPairSpec(m * 2^(j*p), n + j*q)
   end
   meshSpecs
 end
 
 
+function go()
+  u(x::Vector{R}) = cos(x[1]) + sin(x[2])
+  grad_u = [x -> -sin(x[1]), x -> cos(x[2])]
+  # (div (grad u))(x) = -cos(x[1]) - sin(x[2])
+  f(x::Vector{R}) = cos(x[1]) + sin(x[2])
+  g(x::Vector{R}) = u(x)
+  const s = 2//1
+  const mod_prob = LaplaceModelProblem(f, g, [0.,0.], [1./sqrt(2), 1./sqrt(2)], s, u, grad_u)
+  const k = deg(1)
+  const r = deg(3)
+  const alpha = (k + s - 1)/(r + 1 - min(0, 2 - s))
 
-u(x::Vector{R}) = cos(x[1]) + sin(x[2])
-grad_u(x::Vector{R}) = [-sin(x[1]), cos(x[2])]
-# (grad u)(x) = (-sin(x_1), cos(x_2))
-# (div (grad u))(x) = -cos(x[1]) - sin(x[2])
-f(x::Vector{R}) = cos(x[1]) + sin(x[2])
-g(x::Vector{R}) = u(x)
+  println("Expected L2 convergence rate is $((k + s - 1)*(r + 1)/(r + 1 + max(0, s-2))).")
+  println("Expected H1 convergence rate is $((k + s - 1)*r/(r + 1 + max(0, s-2))).")
 
-const s = 19//8
-const mod_prob = LaplaceModelProblem(f, g, [0.,0.], [1., 1.], s, u, grad_u)
-const k = deg(2)
-const r = deg(4)
+  const num_mesh_pairs = 3
+  const mesh_pair_specs = makeMeshPairSpecs(MeshPairSpec(2,1), num_mesh_pairs, alpha)
+  test_superconvergence(mod_prob,
+                        k,
+                        r,
+                        mesh_pair_specs)
+end
 
-# # Profiling
-# const alpha = (k + s - 1.)/(r + 1. - min(0., 2. - s))
-# const side_secs = 2
-# const tau = norm(mod_prob.region_max - mod_prob.region_min) / side_secs
-# const h = tau^(1/alpha)
-# const tau_mesh = RectMesh(mod_prob.region_min, mod_prob.region_max, [mesh_coord(side_secs), mesh_coord(side_secs)])
-# const h_mesh = triangle_submesh(tau_mesh, h)
-# const wg_sol = wg_solution(mod_prob, h_mesh, k)
-
-test_superconvergence(mod_prob,
-                      k,
-                      r,
-                      [10])
-
+# k=1, s=2, r=3
+# slope ln L2 err vs ln h # 1: 1.9997493025133655.
+# slope ln H1 err vs ln h # 1: 1.9532975869158655.
+# slope ln L2 err vs ln h # 2: 1.9999202280108017.
+# slope ln H1 err vs ln h # 2: 1.934446702674763.
+# slope ln L2 err vs ln h # 3: 1.99998922929558.
+# slope ln H1 err vs ln h # 3: 1.9474035545213044.
+# elapsed: 922.792966152

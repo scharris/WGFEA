@@ -22,6 +22,7 @@ export Monomial,
        reduce_dim_by_subst,
        precompose_with_poly_path,
        partial,
+       grad,
        antideriv,
        divergence,
        integral_on_rect_at_origin,
@@ -120,9 +121,14 @@ function canonical_form(p::Polynomial)
     const mon = p.mons[i]
     new_coefs_by_mon[mon] = get(new_coefs_by_mon, mon, zeroR) + p.coefs[i]
   end
-  mons = sort(collect(keys(new_coefs_by_mon)))
-  coefs = [get(new_coefs_by_mon, mon, zeroR) for mon in mons]
-  Polynomial(mons, coefs)
+
+  const mons = filter(mon -> get(new_coefs_by_mon, mon, zeroR) != zeroR, sort(collect(keys(new_coefs_by_mon))))
+  const coefs = [get(new_coefs_by_mon, mon, zeroR) for mon in mons]
+  if length(mons) == 0
+    zero_poly(domain_dim(p))
+  else
+    Polynomial(mons, coefs)
+  end
 end
 
 function canonical_form(pv::PolynomialVector)
@@ -439,7 +445,8 @@ function precompose_with_poly_path(p::Polynomial, path_comps::Array{Polynomial,1
   sum
 end
 
-# Partial derivative of a monomial.
+# partial derivatives
+
 function partial(n::Dim, m::Monomial)
   if m.exps[n] == 0
     Polynomial([one_mon(domain_dim(m))], [zeroR])
@@ -450,6 +457,28 @@ function partial(n::Dim, m::Monomial)
     Polynomial([Monomial(exps)], [convert(R, orig_exp_n)])
   end
 end
+
+function partial(n::Dim, p::Polynomial)
+  sum = p.coefs[1] * partial(dim(n), p.mons[1])
+  for i=2:length(p.mons)
+    sum += p.coefs[i] * partial(n, p.mons[i])
+  end
+  sum
+end
+
+function grad(p::Polynomial)
+  const dom_dim = domain_dim(p)
+  const partials = Array(Polynomial, dom_dim)
+  for n=dim(1):dom_dim
+    partials[n] = partial(n, p)
+  end
+  PolynomialVector(partials)
+end
+
+function grad(m::Monomial)
+  grad(as_poly(m))
+end
+
 
 function divergence(vmon::VectorMonomial)
   partial(vmon.mon_pos, vmon.mon)
