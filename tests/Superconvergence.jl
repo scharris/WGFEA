@@ -129,26 +129,35 @@ function test_superconvergence(mod_prob::LaplaceModelProblem,
 
     const wg_sol = wg_solution(mod_prob, h_mesh, k)
 
-    const ln_h = log(tau^(1/alpha))
+    const h = tau^(1/alpha)
     # const err_wg = WGSol.err_L2_norm(mod_prob.sol, wg_sol)
     # (ln_h, log(err_wg)) # (to test WG convergence rate)
 
     const projs_by_tau_mesh_fe = project(wg_sol, tau_mesh, r)
     const err_L2 = err_L2_norm(mod_prob.sol, projs_by_tau_mesh_fe, tau_mesh)
     const err_H1 = err_H1_norm(mod_prob.sol, mod_prob.grad_sol, projs_by_tau_mesh_fe, tau_mesh)
-    (ln_h, log(err_L2), log(err_H1))
+    (h, err_L2, err_H1)
   end
 
   const map_fn = ParCtrl.parallel_superconvergence_mesh_pairs ? pmap : map
-  const ln_errs = map_fn(solve_and_project, mesh_pair_specs_list)
+  const errs = map_fn(solve_and_project, mesh_pair_specs_list)
   
-  for i=1:length(ln_errs)-1
-    const x1, y1_L2, y1_H1 = ln_errs[i]
-    const x2, y2_L2, y2_H1 = ln_errs[i+1]
-    const slope_L2 = (y2_L2 - y1_L2)/(x2-x1)
-    const slope_H1 = (y2_H1 - y1_H1)/(x2-x1)
-    println("slope ln L2 err vs ln h # $i: $slope_L2.")
-    println("slope ln H1 err vs ln h # $i: $slope_H1.")
+  println("")
+  println("Convergence Results for s=$s, k=$k, r=$r")
+  println("----------------------------------------------")
+  println("h, err_L2, err_H1")
+  for i=1:length(errs)
+    const h, err_L2, err_H1 = errs[i]
+    println("$h, $err_L2, $err_H1")
+  end
+  println("----------------------------------------------")
+  println("h1, h2, rate_L2: (ln(err2_L2)-ln(err1_L2))/(ln(h2)-ln(h1)), rate_H1: (ln(err2_H1)-ln(err1_H1))/(ln(h2)-ln(h1))")
+  for i=1:length(errs)-1
+    const h1, err1_L2, err1_H1 = errs[i]
+    const h2, err2_L2, err2_H1 = errs[i+1]
+    const slope_L2 = (log(err2_L2)-log(err1_L2))/(log(h2)-log(h1))
+    const slope_H1 = (log(err2_H1)-log(err1_H1))/(log(h2)-log(h1))
+    println("$h1, $h2, $slope_L2, $slope_H1")
   end
 end
 
