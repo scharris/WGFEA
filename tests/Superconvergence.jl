@@ -104,6 +104,15 @@ immutable MeshPairSpec
   h_mesh_subdiv_ops::Int      # n
 end
 
+immutable ErrorEst
+  max_fe_diam::R
+  err_wg_L2::R
+  err_wg_H1::R
+  err_proj_L2::R
+  err_proj_H1::R
+end
+
+
 const integration_rel_err = 1e-12
 const integration_abs_err = 1e-12
 
@@ -123,41 +132,47 @@ function test_superconvergence(mod_prob::LaplaceModelProblem,
     
     const n = mesh_pair_spec.h_mesh_subdiv_ops
     const h_mesh = TMesh.from_rect_mesh(tau_mesh, n)
+    const h = tau^(1/alpha)
     
     println(h_mesh)
     printMeshSizesInfo(h_mesh, tau_mesh, tau, alpha, n)
 
     const wg_sol = wg_solution(mod_prob, h_mesh, k)
 
-    const h = tau^(1/alpha)
-    # const err_wg = WGSol.err_L2_norm(mod_prob.sol, wg_sol)
-    # (ln_h, log(err_wg)) # (to test WG convergence rate)
-
     const projs_by_tau_mesh_fe = project(wg_sol, tau_mesh, r)
-    const err_L2 = err_L2_norm(mod_prob.sol, projs_by_tau_mesh_fe, tau_mesh)
-    const err_H1 = err_H1_norm(mod_prob.sol, mod_prob.grad_sol, projs_by_tau_mesh_fe, tau_mesh)
-    (h, err_L2, err_H1)
+
+    const err_wg_L2 = WGSol.err_L2_norm(mod_prob.sol, wg_sol)
+    const err_wg_H1 = WGSol.err_H1_norm(mod_prob.sol, mod_prob.grad_sol, wg_sol)
+    const err_proj_L2 = err_proj_L2_norm(mod_prob.sol, projs_by_tau_mesh_fe, tau_mesh)
+    const err_proj_H1 = err_proj_H1_norm(mod_prob.sol, mod_prob.grad_sol, projs_by_tau_mesh_fe, tau_mesh)
+
+    ErrorEst(h, err_wg_L2, err_wg_H1, err_proj_L2, err_proj_H1)
   end
 
-  const map_fn = ParCtrl.parallel_superconvergence_mesh_pairs ? pmap : map
+  const map_fn = ParCtrl.parallel_superconvergence_solve_and_project ? pmap : map
   const errs = map_fn(solve_and_project, mesh_pair_specs_list)
   
   println("")
   println("Convergence Results for s=$s, k=$k, r=$r")
   println("----------------------------------------------")
-  println("h, err_L2, err_H1")
+  println("h, err_wg_L2, err_wg_H1, err_proj_L2, err_proj_H1")
+
   for i=1:length(errs)
-    const h, err_L2, err_H1 = errs[i]
-    println("$h, $err_L2, $err_H1")
+    const err = errs[i]
+    println("$(err.max_fe_diam), $(err.err_wg_L2), $(err.err_wg_H1), $(err.err_proj_L2), $(err.err_proj_H1)")
   end
+
   println("----------------------------------------------")
-  println("h1, h2, rate_L2: (ln(err2_L2)-ln(err1_L2))/(ln(h2)-ln(h1)), rate_H1: (ln(err2_H1)-ln(err1_H1))/(ln(h2)-ln(h1))")
+  println("h1, h2, wg_rate_L2, wg_rate_H1, proj_rate_L2, proj_rate_H1")
+  
   for i=1:length(errs)-1
-    const h1, err1_L2, err1_H1 = errs[i]
-    const h2, err2_L2, err2_H1 = errs[i+1]
-    const slope_L2 = (log(err2_L2)-log(err1_L2))/(log(h2)-log(h1))
-    const slope_H1 = (log(err2_H1)-log(err1_H1))/(log(h2)-log(h1))
-    println("$h1, $h2, $slope_L2, $slope_H1")
+    const err1 = errs[i]
+    const err2 = errs[i+1]
+    const slope_wg_L2 = (log(err2.err_wg_L2)-log(err1.err_wg_L2)) / (log(err2.max_fe_diam)-log(err1.max_fe_diam))
+    const slope_wg_H1 = (log(err2.err_wg_H1)-log(err1.err_wg_H1)) / (log(err2.max_fe_diam)-log(err1.max_fe_diam))
+    const slope_proj_L2 = (log(err2.err_proj_L2)-log(err1.err_proj_L2)) / (log(err2.max_fe_diam)-log(err1.max_fe_diam))
+    const slope_proj_H1 = (log(err2.err_proj_H1)-log(err1.err_proj_H1)) / (log(err2.max_fe_diam)-log(err1.max_fe_diam))
+    println("$(err1.max_fe_diam), $(err2.max_fe_diam), $slope_wg_L2, $slope_wg_H1, $slope_proj_L2, $slope_proj_H1")
   end
 end
 
@@ -227,7 +242,8 @@ function project(wg_sol::WGSolution, tau_mesh::RectMesh, r::Deg)
     Polynomial(proj_space_basis_mons, proj_coefs)
   end
 
-  const projs = pmap(project_onto, [fenum(1):num_tau_mesh_fes])
+  const map_fn = ParCtrl.parallel_superconvergence_project ? pmap : map
+  const projs = map_fn(project_onto, [fenum(1):num_tau_mesh_fes])
 
   convert(Array{Polynomial,1}, projs)
 end
@@ -265,7 +281,9 @@ function ips_matrix(mons::Array{Monomial,1}, dom_rect_dims::Array{R,1})
 end
 
 
-function err_L2_norm(exact_sol::Function, approx_sol_by_rmesh_fe::Array{Polynomial,1}, rmesh::RectMesh)
+function err_proj_L2_norm(exact_sol::Function,
+                          approx_sol_by_rmesh_fe::Array{Polynomial,1},
+                          rmesh::RectMesh)
   const d = Mesh.space_dim(rmesh)
   const zs = zeros(R,d)
   const fe_dims = RMesh.fe_dims(rmesh)
@@ -294,10 +312,10 @@ function err_L2_norm(exact_sol::Function, approx_sol_by_rmesh_fe::Array{Polynomi
 end
 
 
-function err_H1_norm(exact_sol::Function,
-                     grad_exact_sol::Array{Function,1},
-                     approx_sol_by_rmesh_fe::Array{Polynomial,1},
-                     rmesh::RectMesh)
+function err_proj_H1_norm(exact_sol::Function,
+                          grad_exact_sol::Array{Function,1},
+                          approx_sol_by_rmesh_fe::Array{Polynomial,1},
+                          rmesh::RectMesh)
   const d = Mesh.space_dim(rmesh)
   const zs = zeros(R,d)
   const fe_dims = RMesh.fe_dims(rmesh)
@@ -369,6 +387,28 @@ function makeMeshPairSpecs(init_mesh_pair_spec::MeshPairSpec, numMeshes::Int, al
   meshSpecs
 end
 
+# function go_orig()
+#   u(x::Vector{R}) = cos(x[1]) + sin(x[2])
+#   grad_u = [x -> -sin(x[1]), x -> cos(x[2])]
+#   # (div (grad u))(x) = -cos(x[1]) - sin(x[2])
+#   f(x::Vector{R}) = cos(x[1]) + sin(x[2])
+#   g(x::Vector{R}) = u(x)
+#   const s = 2//1
+#   const mod_prob = LaplaceModelProblem(f, g, [0.,0.], [1./sqrt(2), 1./sqrt(2)], s, u, grad_u)
+#   const k = deg(1)
+#   const r = deg(3)
+#   const alpha = (k + s - 1)/(r + 1 - min(0, 2 - s))
+
+#   println("Expected L2 convergence rate is $((k + s - 1)*(r + 1)/(r + 1 + max(0, s-2))).")
+#   println("Expected H1 convergence rate is $((k + s - 1)*r/(r + 1 + max(0, s-2))).")
+
+#   const num_mesh_pairs = 3
+#   const mesh_pair_specs = makeMeshPairSpecs(MeshPairSpec(2,1), num_mesh_pairs, alpha)
+#   test_superconvergence(mod_prob,
+#                         k,
+#                         r,
+#                         mesh_pair_specs)
+# end
 
 function go()
   u(x::Vector{R}) = cos(x[1]) + sin(x[2])
@@ -381,23 +421,18 @@ function go()
   const k = deg(1)
   const r = deg(3)
   const alpha = (k + s - 1)/(r + 1 - min(0, 2 - s))
+  const initial_mesh_pair_spec = MeshPairSpec(2,1) # depends on alpha!
+  const num_mesh_pairs = 2
+
+  # Shouldn't need to change anything from here down.
 
   println("Expected L2 convergence rate is $((k + s - 1)*(r + 1)/(r + 1 + max(0, s-2))).")
   println("Expected H1 convergence rate is $((k + s - 1)*r/(r + 1 + max(0, s-2))).")
 
-  const num_mesh_pairs = 3
-  const mesh_pair_specs = makeMeshPairSpecs(MeshPairSpec(2,1), num_mesh_pairs, alpha)
+  const mesh_pair_specs = makeMeshPairSpecs(initial_mesh_pair_spec, num_mesh_pairs, alpha)
+
   test_superconvergence(mod_prob,
                         k,
                         r,
                         mesh_pair_specs)
 end
-
-# k=1, s=2, r=3
-# slope ln L2 err vs ln h # 1: 1.9997493025133655.
-# slope ln H1 err vs ln h # 1: 1.9532975869158655.
-# slope ln L2 err vs ln h # 2: 1.9999202280108017.
-# slope ln H1 err vs ln h # 2: 1.934446702674763.
-# slope ln L2 err vs ln h # 3: 1.99998922929558.
-# slope ln H1 err vs ln h # 3: 1.9474035545213044.
-# elapsed: 922.792966152
