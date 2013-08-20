@@ -4,8 +4,6 @@ export WGSolver, solve
 require("Common.jl")
 require("Poly.jl")
 require("Mesh.jl")
-require("RMesh.jl")
-require("TMesh.jl")
 require("WGrad.jl")
 require("WGBasis.jl")
 require("Proj.jl")
