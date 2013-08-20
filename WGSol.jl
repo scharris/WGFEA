@@ -9,6 +9,14 @@ export WGSolution,
        err_grad_vs_wgrad_L2_norm,
        err_vbf_seminorm
 
+require("Common.jl")
+require("Poly.jl")
+require("Mesh.jl")
+require("WGBasis.jl")
+require("Proj.jl")
+require("VBF.jl")
+
+
 using Common
 import Poly, Poly.Polynomial
 import Mesh, Mesh.FENum, Mesh.FEFaceNum, Mesh.fefacenum, Mesh.feface_one, Mesh.fenum
@@ -117,6 +125,49 @@ function err_L2_norm(exact_sol::Function, wg_sol::WGSolution)
                                                                   mesh)
   end
   sqrt(integral_sq_err)
+end
+
+
+function err_H1_norm(exact_sol::Function,
+                     grad_exact_sol::Array{Function,1},
+                     wg_sol::WGSolution)
+  const mesh = wg_sol.basis.mesh
+  const d = Mesh.space_dim(mesh)
+
+  # Work data for sum_sq_errs function below.
+  const fe_rel_x = Array(R, d)
+  const fe_origin = Array(R, d)
+
+  integral_sq_errs = zeroR
+
+  for fe=fenum(1):Mesh.num_fes(mesh)
+    Mesh.fe_interior_origin!(fe, fe_origin, mesh)
+
+    const approx = wg_sol_interior_poly(fe, wg_sol)
+    const grad_approx = Poly.grad(approx)
+    
+    function sum_sq_errs(x::Vector{R})
+      # set the fe-relative point coordinates
+      for i=1:d
+        fe_rel_x[i] = x[i] - fe_origin[i]
+      end
+      # compute the sum of the square first partial derivative errors
+      sum_first_partial_sq_errs = zeroR
+      for n=dim(1):d
+        const partial_diff = grad_exact_sol[n](x) - Poly.value_at(grad_approx[n], fe_rel_x)
+        sum_first_partial_sq_errs += partial_diff * partial_diff
+      end
+      const err = exact_sol(x) - Poly.value_at(approx, fe_rel_x)
+      err * err + sum_first_partial_sq_errs
+    end
+    
+    integral_sq_errs += Mesh.integral_global_x_face_rel_on_fe_face(sum_sq_errs,
+                                                                   Mesh.one_mon(mesh),
+                                                                   fe, Mesh.interior_face,
+                                                                   mesh)
+  end
+
+  sqrt(integral_sq_errs)
 end
 
 
