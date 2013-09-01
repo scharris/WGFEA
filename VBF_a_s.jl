@@ -2,7 +2,7 @@ module VBF_a_s
 export A_s, a_s
 
 using Common
-import Poly.Polynomial, Poly.Monomial
+import Poly.Polynomial
 import Mesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one
 import Proj
 import WGBasis, WGBasis.WeakFunsPolyBasis, WGBasis.BElNum, WGBasis.MonNum
