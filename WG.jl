@@ -2,17 +2,13 @@ module WG
 export WGSolver, solve
 
 require("Common.jl")
-require("Poly.jl")
 require("Mesh.jl")
-require("WGrad.jl")
 require("WGBasis.jl")
 require("Proj.jl")
 require("VBF.jl")
-require("VBF_a_s.jl")
 require("WGSol.jl")
 
 using Common
-import Poly, Poly.Polynomial
 import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one, Mesh.fenum
 import Proj
 import VBF, VBF.AbstractVariationalBilinearForm
