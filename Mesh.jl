@@ -31,6 +31,8 @@ export FENum, fenum, no_fe,
        integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side,
        integral_fe_rel_x_side_rel_on_oshape_side
 
+require("Common.jl")
+require("Poly.jl")
 
 using Common
 import Poly.Monomial, Poly.Polynomial, Poly.VectorMonomial, Poly.PolynomialVector, Poly.NomialOrConst
