@@ -116,7 +116,7 @@ isless(m1::Monomial, m2::Monomial) = isless(m1.exps, m2.exps)
 
 function canonical_form(p::Polynomial)
   # sort the monomials by exponents lexicographically, collecting like terms.
-  const new_coefs_by_mon = Dict{Monomial,R}()
+  const new_coefs_by_mon = sizehint(Dict{Monomial,R}(), length(p.mons))
   for i=1:length(p.mons)
     const mon = p.mons[i]
     new_coefs_by_mon[mon] = get(new_coefs_by_mon, mon, zeroR) + p.coefs[i]
@@ -130,6 +130,38 @@ function canonical_form(p::Polynomial)
     Polynomial(mons, coefs)
   end
 end
+
+# This (unfinished) method could potentially be faster (with fewer allocations) than the above.
+# function canonical_form2(p::Polynomial)
+#   const d = dom_dim(p)
+#   const max_degs_plus1_by_dim = ones(Deg, d)
+#   for mon in p.mons
+#     for i=1:d
+#       if mon.exps[i] + 1 > max_degs_plus1_by_dim[i]
+#         max_degs_plus1_by_dim[i] = mon.exps[i] + 1
+#       end
+#     end
+#   end
+
+#   nzs = 0
+#   const coefs_by_mon_coords = zeros(R, max_degs_plus1_by_dim...)
+#   const mon_coords = zeros(Dim,d) # work array
+#   for i=1:length(p.mons)
+#     const mon, coef = p.mons[i], p.coefs[i]
+#     # fill the coordinates array identifying this monomial
+#     for j=1:d
+#       mon_coords[j] = mon.exps[j] + 1
+#     end
+#     coefs_by_mon_coords[mon_coords...] += coef
+#     if coef != zeroR nzs += 1 end
+#   end
+
+#   const mons = sizehint(Array(Monomial 0), nzs)
+#   const coefs = sizehint(Array(R, 0), nzs)
+#   # TODO: loop through coefs_by_mon_coords indexes, adding monomials and coefficients
+
+#   Polynomial(mons, coefs)
+# end
 
 function canonical_form(pv::PolynomialVector)
   const n = length(pv.polys)
