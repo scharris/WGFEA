@@ -9,18 +9,12 @@ export AbstractVariationalBilinearForm,
        bel_vs_bel_transpose
 
 require("Common.jl")
-require("Poly.jl")
 require("Mesh.jl")
-require("RMesh.jl")
-require("WGrad.jl")
 require("WGBasis.jl")
-require("Proj.jl")
 require("ParCtrl.jl")
 
 using Common
-import Poly.Polynomial, Poly.Monomial
 import Mesh, Mesh.AbstractMesh, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one, Mesh.fefacenum, Mesh.oshape_one, Mesh.fenum
-import Proj
 import WGBasis, WGBasis.BElNum, WGBasis.WeakFunsPolyBasis, WGBasis.MonNum, WGBasis.monnum
 import ParCtrl
 
