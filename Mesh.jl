@@ -35,7 +35,7 @@ require("Common.jl")
 require("Poly.jl")
 
 using Common
-import Poly.Monomial, Poly.Polynomial
+import Poly.Monomial, Poly.Polynomial, Poly.VectorMonomial
 
 # Number type for enumeration of all finite elements in a mesh.
 typealias FENum Uint64
