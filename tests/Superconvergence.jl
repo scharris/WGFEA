@@ -1,3 +1,4 @@
+
 require("Common.jl")
 require("Poly.jl")
 require("Mesh.jl")
@@ -33,7 +34,7 @@ import Cubature.hcubature
 #      because the triangles of diameter h are formed by subdividing the tau mesh rectangles, with
 #      initial hypotenuses along the rectangle diagonals prior to subdivision, and
 #   2) tau = diam(Omega)/m,
-#      because the tau mesh is formed by evenly dividing the original rectangular region into an
+#      because the tau mesh is formed by evenly dividing the original rectangular regionsin into an
 #      m x m grid, with resulting rectangles having having diameter diam(Omega)/m.
 #   3) tau = h^alpha
 # These conditions together imply that n and m satisfy
@@ -411,18 +412,47 @@ end
 # end
 
 function go()
-  u(x::Vector{R}) = cos(x[1]) + sin(x[2])
-  grad_u = [x -> -sin(x[1]), x -> cos(x[2])]
+  ############## example 1
+  #u(x::Vector{R}) = cos(x[1]) + sin(x[2])
+  #grad_u = [x -> -sin(x[1]), x -> cos(x[2])]
   # (div (grad u))(x) = -cos(x[1]) - sin(x[2])
-  f(x::Vector{R}) = cos(x[1]) + sin(x[2])
+  #f(x::Vector{R}) = cos(x[1]) + sin(x[2])
+  #g(x::Vector{R}) = u(x)
+  ############## example 2
+  #u(x::Vector{R}) = x[1]*x[2]*(x[1]-1./sqrt(2))*(x[2]-1./sqrt(2))
+  #grad_u = [x -> x[2]*(x[2]-1/sqrt(2))*(2.*x[1]-1./sqrt(2)), x -> x[1]*(x[1]-1/sqrt(2))*(2.*x[2]-1./sqrt(2))]
+  # (div (grad u))(x) = 2.*x[2]*(x[2]-1/sqrt(2))+2.*x[1]*(x[1]-1/sqrt(2))
+  #f(x::Vector{R}) = -2.*x[2]*(x[2]-1/sqrt(2))-2.*x[1]*(x[1]-1/sqrt(2))
+  #g(x::Vector{R}) = u(x)
+  ############## example 3
+  #u(x::Vector{R}) = sin(sqrt(2)*pi*x[1])*cos(sqrt(2)*pi*x[2])
+  #grad_u = [x -> sqrt(2)*pi*cos(sqrt(2)*pi*x[1])*cos(sqrt(2)*pi*x[2]), x -> -sqrt(2)*pi*sin(sqrt(2)*pi*x[1])*sin(sqrt(2)*pi*x[2])]
+  # (div (grad u))(x) = -4*(pi^2)*sin(sqrt(2)*pi*x[1])*cos(sqrt(2)*pi*x[2])
+  #f(x::Vector{R}) = 4*(pi^2)*sin(sqrt(2)*pi*x[1])*cos(sqrt(2)*pi*x[2])
+  #g(x::Vector{R}) = u(x)
+  ############## example 4
+  #u(x::Vector{R}) = x[2]*sin(sqrt(2)*pi*x[1])
+  #grad_u = [x -> sqrt(2)*pi*x[2]*cos(sqrt(2)*pi*x[1]), x -> sin(sqrt(2)*pi*x[1])]
+  # (div (grad u))(x) = -2.*pi*x[2]*sin(sqrt(2)*pi*x[1])
+  #f(x::Vector{R}) = 2.*(pi^2)*x[2]*sin(sqrt(2)*pi*x[1])
+  #g(x::Vector{R}) = u(x)
+############## example 5
+  u(x::Vector{R}) = .5*(x[1])^2+sin(sqrt(2)*pi*x[2])
+  grad_u = [x -> x[1], x -> sqrt(2)*pi*cos(sqrt(2)*pi*x[2])]
+  #(div (grad u))(x) = -2*(pi^2)*sin(sqrt(2)*pi*x[2])+1
+  f(x::Vector{R}) = 2*(pi^2)*sin(sqrt(2)*pi*x[2])-1
   g(x::Vector{R}) = u(x)
+
+
   const s = 2//1
   const mod_prob = LaplaceModelProblem(f, g, [0.,0.], [1./sqrt(2), 1./sqrt(2)], s, u, grad_u)
   const k = deg(1)
-  const r = deg(3)
+  const r = deg(2)
+
   const alpha = (k + s - 1)/(r + 1 - min(0, 2 - s))
-  const initial_mesh_pair_spec = MeshPairSpec(2,1) # depends on alpha!
-  const num_mesh_pairs = 2
+  const initial_mesh_pair_spec = MeshPairSpec(4,1) # depends on alpha!
+  #const initial_mesh_pair_spec = MeshPairSpec(2,1) # depends on alpha!
+  const num_mesh_pairs = 3
 
   # Shouldn't need to change anything from here down.
 
