@@ -1026,6 +1026,7 @@ function integral_side_rel_x_fe_rel_vs_outward_normal_on_oshape_side(mon::Monomi
     end
   end
 
+  # TODO: really should do this integral analytically
   hcubature(integrand,
             singleZero, singleOne,
             reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
@@ -1065,6 +1066,7 @@ function integral_fe_rel_x_side_rel_on_oshape_side(fe_rel_mon::Monomial,
     end
   end
 
+  # TODO: really should do this integral analytically
   hcubature(integrand,
             singleZero, singleOne,
             reltol=mesh.integration_rel_err, abstol=mesh.integration_abs_err)[1]
