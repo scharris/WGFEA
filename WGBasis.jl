@@ -32,7 +32,7 @@ require("Mesh.jl")
 require("WGrad.jl")
 
 using Common
-import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.NBSideInclusions, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one,
+import Mesh, Mesh.AbstractMesh, Mesh.FENum, Mesh.OShapeNum, Mesh.FEFaceNum, Mesh.feface_one,
        Mesh.oshape_one, Mesh.fenum
 import Poly, Poly.Monomial, Poly.Polynomial, Poly.PolynomialVector
 import WGrad, WGrad.WGradSolver

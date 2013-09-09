@@ -71,7 +71,6 @@ immutable NBSideInclusions
   fe2::FENum
   face_in_fe2::FEFaceNum
 end
-NBSideInclusions() = NBSideInclusions(no_nb_side, no_fe, no_face, no_fe, no_face)
 
 
 # An abstract type representing any finite element mesh.
