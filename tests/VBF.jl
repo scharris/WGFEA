@@ -87,8 +87,8 @@ function int_bel_vs_side_bel(ibel::BElNum,
   const int_num = WGBasis.support_interior_num(ibel, basis)
   const side_incls = WGBasis.fe_inclusions_of_side_support(sbel, basis)
   const side_face = int_num == side_incls.fe1 ? side_incls.face_in_fe1 :
-                    int_num == side_incls.fe2 ? side_incls.face_in_fe2 : Mesh.no_face
-  if side_face == Mesh.no_face # no fe includes both supports
+                    int_num == side_incls.fe2 ? side_incls.face_in_fe2 : 0
+  if side_face == 0 # no fe includes both supports
     zeroR # by locality property
   else
     # By common support summability property, we only need the contribution from the single common fe.
@@ -108,8 +108,8 @@ function side_bel_vs_int_bel(sbel::BElNum,
   const side_incls = WGBasis.fe_inclusions_of_side_support(sbel, basis)
   const int_num = WGBasis.support_interior_num(ibel, basis)
   const side_face = int_num == side_incls.fe1 ? side_incls.face_in_fe1 :
-                    int_num == side_incls.fe2 ? side_incls.face_in_fe2 : Mesh.no_face
-  if side_face == Mesh.no_face
+                    int_num == side_incls.fe2 ? side_incls.face_in_fe2 : 0
+  if side_face == 0
     zeroR # by locality property
   else
     # By common support summability property, we only need the contribution from the single common fe.

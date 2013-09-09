@@ -1,8 +1,8 @@
 module Mesh
 
-export FENum, fenum, no_fe,
+export FENum, fenum,
        NBSideNum, nbsidenum,
-       FEFaceNum, fefacenum, interior_face, feface_one, no_face,
+       FEFaceNum, fefacenum, interior_face, feface_one,
        OShapeNum, oshapenum,
        NBSideInclusions,
        AbstractMesh,
@@ -40,11 +40,9 @@ import Poly.Monomial, Poly.Polynomial, Poly.VectorMonomial
 # Number type for enumeration of all finite elements in a mesh.
 typealias FENum Uint64
 fenum(i::Integer) = if i > typemax(FENum) || i <= 0 error("fe number out of range") else convert(FENum, i) end
-const no_fe = zero(FENum)
 
 # Number type for enumeration of all non-boundary sides in a mesh.
 typealias NBSideNum Uint64
-no_nb_side = uint64(0)
 nbsidenum(i::Integer) = if i > typemax(NBSideNum) || i <= 0 error("nb side number out of range") else convert(NBSideNum, i) end
 
 # Finite Element Relative Face - Number type for enumerating the interior and
@@ -55,7 +53,6 @@ typealias FEFaceNum Uint8
 fefacenum(i::Integer) = if i >= typemax(FEFaceNum) || i < 0 error("fe face number out of range") else convert(FEFaceNum, i) end
 const interior_face = fefacenum(0)
 const feface_one = fefacenum(1) # first side face
-const no_face = typemax(FEFaceNum)
 
 typealias OShapeNum Uint16
 oshapenum(i::Integer) = if i > typemax(OShapeNum) || i <= 0 error("oriented shape number out of range") else convert(OShapeNum, i) end
