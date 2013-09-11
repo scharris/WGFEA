@@ -89,10 +89,6 @@ immutable WeakFunsPolyBasis
   interior_mons::Array{Monomial,1}
   side_mons_by_dep_dim::Array{Array{Monomial,1},1} # indexed by side dependent dimension
 
-  # maps to lookup monomial numbers by monomial and face
-  interior_mon_to_mon_num_map::Dict{Monomial, MonNum}
-  side_mon_to_mon_num_map_by_dep_dim::Array{Dict{Monomial, MonNum},1}
-
   mons_per_fe_interior::MonNum
   mons_per_fe_side::MonNum
 
@@ -129,8 +125,6 @@ immutable WeakFunsPolyBasis
         dom_dim,
         interior_mons,
         side_mons_by_dep_dim,
-        make_interior_mon_to_mon_num_map(interior_mons),
-        make_side_mon_to_mon_num_maps(side_mons_by_dep_dim),
         mons_per_fe_interior,
         mons_per_fe_side,
         num_interior_bels,
@@ -178,32 +172,6 @@ function make_side_mons(side_polys_max_deg::Deg, dom_dim::Dim)
   mons_by_dep_dim
 end
 
-function make_interior_mon_to_mon_num_map(int_mons::Array{Monomial,1})
-  const mon_nums_by_mon = Dict{Monomial, MonNum}()
-  const num_mons = length(int_mons)
-  sizehint(mon_nums_by_mon, num_mons)
-  for m=1:num_mons
-    mon_nums_by_mon[int_mons[m]] = m
-  end
-  mon_nums_by_mon
-end
-
-# Return an array of monomial -> monomial # maps, as an array indexed by side dependent dimension.
-function make_side_mon_to_mon_num_maps(side_mons_by_dep_dim::Array{Array{Monomial,1},1})
-  const d = length(side_mons_by_dep_dim)
-  const maps = Array(Dict{Monomial, MonNum}, d)
-  const num_mons = length(side_mons_by_dep_dim[1])
-  for dep_dim=1:d
-    const ref_mons = side_mons_by_dep_dim[dep_dim]
-    const mon_nums_by_mon = Dict{Monomial, MonNum}()
-    sizehint(mon_nums_by_mon, num_mons)
-    for m=1:num_mons
-      mon_nums_by_mon[ref_mons[m]] = m
-    end
-    maps[dep_dim] = mon_nums_by_mon
-  end
-  maps
-end
 
 # Compute weak gradients of interior supported basis element monomials, indexed by fe oriented shape,
 # then monomial number.
@@ -353,9 +321,6 @@ function interior_mon_num(i::BElNum, basis::WeakFunsPolyBasis)
   convert(MonNum, mod(interiors_rel_bel_ix, basis.mons_per_fe_interior) + 1)
 end
 
-function interior_mon_num(mon::Monomial, basis::WeakFunsPolyBasis)
-  basis.interior_mon_to_mon_num_map[mon]
-end
 
 # TODO: unit tests
 function interior_mon_bel_num(fe::FENum, monn::MonNum, basis::WeakFunsPolyBasis)
@@ -389,18 +354,6 @@ function side_mon_num(i::BElNum, basis::WeakFunsPolyBasis)
   convert(MonNum, mod(sides_relative_bel_ix, basis.mons_per_fe_side) + 1)
 end
 
-function side_mon_num(mon::Monomial, fe_oshape::OShapeNum, side_face::FEFaceNum, basis::WeakFunsPolyBasis)
-  const side_dep_dim = Mesh.dependent_dim_for_oshape_side(fe_oshape, side_face, basis.mesh)
-  basis.side_mon_to_mon_num_map_by_dep_dim[side_dep_dim][mon]
-end
-
-
-# function side_mon(i::BElNum, basis::WeakFunsPolyBasis)
-#   const nb_side_num = support_nb_side_num(i, basis)
-#   const side_dep_dim = Mesh.dependent_dim_for_nb_side(nb_side_num, basis.mesh)
-#   const mon_num = side_mon_num(i, basis)
-#   basis.side_mons_by_dep_dim[side_dep_dim][mon_num]
-# end
 
 function side_mon_bel_num(fe::FENum, side_face::FEFaceNum, monn::MonNum, basis::WeakFunsPolyBasis)
   const nb_side_num = Mesh.nb_side_num_for_fe_side(fe, side_face, basis.mesh)
