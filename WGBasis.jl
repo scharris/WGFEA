@@ -6,7 +6,7 @@ export WeakFunsPolyBasis,
        is_interior_supported,
        ub_estimate_num_bel_bel_common_support_fe_triplets,
        support_interior_num,
-       support_nb_side_num,
+       support_nb_side_num, # (Not called elsewhere in WG method)
        fe_inclusions_of_side_support,
        mons_per_fe_interior,
        interior_mons,
@@ -45,9 +45,9 @@ import WGrad, WGrad.WGradSolver
 # Purpose: For given mesh and polynomial degrees for interior and side polynomials,
 #          provide an object representing a basis for the space V_h^0, and functions
 #          to interrogate the basis to determine 1) the supporting finite elements,
-#          relative faces and monomials for basis elements by number, 2) pre-computed
-#          inner products between basis elements, and 3) pre-computed weak gradients
-#          of basis elements.
+#          relative faces and monomials for basis elements by number and vice-versa,
+#          2) pre-computed inner products between basis elements, and 3) pre-computed
+#          weak gradients of basis elements.
 #
 # V_h^0 Basis Elements and Numbering
 #
@@ -68,7 +68,6 @@ import WGrad, WGrad.WGradSolver
 # basis element number type
 typealias BElNum Uint64
 belnum(i::Integer) = if i > 0 convert(Uint64, i) else error("basis number out of range") end
-const no_bel = uint64(0)
 
 typealias MonNum Uint16
 monnum(i::Integer) = if i > 0 convert(Uint16, i) else error("monomial number out of range") end
@@ -180,6 +179,8 @@ function make_interior_mon_wgrads(int_mons::Array{Monomial,1}, wgrad_solver::WGr
   const wgrads_by_oshape = Array(Array{PolynomialVector,1}, num_oshapes)
   const num_mons = length(int_mons)
   for os=oshape_one:num_oshapes
+    # TODO: Should change WGrad interface so that *all* wgrads for this oshape can be generated in a single call,
+    #       by solving a single system, with multiple rhs's (rhs matrix instead of single column vector).
     const wgrads = Array(PolynomialVector, num_mons)
     for m=1:num_mons
       wgrads[m] = WGrad.wgrad(int_mons[m], os, Mesh.interior_face, wgrad_solver)
@@ -196,6 +197,7 @@ function make_side_mon_wgrads(side_mons_by_dep_dim::Array{Array{Monomial,1},1}, 
   const wgrads_by_oshape = Array(Array{Array{PolynomialVector,1},1}, num_oshapes)
   const mons_per_side = length(side_mons_by_dep_dim[1])
   for os=oshape_one:num_oshapes
+    # TODO: Should generate all wgrads for this shape via one call into WGrad module, see comment above.
     const sides_per_fe = Mesh.num_side_faces_for_shape(os, mesh)
     const wgrads_by_side = Array(Array{PolynomialVector,1}, sides_per_fe)
     for sf=feface_one:sides_per_fe
@@ -322,7 +324,6 @@ function interior_mon_num(i::BElNum, basis::WeakFunsPolyBasis)
 end
 
 
-# TODO: unit tests
 function interior_mon_bel_num(fe::FENum, monn::MonNum, basis::WeakFunsPolyBasis)
   (fe-1)*basis.mons_per_fe_interior + monn
 end

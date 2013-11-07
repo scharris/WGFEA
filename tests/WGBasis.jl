@@ -11,16 +11,6 @@ import RMesh, RMesh.mesh_coord
 import Poly, Poly.Monomial
 import WGrad, WGrad.WGradSolver
 
-function support_fes(i::BElNum, basis::WeakFunsPolyBasis)
-  if is_interior_supported(i, basis)
-    [support_interior_num(i, basis)]
-  else
-    const fe_incls = fe_inclusions_of_side_support(i, basis)
-    [fe_incls.fe1, fe_incls.fe2]
-  end
-end
-
-
 # 2 x 3 mesh, k = 2
 #  ----------
 #  |  |  |  |

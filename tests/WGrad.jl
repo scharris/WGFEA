@@ -25,18 +25,6 @@ right_face = RMesh.greater_side_face_perp_to_axis(dim(1))
 bottom_face = RMesh.lesser_side_face_perp_to_axis(dim(2))
 top_face = RMesh.greater_side_face_perp_to_axis(dim(2))
 
-# Compute the weak gradient of a weak function which equals a single monomial on each face of a finite element,
-# so that the weak gradient should equal the standard gradient.
-function sum_wgrad_all_faces(v::Nomial)
-  wg = wgrad(v, rect_oshape, Mesh.interior_face, wgrad_solver) +
-       wgrad(v, rect_oshape, top_face, wgrad_solver) +
-       wgrad(v, rect_oshape, right_face, wgrad_solver) +
-       wgrad(v, rect_oshape, bottom_face, wgrad_solver) +
-       wgrad(v, rect_oshape, left_face, wgrad_solver)
-  Poly.canonical_form(wg)
-end
-
-
 # Test wgrad of monomials.
 
 @test Poly.coefs_closer_than(10e-5,
